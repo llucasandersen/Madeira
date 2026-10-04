@@ -97,6 +97,18 @@ and includes both nonempty configuration `.inl` headers and seven native
 static libraries. That run's app job must still verify compilation with the
 restored headers, linking and IPA packaging.
 
+That app job restored the headers and compiled the app, but failed linking
+`_rpm_cas_snapshot_take` from FEX `ContextImpl::CompileBlock`. FEX's CMake
+configuration explicitly disables rpmalloc on Apple; the optional remote-free
+diagnostic call nevertheless remained unconditional in `Core.cpp`. The fork
+now defines `ENABLE_FEX_ALLOCATOR` for the core object target when the
+allocator is enabled, and guards the rpmalloc-only declaration and sampler
+with it. Native Apple builds keep their existing allocator policy; Windows
+guest builds retain the snapshot diagnostic with rpmalloc enabled. A new
+native link, both guest source builds and the full host suite must verify
+this change. No fake snapshot implementation or undefined-symbol linker
+suppression is used.
+
 `dxmt-arm64ec-build.yml` builds the five DXMT-owned ARM64EC graphics DLLs
 with `build/dxmt-ios/build-pe.sh`, using the pinned DXMT cross file and Wine
 import libraries built from the pinned Madeira Wine source. Wine import
