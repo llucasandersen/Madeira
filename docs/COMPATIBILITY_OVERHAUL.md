@@ -1,0 +1,26 @@
+# Compatibility overhaul: investigation record
+
+This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
+
+## Baseline checkout and build constraints
+
+- Source baseline: `willfaust/Madeira` `main` at `bbbf8d0e20fd8b75f433f4a8d2a8eaf8d5571120`, with its pinned Madeira FEX, Wine, DXMT and Dock forks. The fork preserves upstream history and attribution.
+- A Windows host can inspect source and PE files, but cannot run Xcode or device gameplay. `docs/BUILDING.md` also lists inputs absent from a clean checkout, including an iOS LLVM build and Microsoft VC runtime files. No IPA or game acceptance result is implied by source checks.
+
+## Steam SDL3 loader failure
+
+The [public Portal 2 report](https://github.com/willfaust/Madeira/issues/192) records repeated `SDL3.dll` loads returning `0xC000007B`, followed by Steam's `Failed to load "SDL3.dll"` assertion and a crash reporter launch attempt. This establishes the order of failure; it does not identify which PE loader check returned the status. The same status is part of the reported PEAK failure, so this loader path is the first device regression target.
+
+A read-only inspection of a local Valve Steam installation's `SDL3.dll` (SHA-256 `e453238bb31d593a87e7de87f1f5985fa11d2f9ed12a83fc65c9a52857a30118`, dated 2026-09-02) found an AMD64 PE32+ image (`Machine=0x8664`), 4 KiB section alignment and a relocation directory. Its direct imports are KERNEL32, USER32, GDI32, ADVAPI32, SHELL32, OLE32, OLEAUT32, IMM32, SETUPAPI, VERSION, WINMM and HID. It has no direct VC runtime import. This local file has **not** been matched by hash to the failing device copy. `0xC000007B` could still come from machine routing, image mapping or a dependency; the current evidence cannot select among them.
+
+The same local installation's `video64.dll` imports `libavcodec-62.dll`, `libavfilter-11.dll`, `libavformat-62.dll`, `libavutil-60.dll`, `libswresample-6.dll` and `libswscale-9.dll`; all six are present beside it. Their existence on the device and successful loading there remain unverified.
+
+Run `python tools/inspect-pe-imports.py <path-to-SDL3.dll> <path-to-video64.dll>` on the actual Steam runtime to compare hashes, PE machine types and direct imports. The tool prints only file names, hashes and PE metadata. The next loader test must log the precise rejection stage and nested dependency status before changing Wine or Madeira's mapping logic.
+
+## Download baseline
+
+`DepotDownloader.swift` already uses a bounded task group with eight concurrent chunks, a shared `URLSession` and offset based `pwrite` assembly. The claim that its network stage is simply serial is not supported by the current source. Throughput, stage times, CDN behavior and iOS CPU and memory load still need measurement before tuning.
+
+## Verification still required
+
+The loader fix needs a test against the exact failing SDL3 PE, host loader tests and a signed device run showing Steam stays alive and creates the game process. Gameplay, DXMT, input, sound, Steam authentication and repeat launch checks follow that. Teardown, Ravenfield, Bomber Crew and download acceptance checks are tracked separately in the matrix. No root cause or fix is claimed for those yet.
