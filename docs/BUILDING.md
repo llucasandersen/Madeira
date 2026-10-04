@@ -80,6 +80,14 @@ build script rather than only printing a count. API-set resolution and actual
 guest execution still require device tests. This workflow's first run is
 pending verification; it does not replace the diagnostic IPA's PE modules.
 
+`wine-wow64-build.yml` attempts Wine's native ARM64 `ntdll`, `wow64` and
+`wow64win` DLLs in a separate `wine/build-wow64-pe` tree. It retains stripped
+PE outputs, architecture/import metadata, source revisions and hashes under
+`build/ci-output/wine-wow64`; it does not stage them into the app. This is a
+compile check pending its first clean result. Import availability, loader
+layout/padding requirements and execution must be checked before packaging
+these outputs as replacements.
+
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
 two-worker compile. The clean build passed in
