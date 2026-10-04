@@ -74,9 +74,14 @@ runtime artifacts.
 
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
-two-worker compile. Its first clean runner verification is pending. It also
-retains the source revisions, PE metadata and output checksum, and does not
-replace the diagnostic IPA's tracked translator automatically.
+two-worker compile. The clean build passed in
+[run 37238634599](https://github.com/llucasandersen/Madeira/actions/runs/37238634599)
+at Madeira `3eb4186` / FEX `259f3ba7f`. The downloaded aarch64 PE `xtajit.dll`
+matches its artifact SHA-256
+`48f80523f08f66765b8e00ad0a85b5ccb2400cdcc82f315cdd52ea910c83686f`
+and the tracked translator's direct import list. Its source revisions, PE
+metadata and checksum are retained; this build does not prove device behavior
+or replace the diagnostic IPA's tracked translator automatically.
 
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
@@ -138,7 +143,9 @@ git-ignored and consumed by the app project.
 7. WoW64 (32-bit programs, optional): `build/wine-i386/build.sh` (i386 Wine farm
    -> `app/Madeira/i386-windows/`), `build/fex-wow64/build.sh` (FEX WOW64 module
    -> `app/Madeira/aarch64-windows/xtajit.dll`) and the aarch64 `wow64.dll` /
-   `wow64win.dll`; see docs/WOW64.md, "Building". UNVERIFIED on macOS.
+   `wow64win.dll`; see docs/WOW64.md, "Building". The FEX WOW64 module's clean
+   macOS-host build is verified in run 37238634599. The separate Wine i386
+   and wow64/wow64win source rebuilds remain unverified on macOS.
 
 ## Status of the LGPL relink question
 
