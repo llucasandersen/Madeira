@@ -3,6 +3,7 @@
 # Madeira Converter Exception: see LICENSE-EXCEPTION.md
 """Run the existing host checks independently and retain every result."""
 from pathlib import Path
+import argparse
 import json
 import subprocess
 import sys
@@ -12,7 +13,16 @@ root = Path(__file__).resolve().parents[2]
 out = root / "build/ci-output/host-tests"
 out.mkdir(parents=True, exist_ok=True)
 results = []
-for test in sorted((root / "tests/host").glob("check-*.py")):
+parser = argparse.ArgumentParser()
+parser.add_argument('--platform', choices=['linux', 'macos'], required=True)
+platform = parser.parse_args().platform
+# These checks compile production Swift using Apple SDK modules (Darwin,
+# CryptoKit and Compression). Run them on macOS; all other checks run on Linux.
+apple_checks = {'check-jit-network.py', 'check-steam-cloud.py', 'check-steam-library.py'}
+tests = sorted((root / "tests/host").glob("check-*.py"))
+assert apple_checks <= {test.name for test in tests}, 'Apple test inventory changed'
+selected = [test for test in tests if (test.name in apple_checks) == (platform == 'macos')]
+for test in selected:
     started = time.monotonic()
     log = out / f"{test.stem}.log"
     with log.open("w") as stream:

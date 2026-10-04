@@ -36,6 +36,11 @@ python3 - "$R" "$APP" "$OUT" <<'PY'
 from pathlib import Path
 import hashlib, json, plistlib, subprocess, sys
 r, app, out = map(Path, sys.argv[1:])
+info = plistlib.loads((app / 'Info.plist').read_bytes())
+assert info['CFBundleIdentifier'] == 'com.willfaust.madeora', 'Madeira update identity changed'
+helper = plistlib.loads((app / 'PlugIns/MadeiraJITHelper.appex/Info.plist').read_bytes())
+assert helper['CFBundleIdentifier'] == info['CFBundleIdentifier'] + '.JITHelper', 'JIT helper identity changed'
+assert info['CFBundleVersion'] == helper['CFBundleVersion'] == '100', 'app/helper build versions differ'
 assert not list(app.rglob('embedded.mobileprovision')), 'unexpected provisioning profile'
 assert not list(app.rglob('*.p12')), 'unexpected signing identity'
 ent = plistlib.loads(subprocess.check_output(['codesign', '-d', '--entitlements', ':-', str(app)], stderr=subprocess.DEVNULL))
@@ -50,6 +55,10 @@ report = {
     'madeira_commit': git('rev-parse', 'HEAD'),
     'submodules': git('submodule', 'status', '--recursive').splitlines(),
     'configuration': 'Debug',
+    'bundle_identifier': info['CFBundleIdentifier'],
+    'version': info['CFBundleShortVersionString'],
+    'build_number': info['CFBundleVersion'],
+    'update_signing_requirement': 're-sign with the installed app bundle identifier and App ID prefix',
     'xcode': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
     'sdk': subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip(),
     'ntdll_sha256': sha(app / 'arm64ec-windows/ntdll.dll'),

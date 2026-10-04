@@ -11,6 +11,14 @@ their acceptance tests on this fork.
    SideStore, AltStore or Sideloadly setup. The package carries an ad-hoc
    signature and needs to be re-signed to install. Use your existing signing
    account and app identity when updating an existing Madeira installation.
+   **Install over the existing app; do not delete Madeira first.** This fork
+   retains upstream's bundle ID `com.willfaust.madeora` (including that spelling)
+   and packages build 100. If your sideloading tool changed the installed bundle
+   ID, reuse that exact ID and the same signing account/App ID prefix. A new ID
+   installs a separate app; a mismatched signing prefix can reject an update.
+   If installation reports an identity mismatch, keep the existing app and
+   send the error. An update should retain its data, but device verification
+   remains pending. See [Apple's installation troubleshooting](https://developer.apple.com/library/archive/technotes/tn2319/_index.html).
 2. Open Madeira and verify that Memory+ is active. Enable JIT through
    StikDebug as usual. The build does not request extended virtual addressing.
 3. Start **PEAK (3527290)** from the Steam library with **Madeira Dock**.
