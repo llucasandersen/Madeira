@@ -164,6 +164,13 @@ not introduce it. API-set/export resolution, that gap, the other components,
 ntdll padding and device execution still require review before staging a
 complete source-built farm in a release.
 
+The selector now also requires the configured `bluetoothapis.dll` target and
+records its `bthprops.cpl` dependency reason in `selection.json`. The pinned
+Wine sources contain both modules and declare that import in
+`dlls/bthprops.cpl/Makefile.in`. The additional DLL goes into isolated build
+output; a new clean compile and import-presence check are required before
+claiming the gap is resolved, and it is not yet included in the diagnostic IPA.
+
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
 two-worker compile. The clean build passed in

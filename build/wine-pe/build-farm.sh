@@ -47,6 +47,15 @@ for path in sorted((root / 'app/Madeira/arm64ec-windows').iterdir()):
         selected.append({'image': path.name, 'target': targets[name]})
     else:
         excluded.append({'image': path.name, 'reason': 'no configured Wine ARM64EC file target'})
+# The tracked bthprops.cpl imports this DLL, but the baseline farm omits it.
+# Build the pinned Wine implementation alongside the farm; do not substitute a
+# downloaded DLL or silently drop bthprops. App staging remains a separate gate.
+for name, required_by in [('bluetoothapis.dll', 'bthprops.cpl')]:
+    if name not in targets:
+        raise SystemExit('missing configured Wine dependency target: ' + name)
+    if not any(row['image'].lower() == name for row in selected):
+        selected.append({'image': name, 'target': targets[name],
+                         'reason': 'direct import of ' + required_by})
 if not selected:
     raise SystemExit('no Wine farm targets selected')
 (out / 'selection.json').write_text(json.dumps({'wine_images': selected, 'excluded_images': excluded}, indent=2) + '\n')
