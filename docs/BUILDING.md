@@ -72,6 +72,14 @@ Its output must be device-tested before replacing the tracked translator in a
 release IPA. It does not change the current diagnostic app workflow's selected
 runtime artifacts.
 
+`wine-i386-build.yml` separately attempts the complete i386 Wine/DXMT farm
+from the pinned Madeira submodules on a clean macOS runner. It retains source
+revisions, module hashes and build logs, and checks the existing direct-import
+closure before uploading the farm. Missing non-API-set imports now fail the
+build script rather than only printing a count. API-set resolution and actual
+guest execution still require device tests. This workflow's first run is
+pending verification; it does not replace the diagnostic IPA's PE modules.
+
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
 two-worker compile. The clean build passed in
