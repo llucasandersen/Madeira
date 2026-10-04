@@ -63,10 +63,14 @@ signatures or establish successful installation/gameplay on the phone.
 from the pinned Madeira FEX fork. Its clean configuration specifies the
 `arm64ec-w64-mingw32` triple and the iOS guest-host flags, including the default
 MinGW CRT link path required by this fork. These flags belong to the Windows
-guest module; the native iOS FEX build does not enable them. The guest workflow
-is being verified and its output must be device-tested before replacing the
-tracked translator in a release IPA. It does not change the current diagnostic
-app workflow's selected runtime artifacts.
+guest module; the native iOS FEX build does not enable them. The clean guest
+build passed in [run 37238119112](https://github.com/llucasandersen/Madeira/actions/runs/37238119112)
+at Madeira `133c43d` / FEX `259f3ba7f`. The downloaded `xtajit64.dll` matches
+its artifact SHA-256 `299114f827d5d1c8c95f996835377a9d42adcf29c6838c625b744344a436f7fb`
+and has the same twelve direct import modules as the tracked translator.
+Its output must be device-tested before replacing the tracked translator in a
+release IPA. It does not change the current diagnostic app workflow's selected
+runtime artifacts.
 
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
@@ -108,7 +112,7 @@ git-ignored and consumed by the app project.
    of the script is UNVERIFIED.
 2. FEX (submodule, branch ios-port-2607):
    - `FEX/build-ios`: `build/fex-ios/build.sh` -> `FEX/build-ios/FEXCore/Source/lib{FEXCore,FEXCore_Base,JemallocLibs}.a` and the `External/{cephes,fmt,SoftFloat-3e,xxhash}` archives. Clean native build passed in run 37234579200 at Madeira `980371c` / FEX `259f3ba7f`; this does not verify the separate Windows guest translator or gameplay.
-   - `FEX/build-arm64ec`: `build/fex-arm64ec/build.sh` (configures with `FEX/Data/CMake/toolchain_mingw.cmake` and the recorded options on first run, builds target `arm64ecfex`, copies `Bin/libarm64ecfex.dll` to `app/Madeira/arm64ec-windows/xtajit64.dll`). The build step was verified this session; the first-run configure in the script is reconstructed from CMakeCache and UNVERIFIED.
+   - `FEX/build-arm64ec`: `build/fex-arm64ec/build.sh` (configures with `FEX/Data/CMake/toolchain_mingw.cmake` and the explicit iOS host/triple options on first run, builds target `arm64ecfex`, copies `Bin/libarm64ecfex.dll` to `app/Madeira/arm64ec-windows/xtajit64.dll`). Clean configure, compile and artifact checksum verified in run 37238119112; device compatibility remains pending.
 3. Wine (submodule, branch madeira-lgpl):
    - unix side: `build/ntdll-unix/build.sh`, `build/wineserver/build.sh`,
      `build/win32u-unix/build.sh` -> `app/Madeira/lib{ntdll_unix,wineserver,win32u_unix}.a`. Verified on the development machine.
