@@ -89,6 +89,15 @@ app compilation; rebuild it with this workflow instead of reusing run
 37234579200. Native FEX compilation previously passed, but the corrected
 artifact transfer and complete Xcode app build still require verification.
 
+`dxmt-arm64ec-build.yml` builds the five DXMT-owned ARM64EC graphics DLLs
+with `build/dxmt-ios/build-pe.sh`, using the pinned DXMT cross file and Wine
+import libraries built from the pinned Madeira Wine source. Wine import
+library generation uses explicit PE targets, not the Unix runtime build.
+The graphics outputs, hashes and metadata are isolated under
+`build/ci-output/dxmt-arm64ec`; they are not staged into an IPA. The new clean
+build must pass before this step can be considered verified. Madeira D3D12
+is a separate component and is not included in these five DLL outputs.
+
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now
