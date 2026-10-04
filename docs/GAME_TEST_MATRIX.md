@@ -12,3 +12,14 @@ Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extende
 | Existing working games | Representative Steam, D3D9, D3D11, D3D12, 32-bit and 64-bit smoke and regression runs | Selection pending | Not tested on this fork |
 
 Host tests and a source build are separate gates. They do not stand in for the device results above.
+
+## Host regression evidence
+
+On Madeira `980371c`, [Linux run 37234581507](https://github.com/llucasandersen/Madeira/actions/runs/37234581507)
+ran all 59 existing host checks: 56 passed and three failed on missing host
+modules. `check-jit-network.py` requires Swift Darwin;
+`check-steam-cloud.py` requires Swift CryptoKit; `check-steam-library.py`
+requires Python 3.14's `compression` package and Apple Swift modules.
+These failures establish an unsuitable test environment, not passing results.
+The updated workflow runs those three checks on macOS and the remaining 56
+on Linux, using Python 3.14 for both. The complete combined result is pending.
