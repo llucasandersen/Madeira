@@ -42,6 +42,17 @@ on missing `assert.h`. The wrapper now resolves and exports the macOS SDK
 only within the host-check subprocess scope. This leaves the subsequent PE
 cross compilation's SDK setup unchanged. The next retry must verify the host
 checks and remaining runtime stages.
+Run 37241729037 passed Dock's host sanitizer suite with the explicit Xcode
+compiler and macOS SDK, then built the GnuTLS stack, FFmpeg and FreeType and
+compiled 36 of 37 native ntdll units. `server_ios.c` failed because the public
+iPhoneOS SDK's `rusage_info_v6` has no `ri_page_wait_time_mach` member. The
+optional `[xp]` diagnostic now labels page-wait time `pgw=unavailable` and keeps
+the other counters; it does not read a guessed reserved field or claim zero
+wait time. [Apple's public structure](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/resource.h)
+also has no such member. The native ntdll script now rejects any compile
+failure before archive assembly, so stale objects cannot hide that failure in
+an incremental build. A new native compile and the remaining runtime stages
+are required before the runtime artifact is considered verified.
 
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
