@@ -97,6 +97,8 @@ jobs:
           path: |
             build/**/obj/*.err
             build/**/obj/err-*.txt
+            build/**/obj/*.log
+            build/**/config.log
             wine/build-*/config.log
 
   app:
