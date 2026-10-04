@@ -314,18 +314,12 @@ echo "=== Archiving libdxmt_unix.a ==="
 xcrun -sdk iphoneos ar rcs "$OUT_LIB" "$OBJ_DIR"/*.o
 echo "Built: $OUT_LIB ($(wc -c < "$OUT_LIB" | tr -d ' ') bytes)"
 
-# The app links libdxmt_combined.a (this unix side merged with the LLVM archives
-# airconv needs), NOT libdxmt_unix.a. Refreshing only the latter is how a change
-# here reaches nothing: the app would keep linking the previous objects and the
-# build would look clean. Replace our members in place and re-index.
+# Build the archive the app actually links, including on a clean checkout.
+# Recreate it so removed objects and old LLVM members cannot survive a rebuild.
 COMBINED="$BUILD_DIR/libdxmt_combined.a"
-if [ -f "$COMBINED" ]; then
-    echo "=== Refreshing libdxmt_combined.a ==="
-    xcrun -sdk iphoneos ar r "$COMBINED" "$OBJ_DIR"/*.o
-    xcrun -sdk iphoneos ranlib "$COMBINED"
-    echo "Refreshed: $COMBINED ($(wc -c < "$COMBINED" | tr -d ' ') bytes)"
-    APP_COPY="$REPO_ROOT/app/Madeira/libdxmt_combined.a"
-    if [ -f "$APP_COPY" ]; then cp "$COMBINED" "$APP_COPY"; echo "Staged: $APP_COPY"; fi
-else
-    echo "NOTE: $COMBINED absent; the app links that file, so build it before deploying."
-fi
+[ -f "$LLVM_BUILD/lib/libLLVMCore.a" ] || { echo "Missing iOS LLVM archives: run build/llvm-ios/build.sh" >&2; exit 1; }
+echo "=== Combining DXMT and LLVM iOS archives ==="
+xcrun -sdk iphoneos libtool -static -o "$COMBINED.tmp" "$OBJ_DIR"/*.o "$LLVM_BUILD/lib/"*.a
+mv "$COMBINED.tmp" "$COMBINED"
+cp "$COMBINED" "$REPO_ROOT/app/Madeira/libdxmt_combined.a"
+echo "Staged: app/Madeira/libdxmt_combined.a ($(wc -c < "$COMBINED" | tr -d ' ') bytes)"

@@ -17,6 +17,26 @@ device test. The inputs and native build steps below remain required. The
 `steam-launch-host.yml` and Dock `host-checks.yml` workflows exercise portable
 source tests only; they do not build or validate an IPA.
 
+## Diagnostic iOS build workflow
+
+`ios-test-ipa.yml` is a manually triggered macOS 26 / Xcode 26.6 workflow.
+It builds the pinned LLVM 15 iOS libraries, native FEX, Wine Unix libraries,
+the changed ARM64EC ntdll, Dock, the GnuTLS stack, FFmpeg, FreeType, pairing,
+DXMT's Metal side and the Debug app. This workflow is being verified from a
+clean GitHub runner; a workflow file by itself is not evidence of a successful
+build. Logs and failed compiler outputs are retained for diagnosis.
+
+The diagnostic IPA uses an ad-hoc signature carrying the requested JIT and
+increased-memory-limit entitlements. It has no provisioning profile, private
+signing identity or extended-virtual-addressing entitlement. Re-sign it with
+your normal sideloading tool and verify Memory+ after installation. Microsoft
+runtime DLLs are not supplied in this public build; see
+`tools/fetch-vcruntime.md`. Unchanged PE components use the tracked upstream
+binaries for this first diagnostic package; a complete source rebuild of those
+components and the device acceptance tests remain required for the final
+release. `build-provenance.json` records that distinction and the source/DLL
+hashes for each generated IPA.
+
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
 whether it has been re-executed from a clean checkout. The 2026-09-16
