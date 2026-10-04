@@ -1,0 +1,26 @@
+name: Madeira host regressions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - name: Run all existing host checks
+        run: python3 build/ci/host-regressions.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: host-regression-results
+          path: build/ci-output/host-tests
+          retention-days: 30
