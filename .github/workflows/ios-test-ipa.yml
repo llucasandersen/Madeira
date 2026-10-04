@@ -2,6 +2,19 @@ name: iOS diagnostic test IPA
 
 on:
   workflow_dispatch:
+    inputs:
+      reuse_llvm_run:
+        description: Earlier successful LLVM artifact run ID (optional)
+        type: string
+        default: ''
+      reuse_runtime_run:
+        description: Earlier successful native runtime artifact run ID (optional)
+        type: string
+        default: ''
+      reuse_fex_run:
+        description: Earlier successful FEX artifact run ID (optional)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -11,6 +24,7 @@ env:
 
 jobs:
   llvm-ios:
+    if: inputs.reuse_llvm_run == ''
     runs-on: macos-26
     timeout-minutes: 180
     steps:
@@ -32,6 +46,7 @@ jobs:
           path: toolchains/**/CMakeFiles/CMakeConfigureLog.yaml
 
   fex-ios:
+    if: inputs.reuse_fex_run == ''
     runs-on: macos-26
     timeout-minutes: 120
     steps:
@@ -56,6 +71,7 @@ jobs:
           path: FEX/build-ios/CMakeFiles/CMakeConfigureLog.yaml
 
   native-runtime:
+    if: inputs.reuse_runtime_run == ''
     runs-on: macos-26
     timeout-minutes: 120
     steps:
@@ -85,20 +101,42 @@ jobs:
 
   app:
     needs: [llvm-ios, fex-ios, native-runtime]
+    if: >-
+      always() &&
+      (needs.llvm-ios.result == 'success' || inputs.reuse_llvm_run != '') &&
+      (needs.fex-ios.result == 'success' || inputs.reuse_fex_run != '') &&
+      (needs.native-runtime.result == 'success' || inputs.reuse_runtime_run != '')
     runs-on: macos-26
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v5
       - name: Retrieve pinned FEX and DXMT headers and sources
         run: git submodule update --init --recursive --depth 1 FEX dxmt wine madeira-dock
+      - name: Wait for explicitly reused component artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LLVM_RUN: ${{ inputs.reuse_llvm_run }}
+          RUNTIME_RUN: ${{ inputs.reuse_runtime_run }}
+          FEX_RUN: ${{ inputs.reuse_fex_run }}
+        run: |
+          bash build/ci/wait-artifacts.sh
       - uses: actions/download-artifact@v4
         with:
-          pattern: '*-ios'
-          merge-multiple: true
+          name: llvm-ios
+          run-id: ${{ inputs.reuse_llvm_run || github.run_id }}
+          github-token: ${{ github.token }}
+          path: build/ci-artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: fex-ios
+          run-id: ${{ inputs.reuse_fex_run || github.run_id }}
+          github-token: ${{ github.token }}
           path: build/ci-artifacts
       - uses: actions/download-artifact@v4
         with:
           name: native-runtime
+          run-id: ${{ inputs.reuse_runtime_run || github.run_id }}
+          github-token: ${{ github.token }}
           path: build/ci-artifacts
       - name: Restore built dependencies
         run: |
