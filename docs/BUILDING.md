@@ -77,8 +77,16 @@ from the pinned Madeira submodules on a clean macOS runner. It retains source
 revisions, module hashes and build logs, and checks the existing direct-import
 closure before uploading the farm. Missing non-API-set imports now fail the
 build script rather than only printing a count. API-set resolution and actual
-guest execution still require device tests. This workflow's first run is
-pending verification; it does not replace the diagnostic IPA's PE modules.
+guest execution still require device tests. The clean build passed in
+[run 37239431287](https://github.com/llucasandersen/Madeira/actions/runs/37239431287)
+at Madeira `f8da3ca`, Wine `f8a089569` and DXMT `8937c08c3`. The runner built
+718 Wine modules plus seven DXMT outputs and reported zero missing direct
+imports. The downloaded archive SHA-256 is
+`613ae92c6185519e1eabc021912bd8929813cf9cddc2e35ff8f9e82527d1b959`;
+all 725 module hashes were checked against the manifest and every image is
+i386 PE32 (`Machine=0x014c`). Archive members were inspected without extracting
+or staging them into the app. This does not replace the diagnostic IPA's PE
+modules or prove guest execution.
 
 `wine-wow64-build.yml` attempts Wine's native ARM64 `ntdll`, `wow64` and
 `wow64win` DLLs in a separate `wine/build-wow64-pe` tree. It retains stripped
@@ -161,7 +169,8 @@ git-ignored and consumed by the app project.
    -> `app/Madeira/aarch64-windows/xtajit.dll`) and the aarch64 `wow64.dll` /
    `wow64win.dll`; see docs/WOW64.md, "Building". The FEX WOW64 module's clean
    macOS-host build is verified in run 37238634599. The separate Wine i386
-   and wow64/wow64win source rebuilds remain unverified on macOS.
+   farm's clean macOS build is now verified in run 37239431287; Wine's native
+   wow64/wow64win source rebuild and device execution remain pending.
 
 ## Status of the LGPL relink question
 
