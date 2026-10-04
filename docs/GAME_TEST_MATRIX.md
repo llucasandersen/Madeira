@@ -19,7 +19,10 @@ On Madeira `980371c`, [Linux run 37234581507](https://github.com/llucasandersen/
 ran all 59 existing host checks: 56 passed and three failed on missing host
 modules. `check-jit-network.py` requires Swift Darwin;
 `check-steam-cloud.py` requires Swift CryptoKit; `check-steam-library.py`
-requires Python 3.14's `compression` package and Apple Swift modules.
+requires Python 3.14's `compression` package.
 These failures establish an unsuitable test environment, not passing results.
-The updated workflow runs those three checks on macOS and the remaining 56
-on Linux, using Python 3.14 for both. The complete combined result is pending.
+Mac run 37235072729 passed the JIT network and Steam Cloud checks, but exposed
+that the Steam library harness provides Linux compression/crypto shims which
+conflict with the Apple SDK. The updated workflow runs the two Apple checks
+on macOS and the remaining 57 on Linux, using Python 3.14 for both. The
+complete combined result is pending.
