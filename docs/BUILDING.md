@@ -89,6 +89,14 @@ app compilation; rebuild it with this workflow instead of reusing run
 37234579200. Native FEX compilation previously passed, but the corrected
 artifact transfer and complete Xcode app build still require verification.
 
+The clean FEX rebuild and corrected artifact upload passed in
+[run 37243852619](https://github.com/llucasandersen/Madeira/actions/runs/37243852619)
+at Madeira `3fc0f54` / FEX `259f3ba7f`. The downloaded archive has SHA-256
+`75f628cf42b5d12a42e2084b595cc6670e1f89995a92b5d333f99131ce8788d9`
+and includes both nonempty configuration `.inl` headers and seven native
+static libraries. That run's app job must still verify compilation with the
+restored headers, linking and IPA packaging.
+
 `dxmt-arm64ec-build.yml` builds the five DXMT-owned ARM64EC graphics DLLs
 with `build/dxmt-ios/build-pe.sh`, using the pinned DXMT cross file and Wine
 import libraries built from the pinned Madeira Wine source. Wine import
