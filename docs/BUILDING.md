@@ -140,7 +140,7 @@ Wine-owned ARM64EC images with `build/wine-pe/build-farm.sh`. Selection comes
 from the configured Wine file targets. It explicitly excludes the DXMT, FEX
 and Madeira D3D12 replacements and records every unmatched tracked image in
 `selection.json`; a same-named Wine graphics module must not replace those
-components. This workflow is pending its first result. Outputs are isolated
+components. Outputs are isolated
 under `build/ci-output/wine-arm64ec`, with source revisions, hashes and PE
 metadata. They are stripped compiler outputs, without the special ntdll app
 padding, and are not staged in an IPA. Missing targets and import closure must
@@ -149,6 +149,20 @@ The first run (37241759542) configured successfully but the selector treated
 object-file rules as image candidates and failed on the repeated `main.o`
 basename. It now filters to loadable image extensions before checking unique
 targets. A retry is required; no DLL compile pass is claimed for that run.
+The corrected clean rebuild passed in
+[run 37241978858](https://github.com/llucasandersen/Madeira/actions/runs/37241978858)
+at Madeira `9ee9399` / Wine `f8a089569`. It built 140 Wine-owned images and
+recorded 27 excluded/unmatched images. Every downloaded module hash and PE
+metadata record matched the artifact manifest, and every direct import list
+matched its tracked counterpart. All output headers report PE32+ / `0x8664`;
+that tag alone does not prove ARM64EC execution, which remains a device gate.
+The build's explicit compiler target supplies the ARM64EC compile evidence.
+Direct-import presence checking against the complete tracked farm found one
+existing gap: `bthprops.cpl` imports `bluetoothapis.dll`, which is absent from
+that farm. The same import exists in the tracked `bthprops.cpl`; this build did
+not introduce it. API-set/export resolution, that gap, the other components,
+ntdll padding and device execution still require review before staging a
+complete source-built farm in a release.
 
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
