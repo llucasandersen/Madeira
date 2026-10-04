@@ -132,6 +132,17 @@ target; the earlier selector incorrectly assigned that tracked DLL to DXMT.
 A fresh Wine rebuild is required to verify the corrected selection. No new
 graphics DLL has been staged into the diagnostic app or tested on the phone.
 
+That corrected Wine rebuild passed in
+[run 37244307162](https://github.com/llucasandersen/Madeira/actions/runs/37244307162)
+at Madeira `1364c6a` / Wine `f8a089569`, producing 142 images with 26
+excluded/unmatched entries. All downloaded file hashes and PE metadata were
+verified. The rebuilt Wine `d3d9.dll` retains the tracked DLL's direct import
+list (`wined3d.dll`, `ucrtbase.dll`, `kernel32.dll`, `ntdll.dll`), with SHA-256
+`8342fd51f3d5a2b70c8ca2db0fcb2f6d3f904d41e8713f29e3be80861a94b108`.
+Direct import filenames are available across the rebuilt Wine images and
+tracked component farm. Export/API-set resolution, layout requirements and
+execution remain separate gates before these files are staged.
+
 The graphics workflow now continues with the existing
 `build/madeira-d3d12/build-pe.sh`, using DXMT's freshly generated winemetal
 import library. It retains the three Madeira D3D12 DLLs and three guest test

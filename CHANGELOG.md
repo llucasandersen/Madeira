@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Guard FEX's optional rpmalloc snapshot diagnostic with the allocator build option. Native Apple builds disable rpmalloc; guest builds retain the diagnostic. Native linking and guest regression builds are being verified.
+- Retain FEX's generated inline configuration headers in CI artifacts and generate DXMT's three AIR helper headers before standalone iOS compilation. The corrected FEX artifact and native DXMT compile passed; complete IPA packaging is pending.
+- Add isolated source builds for Wine ARM64EC, ARM64 WOW64, Wine/DXMT i386, both FEX guest modules and DXMT graphics. Preserve Wine's tracked D3D9 renderer and rebuild its missing Bluetooth dependency. Component evidence and remaining device gates are recorded in `docs/BUILDING.md`.
 - Separate Steam chunk decryption, decompression and checksum timing, and include failed-attempt stage time and retried payload bytes in completed-depot measurements. Throughput improvement remains unmeasured.
 - Restrict FEX's Windows memory-region query to Windows builds while retaining native misaligned CASPAL diagnostics.
 - Guard FEX's iOS guest-runtime telemetry reads in native builds to match the condition on their declarations. The clean macOS build exposed undeclared counters in `Core.cpp`; the ARM64EC guest path retains its existing instrumentation.

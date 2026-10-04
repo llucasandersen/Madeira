@@ -17,7 +17,7 @@ The same local installation's `video64.dll` imports `libavcodec-62.dll`, `libavf
 
 Run `python tools/inspect-pe-imports.py <path-to-SDL3.dll> <path-to-video64.dll>` on the actual Steam runtime to compare hashes, PE machine types and direct imports. The tool prints only file names, hashes and PE metadata. The next loader test must log the precise rejection stage and nested dependency status before changing Wine or Madeira's mapping logic.
 
-The forked Wine loader now emits `[pe-image]` only for invalid-image failures in its ARM64EC path. It distinguishes section creation, architecture validation, view mapping, PE64 conversion and module setup, including the file machine type where available. This is diagnostic instrumentation, **not** an SDL3 fix. It must be rebuilt into the ARM64EC `ntdll.dll` and tested with the failing device runtime before changing loader behavior. A successful host Swift check or the existence of this source does not prove that the device log contains these lines.
+The forked Wine loader now emits `[pe-image]` only for invalid-image failures in its ARM64EC path. It distinguishes section creation, architecture validation, view mapping, PE64 conversion and module setup, including the file machine type where available. This is diagnostic instrumentation, **not** an SDL3 fix. The clean native runtime build in [run 37242307604](https://github.com/llucasandersen/Madeira/actions/runs/37242307604) rebuilt ARM64EC `ntdll.dll`; the downloaded binary contains the marker and has SHA-256 `83037726d9e2ed18c9ab1a600cd0a7ce9ba52c07ff9e3495cb2a3cf6b0c260e3`. App packaging and testing with the failing device runtime remain required before changing loader behavior. A component build does not prove that the device log contains these lines.
 
 ## Steam launch-option selection
 
@@ -46,6 +46,15 @@ the existing restore covers this game. No Bomber Crew fix or device pass is
 claimed by this source audit.
 
 ## Verification still required
+
+Clean runner builds also exposed several reproducibility defects, documented
+with exact runs in [BUILDING.md](BUILDING.md): an unsupported optional native
+telemetry field, omitted FEX inline headers, missing generated DXMT AIR
+headers, and an rpmalloc diagnostic referenced when the native allocator is
+disabled. The native runtime, corrected header artifact and DXMT archive
+now build; the latest FEX allocator guard still needs native linking and
+guest build verification. These are build corrections, with no game pass
+inferred from them. The host suite is being rerun after the FEX change.
 
 The clean diagnostic build exposed a source-build defect in the pinned Madeira
 FEX fork: `IosFfsBypassLog` and `IosCbEntryLog` were declared under
