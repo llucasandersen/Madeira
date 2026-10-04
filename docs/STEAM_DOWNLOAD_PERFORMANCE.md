@@ -54,6 +54,40 @@ fields when comparing measurements.
 
 No phone benchmark or improvement claim has been made for this fork yet.
 
+## Measurement report tool
+
+Use `python tools/depot-benchmark-report.py trial-1.txt trial-2.txt trial-3.txt`
+to summarize the recorded timings. Supply one log containing one install trial
+per file, with the same workload and fresh/resumed state across trials. Repeated
+depot IDs are rejected so multiple installs cannot silently become one trial.
+Fully resumed depots with no fetched bytes are excluded from network samples.
+The tool accepts both the original aggregate timing and the later stage split.
+
+For an optional control comparison, add `--control control.json`. The file is
+a JSON array of native URLSession response measurements, for example:
+
+```json
+[{"bytes": 104857600, "seconds": 10.0},
+ {"bytes": 104857600, "seconds": 11.0},
+ {"bytes": 104857600, "seconds": 9.5}]
+```
+
+These example numbers are illustrative, not measured results. Record actual
+response bytes and elapsed seconds from the same phone/network/CDN before
+using the comparison. The report calculates each trial's rate from bytes and
+summed depot chunk-phase wall time, then compares median rates with the 70%
+target. It does not trust the rounded `MiBps` field, run the control transfer,
+or establish a speed improvement by itself. Payload includes retried responses,
+so a high payload rate with corruption/retries does not prove useful installed
+throughput. Manifest acquisition, resume checks, finalization and failed depots
+are outside this completion metric; retain the progress timeline and failure
+report for the full install comparison. Stage sums overlap across chunks.
+
+The tool reads files without modifying game content and emits selected numeric
+fields only, excluding raw log lines, CDN URLs and authorization strings. It
+does not replace the device benchmark or the missing URLSession transaction
+instrumentation described above.
+
 The decoder timing extension passed the complete 59-check host suite in
 [run 37236100223](https://github.com/llucasandersen/Madeira/actions/runs/37236100223)
 at `c76fd42`, including the production depot/decoder harness under
