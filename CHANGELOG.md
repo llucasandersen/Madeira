@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Separate Steam chunk decryption, decompression and checksum timing, and include failed-attempt stage time and retried payload bytes in completed-depot measurements. Throughput improvement remains unmeasured.
 - Restrict FEX's Windows memory-region query to Windows builds while retaining native misaligned CASPAL diagnostics.
 - Guard FEX's iOS guest-runtime telemetry reads in native builds to match the condition on their declarations. The clean macOS build exposed undeclared counters in `Core.cpp`; the ARM64EC guest path retains its existing instrumentation.
 - Add a macOS diagnostic IPA build workflow and remove the prebuilt archive requirement from full Wine server and DXMT Unix builds. Clean runner verification is in progress.

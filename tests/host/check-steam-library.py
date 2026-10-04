@@ -824,7 +824,8 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
     let vectors = fx["vectors"] as! [String: String]
     for kind in ["zstd", "lzma", "zip"] {
         let encrypted = hexData(vectors[kind]!)
-        let out = try ContentDecryptor.processChunk(encryptedData: encrypted, depotKey: key, expectedCRC: ContentDecryptor.adler32(plainVector), expectedSize: plainVector.count)
+        var timing = ContentDecryptor.ProcessingTiming()
+        let out = try ContentDecryptor.processChunk(encryptedData: encrypted, depotKey: key, expectedCRC: ContentDecryptor.adler32(plainVector), expectedSize: plainVector.count, timing: &timing)
         require(out == plainVector, "the \(kind) container decodes to the original bytes")
         do { _ = try ContentDecryptor.processChunk(encryptedData: encrypted, depotKey: key, expectedCRC: ContentDecryptor.adler32(plainVector) ^ 1, expectedSize: plainVector.count); require(false, "\(kind): a wrong checksum is rejected") }
         catch { require(error as? SteamError == .checksumMismatch, "\(kind): a wrong checksum is rejected") }

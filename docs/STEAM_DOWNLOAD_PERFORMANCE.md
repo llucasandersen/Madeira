@@ -10,17 +10,26 @@ concurrent. There is no measured device throughput baseline yet, so increasing
 the limit would be speculation.
 
 Each completed depot now emits one `[steam-depot] timing` line. `fetched-bytes`
-counts actual response bytes on successful chunk attempts, excluding journaled
-or locally verified chunks. `wall` is monotonic elapsed time for that depot's
+counts downloaded payload bytes, including responses retried after decode or
+checksum failures, excluding journaled or locally verified chunks. HTTP errors
+that the download helper throws do not return a payload to this counter.
+`wall` is monotonic elapsed time for that depot's
 chunk phase; `MiBps` is fetched bytes divided by wall. `network-sum`,
-`decode-sum`, and `write-sum` add the durations of successful chunk attempts.
+`decode-sum`, and `write-sum` add the durations of chunk attempts, including
+failed attempts before eventual success. `decrypt-sum`, `decompress-sum` and
+`checksum-sum` split the decode pipeline into its three stages. The checksum
+stage measures the existing Adler-32 validation; local resume verification's
+SHA-1 time is not included. A stage records elapsed time even when it throws.
 Those sums overlap across parallel tasks and need not add up to `wall`.
 `hosts` counts successful chunks per hostname; authentication query strings
 are never logged. `retries` counts failed attempts before successful chunks.
 Failures that ultimately abort the depot remain visible in the existing
 per-attempt trace but have no completion line. This is a first measurement
 point, not a complete URLSession transaction trace: connection setup,
-time-to-first-byte, hash time and CPU load are not yet separately recorded.
+time-to-first-byte, local resume SHA-1 time and CPU load are not yet separately
+recorded. The first diagnostic IPA build dispatched before this extension
+contains the earlier aggregate timing; match the source commit to the log
+fields when comparing measurements.
 
 ## Device benchmark protocol
 

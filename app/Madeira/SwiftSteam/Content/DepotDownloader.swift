@@ -203,6 +203,9 @@ final class DepotDownloader {
                         timing.fetchedBytes += chunkTiming.fetchedBytes
                         timing.network += chunkTiming.network
                         timing.decode += chunkTiming.decode
+                        timing.decrypt += chunkTiming.decrypt
+                        timing.decompress += chunkTiming.decompress
+                        timing.checksum += chunkTiming.checksum
                         timing.write += chunkTiming.write
                         timing.retries += chunkTiming.retries
                         hostsUsed[chunkTiming.host, default: 0] += 1
@@ -221,9 +224,10 @@ final class DepotDownloader {
             let mibPerSecond = Double(timing.fetchedBytes) / wall / 1_048_576
             let hostSummary = hostsUsed.sorted { $0.key < $1.key }
                 .map { "\($0.key):\($0.value)" }.joined(separator: ",")
-            SteamLog.event(String(format: "[steam-depot] timing depot=%u fetched-chunks=%d fetched-bytes=%llu wall=%.2fs network-sum=%.2fs decode-sum=%.2fs write-sum=%.2fs retries=%d MiBps=%.2f hosts=%@ concurrency-limit=%d",
+            SteamLog.event(String(format: "[steam-depot] timing depot=%u fetched-chunks=%d fetched-bytes=%llu wall=%.2fs network-sum=%.2fs decode-sum=%.2fs decrypt-sum=%.2fs decompress-sum=%.2fs checksum-sum=%.2fs write-sum=%.2fs retries=%d MiBps=%.2f hosts=%@ concurrency-limit=%d",
                                   plan.depotID, fetchedChunks, timing.fetchedBytes, wall,
-                                  timing.network, timing.decode, timing.write, timing.retries,
+                                  timing.network, timing.decode, timing.decrypt, timing.decompress,
+                                  timing.checksum, timing.write, timing.retries,
                                   mibPerSecond, hostSummary, maximum))
         }
 
@@ -306,6 +310,9 @@ final class DepotDownloader {
     struct ChunkTiming: Sendable {
         var network = 0.0
         var decode = 0.0
+        var decrypt = 0.0
+        var decompress = 0.0
+        var checksum = 0.0
         var write = 0.0
         var retries = 0
         var host = ""
@@ -430,20 +437,34 @@ final class DepotDownloader {
             let host = order[attempt % order.count]
             let url = "\(host)/depot/\(plan.depotID)/chunk/\(chunk.shaHex)\(plan.auth[host] ?? "")"
             do {
-                let networkStart = ProcessInfo.processInfo.systemUptime
-                let encrypted = try await download(url)
-                result.network += ProcessInfo.processInfo.systemUptime - networkStart
-                let decodeStart = ProcessInfo.processInfo.systemUptime
-                let data = try ContentDecryptor.processChunk(encryptedData: encrypted, depotKey: plan.key,
+                let encrypted: Data
+                do {
+                    let start = ProcessInfo.processInfo.systemUptime
+                    defer { result.network += ProcessInfo.processInfo.systemUptime - start }
+                    encrypted = try await download(url)
+                }
+                result.fetchedBytes += UInt64(encrypted.count)
+                let data: Data
+                do {
+                    let start = ProcessInfo.processInfo.systemUptime
+                    var stages = ContentDecryptor.ProcessingTiming()
+                    defer {
+                        result.decode += ProcessInfo.processInfo.systemUptime - start
+                        result.decrypt += stages.decrypt
+                        result.decompress += stages.decompress
+                        result.checksum += stages.checksum
+                    }
+                    data = try ContentDecryptor.processChunk(encryptedData: encrypted, depotKey: plan.key,
                                                              expectedCRC: chunk.crc,
-                                                             expectedSize: Int(chunk.uncompressedSize))
+                                                             expectedSize: Int(chunk.uncompressedSize), timing: &stages)
+                }
                 guard data.count == Int(chunk.uncompressedSize) else { throw SteamError.checksumMismatch }
-                result.decode += ProcessInfo.processInfo.systemUptime - decodeStart
-                let writeStart = ProcessInfo.processInfo.systemUptime
-                try write(data, to: path, offset: chunk.offset)
-                result.write += ProcessInfo.processInfo.systemUptime - writeStart
+                do {
+                    let start = ProcessInfo.processInfo.systemUptime
+                    defer { result.write += ProcessInfo.processInfo.systemUptime - start }
+                    try write(data, to: path, offset: chunk.offset)
+                }
                 result.host = URL(string: host)?.host ?? "unknown"
-                result.fetchedBytes = UInt64(encrypted.count)
                 plan.health.recordSuccess(host)
                 return result
             } catch is CancellationError {
