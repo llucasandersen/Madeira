@@ -72,6 +72,12 @@ Its output must be device-tested before replacing the tracked translator in a
 release IPA. It does not change the current diagnostic app workflow's selected
 runtime artifacts.
 
+`fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
+32-bit guests, with the Madeira guest-window feature enabled and a bounded
+two-worker compile. Its first clean runner verification is pending. It also
+retains the source revisions, PE metadata and output checksum, and does not
+replace the diagnostic IPA's tracked translator automatically.
+
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
 whether it has been re-executed from a clean checkout. The 2026-09-16

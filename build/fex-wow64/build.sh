@@ -18,5 +18,5 @@ if [ ! -f "$B/CMakeCache.txt" ]; then
         -DBUILD_TESTING=OFF -DBUILD_FEXCONFIG=OFF -DTUNE_ARCH=generic -DTUNE_CPU=none \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 fi
-cmake --build "$B" --target wow64fex
+cmake --build "$B" --target wow64fex -j2
 cp "$B/Bin/libwow64fex.dll" "$R/app/Madeira/aarch64-windows/xtajit.dll" && ls -l "$R/app/Madeira/aarch64-windows/xtajit.dll"
