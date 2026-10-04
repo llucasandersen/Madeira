@@ -109,6 +109,20 @@ native link, both guest source builds and the full host suite must verify
 this change. No fake snapshot implementation or undefined-symbol linker
 suppression is used.
 
+At Madeira `e6f6a2c` / FEX `b28076559`, the changed source compiled for
+native iOS in run 37244570613 and for
+[ARM64EC guests in run 37244572266](https://github.com/llucasandersen/Madeira/actions/runs/37244572266)
+and [WOW64 guests in run 37244573651](https://github.com/llucasandersen/Madeira/actions/runs/37244573651).
+Both downloaded guest metadata records and hashes matched their files and
+retained the `[rpm-cas]` diagnostic marker. The ARM64EC guest DLL SHA-256 is
+`36d089ca5664ea76efb0d759a716e5b68916d36ffcdefe1062a6d9618c648b76`;
+the WOW64 guest DLL is
+`8e38b98255dbdfc226e77e404ef711de46a748e0f4151f61f462681895783764`.
+The native FEX archive SHA-256 is
+`317e0929d2c496c44f941c40598e4d00f7af7d2d340f40d21224e8b003298d85`
+and both configuration inline headers are present. All 59 host checks passed
+in run 37244575135. Native app linking and device execution remain pending.
+
 `dxmt-arm64ec-build.yml` builds the five DXMT-owned ARM64EC graphics DLLs
 with `build/dxmt-ios/build-pe.sh`, using the pinned DXMT cross file and Wine
 import libraries built from the pinned Madeira Wine source. Wine import
@@ -150,6 +164,19 @@ executables in a separate `Madeira-D3D12-source-build` artifact, with hashes
 and PE metadata. This extension requires a new clean build; compiling the
 test executables does not establish that they execute or render on the phone.
 The isolated outputs are not installed over tracked app DLLs.
+
+The extended graphics workflow passed in
+[run 37244663403](https://github.com/llucasandersen/Madeira/actions/runs/37244663403)
+at Madeira `3ddad3e`, building five DXMT DLLs, three Madeira D3D12 DLLs and
+three guest test executables. All eleven downloaded file hashes and PE
+metadata records matched, and both artifacts record the exact runner source
+commit and pinned Wine/DXMT revisions. `d3d12.dll` and `madeira_d3d12.dll`
+are identical, with SHA-256
+`d560c447182f47cf628024930c534360597a9a52de00dcc877100b85da81eee1`;
+`d3d12core.dll` has SHA-256
+`7cd9a89acb96ce2e33bffde3c33293018cd50e066665ad3615eb24640c3a7d6a`.
+No guest executable or graphics renderer was executed in that runner build;
+device rendering, API-set/export resolution and regression gates remain.
 
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS

@@ -48,3 +48,9 @@ checks passed in
 at Madeira `a793ece`. The downloaded Linux and macOS result artifacts again
 matched all 59 repository checks, without duplicates or missing entries.
 These host results do not validate the native iOS compile or phone gameplay.
+
+After guarding FEX's rpmalloc snapshot diagnostic with the allocator option,
+all 59 host checks passed in
+[run 37244575135](https://github.com/llucasandersen/Madeira/actions/runs/37244575135)
+at Madeira `e6f6a2c` / FEX `b28076559`. The downloaded Linux/macOS inventories
+again matched all 59 distinct repository checks, all exit zero.

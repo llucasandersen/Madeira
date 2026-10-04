@@ -52,9 +52,10 @@ with exact runs in [BUILDING.md](BUILDING.md): an unsupported optional native
 telemetry field, omitted FEX inline headers, missing generated DXMT AIR
 headers, and an rpmalloc diagnostic referenced when the native allocator is
 disabled. The native runtime, corrected header artifact and DXMT archive
-now build; the latest FEX allocator guard still needs native linking and
-guest build verification. These are build corrections, with no game pass
-inferred from them. The host suite is being rerun after the FEX change.
+now build. The latest FEX allocator guard compiled in native iOS and both
+guest source builds; both guest artifacts retain the rpmalloc diagnostic,
+and all 59 host checks passed. Native app linking is still pending. These
+are build corrections, with no game pass inferred from them.
 
 The clean diagnostic build exposed a source-build defect in the pinned Madeira
 FEX fork: `IosFfsBypassLog` and `IosCbEntryLog` were declared under
