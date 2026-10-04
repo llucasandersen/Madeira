@@ -361,7 +361,7 @@ func record(_ appID: Int, _ name: String, _ folder: String, flags: Int) -> Strin
             "\"x\" { \"executable\" \"not-numbered.exe\" } \"8\" { \"arguments\" \"-no-program\" } " +
             "} } \"depots\" { \"77\" { \"manifests\" { \"public\" { \"gid\" \"1\" } } } } }"
         let directInfo = SteamAppInfo.parse(appID: 7000, from: Data(launchVDF.utf8))!
-        require(directInfo.launches.map(\.executable) == ["bin32\\game.exe", "server/srv.exe", "Direct.app", "Bin64\\\\Game.exe",
+        require(directInfo.launches.map(\.executable) == ["bin32\\game.exe", "server/srv.exe", "Direct.app", "Bin64\\Game.exe",
                                                           "beta/game.exe", "..\\escape.exe", "tools/launcher.exe", "tools/launcher.exe"],
                 "config.launch is read in Steam's numeric order, without entries that name no program: \(directInfo.launches.map(\.executable))")
         require(directInfo.launches[1].type == "server" && directInfo.launches[4].betaKey == "public-beta" &&
