@@ -31,6 +31,8 @@ rules = re.findall(r'^(?:dlls|programs)/[^/\s]+/arm64ec-windows/[^/:\s]+',
 targets = {}
 for rule in rules:
     name = Path(rule).name.lower()
+    if Path(name).suffix not in ('.dll', '.exe', '.drv', '.cpl', '.acm', '.ax', '.ocx'):
+        continue
     if name in targets and targets[name] != rule:
         raise SystemExit('ambiguous ARM64EC target: ' + name)
     targets[name] = rule

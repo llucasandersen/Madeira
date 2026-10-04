@@ -134,6 +134,10 @@ under `build/ci-output/wine-arm64ec`, with source revisions, hashes and PE
 metadata. They are stripped compiler outputs, without the special ntdll app
 padding, and are not staged in an IPA. Missing targets and import closure must
 be reviewed before claiming the complete farm is reproducible.
+The first run (37241759542) configured successfully but the selector treated
+object-file rules as image candidates and failed on the repeated `main.o`
+basename. It now filters to loadable image extensions before checking unique
+targets. A retry is required; no DLL compile pass is claimed for that run.
 
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
