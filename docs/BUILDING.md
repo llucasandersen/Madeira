@@ -91,10 +91,22 @@ modules or prove guest execution.
 `wine-wow64-build.yml` attempts Wine's native ARM64 `ntdll`, `wow64` and
 `wow64win` DLLs in a separate `wine/build-wow64-pe` tree. It retains stripped
 PE outputs, architecture/import metadata, source revisions and hashes under
-`build/ci-output/wine-wow64`; it does not stage them into the app. This is a
-compile check pending its first clean result. Import availability, loader
-layout/padding requirements and execution must be checked before packaging
-these outputs as replacements.
+`build/ci-output/wine-wow64`; it does not stage them into the app. The clean
+build passed in [run 37239712754](https://github.com/llucasandersen/Madeira/actions/runs/37239712754)
+at Madeira `6925786` / Wine `f8a089569`. All three downloaded hashes and PE
+metadata records matched the artifact manifest. Each image is ARM64 PE32+
+(`Machine=0xaa64`), with relocation data and the same direct import list and
+image size as its tracked counterpart. The output hashes are:
+
+| Module | SHA-256 |
+| --- | --- |
+| ntdll.dll | `c0249347083a7548affa3325b9c4adecfd11f17e27332016198f3aa43f56f9e1` |
+| wow64.dll | `a4b81086cfb287e30b9c2075a5bae2f0f91686242f14b4f54f9cb7786fc0f1e7` |
+| wow64win.dll | `14b1e4d801d9b3b68526b63c24e9f8b5bc2cb87b18fe534253bb7f9878cce52d` |
+
+Import availability, loader layout/padding requirements and execution must
+still be checked before packaging these outputs as replacements. In particular,
+`wow64win.dll` imports `win32u.dll`, which is not part of this three-DLL artifact.
 
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
@@ -170,7 +182,8 @@ git-ignored and consumed by the app project.
    `wow64win.dll`; see docs/WOW64.md, "Building". The FEX WOW64 module's clean
    macOS-host build is verified in run 37238634599. The separate Wine i386
    farm's clean macOS build is now verified in run 37239431287; Wine's native
-   wow64/wow64win source rebuild and device execution remain pending.
+   wow64/wow64win source rebuild is verified in run 37239712754. Device execution
+   and packaging of these new outputs remain pending.
 
 ## Status of the LGPL relink question
 
