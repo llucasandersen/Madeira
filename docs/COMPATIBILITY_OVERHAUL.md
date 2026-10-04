@@ -17,6 +17,10 @@ The same local installation's `video64.dll` imports `libavcodec-62.dll`, `libavf
 
 Run `python tools/inspect-pe-imports.py <path-to-SDL3.dll> <path-to-video64.dll>` on the actual Steam runtime to compare hashes, PE machine types and direct imports. The tool prints only file names, hashes and PE metadata. The next loader test must log the precise rejection stage and nested dependency status before changing Wine or Madeira's mapping logic.
 
+## Steam launch-option selection
+
+[Issue 174](https://github.com/willfaust/Madeira/issues/174) reports a game whose Steam configuration has entries 1, 2 and 3 but no entry 0. Dock's pinned `launch.c` passed option 0 on every `LaunchApp` and retry; the native parser sorted entries but discarded their numeric keys. The change preserves the key through `SteamLaunchOption` and `SteamDirectStart.Choice`, fetches it before the native Steam session logs off, and passes it to Dock. Dock validates a bounded decimal key and uses it for the initial call and retries. Authentication and entitlement gates remain in place. Host tests cover numbered keys and invalid input. Device verification remains outstanding; the generic option 0 path applies when metadata is unavailable.
+
 ## Download baseline
 
 `DepotDownloader.swift` already uses a bounded task group with eight concurrent chunks, a shared `URLSession` and offset based `pwrite` assembly. The claim that its network stage is simply serial is not supported by the current source. Throughput, stage times, CDN behavior and iOS CPU and memory load still need measurement before tuning.

@@ -217,6 +217,7 @@ enum SteamDirectStart {
         var program: String
         var arguments: String
         var folder: String?
+        var launchID: Int? = nil
     }
 
     /// Launch types Steam gives entries that are not the game itself.
@@ -298,7 +299,8 @@ enum SteamDirectStart {
                     folder = found
                 }
             }
-            return Choice(program: program, arguments: option.arguments.trimmingCharacters(in: spaces), folder: folder)
+            return Choice(program: program, arguments: option.arguments.trimmingCharacters(in: spaces), folder: folder,
+                          launchID: option.launchID)
         }
         return nil
     }

@@ -3174,6 +3174,12 @@ struct ContentView: View {
         // is handed to Valve's client, and it stays off until the Dock session has ended
         // (SteamOwnedLibrary.prepareDock / dockEnded, SteamConnectionGate).
         Task { @MainActor in
+            // Ask for the numbered launch configuration while the native Steam
+            // session is still connected; prepareDock logs that session off.
+            let launchOptions = await SteamOwnedLibrary.shared.launchOptions(appID: game.id) ?? []
+            let launchFolder = MadeiraDock.drive.appendingPathComponent(
+                game.library + "/common/" + game.installDir, isDirectory: true)
+            let launchOption = SteamDirectStart.choose(launchOptions, installFolder: launchFolder)?.launchID
             await SteamOwnedLibrary.shared.prepareDock()
             do {
                 // The launch state may have changed while the connection closed.
@@ -3186,7 +3192,7 @@ struct ContentView: View {
                 }
                 try MadeiraDock.writeHandoff(account: signIn.accountName, token: signIn.refreshToken, appID: game.id)
             } catch { fail(error); return }
-            MadeiraDock.configure(game)
+            MadeiraDock.configure(game, launchOption: launchOption)
             // The game's one-time installs (its Steam install script) run first, in the same
             // session. No session runs yet, so the registry files can be read and written.
             DockInstallers.prepare(game, drive: MadeiraDock.drive, prefix: MadeiraDock.prefix)

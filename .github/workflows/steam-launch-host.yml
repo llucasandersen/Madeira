@@ -1,0 +1,21 @@
+name: Steam launch host checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  steam-launch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tool versions
+        run: |
+          python3 --version
+          swiftc --version
+      - name: Steam launch configuration and routing
+        run: python3 tests/host/check-steam-games.py

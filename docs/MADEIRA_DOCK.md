@@ -1,5 +1,14 @@
 # Madeira Dock
 
+## Numbered Steam launch entries in this fork
+
+The native library retains each numeric `config.launch` key and chooses the
+Windows game entry whose executable is installed. It passes that key to Dock,
+which submits the same launch option on initial request and retry. This
+addresses a configuration failure for apps whose first entry is numbered 1
+rather than 0. Host tests cover selection and input bounds; device launch
+remains unverified.
+
 Madeira Dock starts a Steam game that Steam's client has installed in the
 prefix, through **Valve's genuine Windows Steam client**, without the Steam
 desktop window, its Chromium web helper or its library UI.
