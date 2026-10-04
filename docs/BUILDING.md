@@ -27,6 +27,12 @@ DXMT's Metal side and the Debug app. This workflow is being verified from a
 clean GitHub runner; a workflow file by itself is not evidence of a successful
 build. Logs and failed compiler outputs are retained for diagnosis.
 
+Clean run 37233256882 compiled LLVM through its final library steps, then
+failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
+as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now
+excludes iOS with Darwin in that condition, in addition to the existing
+AddLLVM export/dead-strip adjustments. A successful LLVM rebuild is pending.
+
 The diagnostic IPA uses an ad-hoc signature carrying the requested JIT and
 increased-memory-limit entitlements. It has no provisioning profile, private
 signing identity or extended-virtual-addressing entitlement. Re-sign it with

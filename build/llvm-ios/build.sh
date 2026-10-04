@@ -27,6 +27,18 @@ s = s.replace('${CMAKE_SYSTEM_NAME} MATCHES "Darwin"', '${CMAKE_SYSTEM_NAME} MAT
 assert '${CMAKE_SYSTEM_NAME} MATCHES "Darwin|iOS"' in s
 p.write_text(s)
 PY
+# HandleLLVMOptions has a separate ELF-only -z,defs guard. iOS must be
+# excluded alongside Darwin before CMake configures the shared LTO target.
+python3 - "$SRC/llvm/cmake/modules/HandleLLVMOptions.cmake" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+s = s.replace('MATCHES "Darwin|FreeBSD|OpenBSD|DragonFly|AIX|SunOS|OS390"',
+              'MATCHES "Darwin|iOS|FreeBSD|OpenBSD|DragonFly|AIX|SunOS|OS390"')
+assert 'MATCHES "Darwin|iOS|FreeBSD|OpenBSD|DragonFly|AIX|SunOS|OS390"' in s
+p.write_text(s)
+PY
 cmake -S "$SRC/llvm" -B "$HOST" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DLLVM_TARGETS_TO_BUILD= -DLLVM_ENABLE_PROJECTS= -DLLVM_INCLUDE_TESTS=OFF \
