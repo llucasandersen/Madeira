@@ -16,7 +16,7 @@ from pathlib import Path
 import sys
 r = Path(sys.argv[1])
 assert b'[pe-image]' in (r / 'app/Madeira/arm64ec-windows/ntdll.dll').read_bytes(), 'diagnostic ntdll was not staged'
-assert b'MADEIRA_STEAM_HOST_LAUNCH_OPTION' in (r / 'app/Madeira/arm64ec-windows/dockhost.exe').read_bytes(), 'updated Dock was not staged'
+assert 'MADEIRA_STEAM_HOST_LAUNCH_OPTION'.encode('utf-16le') in (r / 'app/Madeira/arm64ec-windows/dockhost.exe').read_bytes(), 'updated Dock was not staged'
 PY
 xcodebuild -project "$R/app/Madeira.xcodeproj" -scheme Madeira \
     -configuration Debug -destination 'generic/platform=iOS' \

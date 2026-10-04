@@ -54,6 +54,19 @@ failure before archive assembly, so stale objects cannot hide that failure in
 an incremental build. A new native compile and the remaining runtime stages
 are required before the runtime artifact is considered verified.
 
+The clean runtime build passed in
+[run 37242307604](https://github.com/llucasandersen/Madeira/actions/runs/37242307604)
+at Madeira `a793ece`: native ntdll compiled 37 units with no failures, native
+win32u compiled 46 with no failures, and Wine server and the Rust pairing
+archive completed. Dock's sanitizer suite passed, including its 11 bootstrap
+scenarios and 101 validation cases. The downloaded runtime archive has SHA-256
+`06af35cd8180e6787463f64e047d1b4f86ad2cb9d761bff6726d68440180fa73`.
+Its ntdll contains the PE diagnostic marker, and Dock contains the new launch
+option environment name as UTF-16LE, matching `GetEnvironmentVariableW` in
+the source. Packaging and verification checks now use that encoding; the
+earlier ASCII check would reject the correctly compiled Dock. This is runtime
+component evidence, with the DXMT/app build and phone tests still pending.
+
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now

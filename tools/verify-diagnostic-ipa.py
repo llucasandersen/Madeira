@@ -41,7 +41,7 @@ def verify(ipa, provenance, checksum, commit):
         require(archive.getinfo(prefix + info['CFBundleExecutable']).file_size > 0, 'missing app executable')
         for filename, key, marker in [
             ('ntdll.dll', 'ntdll_sha256', b'[pe-image]'),
-            ('dockhost.exe', 'dockhost_sha256', b'MADEIRA_STEAM_HOST_LAUNCH_OPTION'),
+            ('dockhost.exe', 'dockhost_sha256', 'MADEIRA_STEAM_HOST_LAUNCH_OPTION'.encode('utf-16le')),
         ]:
             data = archive.read(prefix + 'arm64ec-windows/' + filename)
             require(hashlib.sha256(data).hexdigest() == report[key], filename + ' provenance mismatch')
