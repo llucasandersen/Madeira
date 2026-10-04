@@ -77,6 +77,18 @@ These are bitcode inputs to LLVM linking, not metallib containers. The next
 clean DXMT build must verify generation and archive assembly; no app build
 or phone rendering pass is claimed for the failed run.
 
+Run 37243316500 at Madeira `7352baf` generated all three AIR headers,
+compiled all 87 DXMT units with no failures and assembled the combined
+DXMT/LLVM archive (88,486,704 bytes). The following Xcode app build failed on
+`FEXCore/Config/ConfigValues.inl`: the earlier native FEX artifact file list
+included `.h`, `.hpp` and `.inc`, but omitted generated `.inl` headers.
+Both `ConfigValues.inl` and `ConfigOptions.inl` are CMake outputs consumed by
+`Config.h`. The workflow now retains `.inl` files and requires both headers
+before upload and after restore. The older FEX artifact is insufficient for
+app compilation; rebuild it with this workflow instead of reusing run
+37234579200. Native FEX compilation previously passed, but the corrected
+artifact transfer and complete Xcode app build still require verification.
+
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now

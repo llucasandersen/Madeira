@@ -57,7 +57,9 @@ jobs:
         run: bash build/fex-ios/build.sh
       - name: Pack native FEX libraries and generated headers
         run: |
-          find FEX/build-ios -type f \( -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' \) > fex-files.txt
+          test -s FEX/build-ios/include/FEXCore/Config/ConfigValues.inl
+          test -s FEX/build-ios/include/FEXCore/Config/ConfigOptions.inl
+          find FEX/build-ios -type f \( -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.inl' \) > fex-files.txt
           tar -czf fex-ios.tar.gz -T fex-files.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -143,6 +145,8 @@ jobs:
       - name: Restore built dependencies
         run: |
           for archive in build/ci-artifacts/*.tar.gz; do tar -xzf "$archive"; done
+          test -s FEX/build-ios/include/FEXCore/Config/ConfigValues.inl
+          test -s FEX/build-ios/include/FEXCore/Config/ConfigOptions.inl
       - name: Build DXMT Metal side
         run: |
           xcodebuild -downloadComponent MetalToolchain
