@@ -38,6 +38,9 @@ reads with the same condition. This does not change the guest-runtime path.
 The next native compile reached the ARM64 helper and exposed an unguarded
 Windows `VirtualQuery` diagnostic. That query is now restricted to Windows;
 native builds retain the address and alignment report. Neither correction
-changes CASPAL emulation. A successful rebuild and device run are still pending.
+changes CASPAL emulation. The native iOS FEX build passed in
+[run 37234579200](https://github.com/llucasandersen/Madeira/actions/runs/37234579200),
+using Madeira `980371c` and FEX `259f3ba7f`. The app build and device run are
+still pending; this component build does not establish gameplay compatibility.
 
 The loader fix needs a test against the exact failing SDL3 PE, host loader tests and a signed device run showing Steam stays alive and creates the game process. Gameplay, DXMT, input, sound, Steam authentication and repeat launch checks follow that. Teardown, Ravenfield, Bomber Crew and download acceptance checks are tracked separately in the matrix. No root cause or fix is claimed for those yet.
