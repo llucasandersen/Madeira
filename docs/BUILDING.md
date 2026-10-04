@@ -37,6 +37,11 @@ bounds the complete Dock host-check process group to 300 seconds. A timeout
 fails the build; no test is skipped. The exact cause inside the hung process
 is not established by this log. The compiler selection change and remaining
 runtime components require a new clean build before claiming resolution.
+The retry in run 37241379231 selected Apple clang 21 but failed immediately
+on missing `assert.h`. The wrapper now resolves and exports the macOS SDK
+only within the host-check subprocess scope. This leaves the subsequent PE
+cross compilation's SDK setup unchanged. The next retry must verify the host
+checks and remaining runtime stages.
 
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
@@ -118,6 +123,17 @@ image size as its tracked counterpart. The output hashes are:
 Import availability, loader layout/padding requirements and execution must
 still be checked before packaging these outputs as replacements. In particular,
 `wow64win.dll` imports `win32u.dll`, which is not part of this three-DLL artifact.
+
+`wine-arm64ec-build.yml` attempts a clean rebuild of the tracked farm's
+Wine-owned ARM64EC images with `build/wine-pe/build-farm.sh`. Selection comes
+from the configured Wine file targets. It explicitly excludes the DXMT, FEX
+and Madeira D3D12 replacements and records every unmatched tracked image in
+`selection.json`; a same-named Wine graphics module must not replace those
+components. This workflow is pending its first result. Outputs are isolated
+under `build/ci-output/wine-arm64ec`, with source revisions, hashes and PE
+metadata. They are stripped compiler outputs, without the special ntdll app
+padding, and are not staged in an IPA. Missing targets and import closure must
+be reviewed before claiming the complete farm is reproducible.
 
 `fex-wow64-build.yml` verifies the separate aarch64 Windows FEX module for
 32-bit guests, with the Madeira guest-window feature enabled and a bounded
