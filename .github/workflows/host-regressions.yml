@@ -17,7 +17,7 @@ jobs:
       - name: Prepare Linux host compiler and generated Wine headers
         run: |
           sudo apt-get update
-          sudo apt-get install -y bison flex gcc-mingw-w64-x86-64 zlib1g-dev
+          sudo apt-get install -y bison flex gcc-mingw-w64-x86-64 zlib1g-dev libfreetype-dev
           mkdir -p wine/build-macos
           cd wine/build-macos
           ../configure --enable-archs=x86_64 --without-x --disable-tests --enable-winegstreamer

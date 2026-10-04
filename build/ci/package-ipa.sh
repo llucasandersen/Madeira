@@ -66,5 +66,5 @@ mkdir "$PACKAGE/Payload"
 ditto "$APP" "$PACKAGE/Payload/Madeira.app"
 NAME="Madeira-diagnostic-$(git -C "$R" rev-parse --short HEAD).ipa"
 (cd "$PACKAGE" && ditto -c -k --keepParent Payload "$OUT/$NAME")
-shasum -a 256 "$OUT/$NAME" > "$OUT/$NAME.sha256"
+(cd "$OUT" && shasum -a 256 "$NAME" > "$NAME.sha256")
 echo "Built $OUT/$NAME; this IPA must be re-signed by the user's sideloading tool."
