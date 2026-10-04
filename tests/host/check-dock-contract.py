@@ -83,7 +83,7 @@ if git.returncode == 0:
                               'app/Madeira/arm64ec-windows/dock-notices.txt'], capture_output=True, text=True).stdout.strip()
     require(tracked == '', 'no built Dock executable or notices are tracked')
     gitlink = subprocess.run(['git', '-C', str(root), 'ls-files', '-s', 'madeira-dock'], capture_output=True, text=True).stdout
-    require(gitlink.startswith('160000 0c5bbd1a854c4c63c47e074b72954aba5b36919d'), 'madeira-dock is pinned at 0c5bbd1')
+    require(gitlink.startswith('160000 4583f82d3669ed8234139d42185addce137f5cfd'), 'madeira-dock is pinned at the numbered launch-option fix 4583f82')
 else:
     print('SKIP: not a usable git checkout here; tracked-binary and submodule-pin checks not run')
 

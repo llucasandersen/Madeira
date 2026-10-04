@@ -8,14 +8,20 @@ permissions:
 
 jobs:
   host:
-    runs-on: macos-26
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
+      - name: Prepare Linux host compiler and generated Wine headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bison flex gcc-mingw-w64-x86-64 zlib1g-dev
+          mkdir -p wine/build-macos
+          cd wine/build-macos
+          ../configure --enable-archs=x86_64 --without-x --disable-tests --enable-winegstreamer
+          make -j4 include/all
       - name: Run all existing host checks
         run: python3 build/ci/host-regressions.py
       - uses: actions/upload-artifact@v4
