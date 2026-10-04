@@ -25,4 +25,12 @@ Mac run 37235072729 passed the JIT network and Steam Cloud checks, but exposed
 that the Steam library harness provides Linux compression/crypto shims which
 conflict with the Apple SDK. The updated workflow runs the two Apple checks
 on macOS and the remaining 57 on Linux, using Python 3.14 for both. The
-complete combined result is pending.
+complete combined result passed in
+[run 37235206418](https://github.com/llucasandersen/Madeira/actions/runs/37235206418)
+at Madeira `2e4dd32`: 57 Linux checks and two macOS checks, all exit zero.
+The downloaded result artifacts were compared to every `check-*.py` in the
+repository: 59 distinct checks, with no missing or duplicate entries.
+The Steam library/depot harness compiled production download code and ran its
+install, interruption/resume, update, corruption, ownership, shared-depot,
+uninstall and refusal phases under AddressSanitizer. This establishes host
+regression coverage; it supplies no real CDN/device throughput measurement.
