@@ -19,3 +19,5 @@ jobs:
           swiftc --version
       - name: Steam launch configuration and routing
         run: python3 tests/host/check-steam-games.py
+      - name: Parse downloader source
+        run: swiftc -frontend -parse app/Madeira/SwiftSteam/Content/DepotDownloader.swift

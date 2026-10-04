@@ -173,7 +173,11 @@ final class DepotDownloader {
             let paths = prepared.paths[index]
             let existing = prepared.existing[index]
             let maximum = maxConcurrentChunks, attempts = attemptsPerChunk
-            try await withThrowingTaskGroup(of: (UInt64, UInt64).self) { group in
+            let depotStarted = ProcessInfo.processInfo.systemUptime
+            var timing = ChunkTiming()
+            var fetchedChunks = 0
+            var hostsUsed: [String: Int] = [:]
+            try await withThrowingTaskGroup(of: (UInt64, UInt64, ChunkTiming).self) { group in
                 var next = 0
                 func enqueue() {
                     guard next < work.count else { return }
@@ -182,15 +186,27 @@ final class DepotDownloader {
                     let path = paths[item.file]
                     let verify = existing[item.file]
                     group.addTask {
-                        if verify, Self.chunkAlreadyPresent(chunk, path: path) { return (item.key, UInt64(chunk.compressedSize)) }
-                        try await Self.fetchChunk(chunk, plan: plan, path: path, attempts: attempts, seed: item.file &+ item.chunk)
-                        return (item.key, UInt64(chunk.compressedSize))
+                        if verify, Self.chunkAlreadyPresent(chunk, path: path) {
+                            return (item.key, UInt64(chunk.compressedSize), ChunkTiming())
+                        }
+                        let measured = try await Self.fetchChunk(chunk, plan: plan, path: path,
+                                                                 attempts: attempts, seed: item.file &+ item.chunk)
+                        return (item.key, UInt64(chunk.compressedSize), measured)
                     }
                 }
                 for _ in 0..<min(maximum, work.count) { enqueue() }
-                for try await (key, bytes) in group {
+                for try await (key, bytes, chunkTiming) in group {
                     journal.append(key)
                     state.doneBytes += bytes
+                    if chunkTiming.fetchedBytes > 0 {
+                        fetchedChunks += 1
+                        timing.fetchedBytes += chunkTiming.fetchedBytes
+                        timing.network += chunkTiming.network
+                        timing.decode += chunkTiming.decode
+                        timing.write += chunkTiming.write
+                        timing.retries += chunkTiming.retries
+                        hostsUsed[chunkTiming.host, default: 0] += 1
+                    }
                     let now = Date()
                     if now.timeIntervalSince(lastReport) >= 0.25 {
                         lastReport = now
@@ -201,6 +217,14 @@ final class DepotDownloader {
                     enqueue()
                 }
             }
+            let wall = max(0.001, ProcessInfo.processInfo.systemUptime - depotStarted)
+            let mibPerSecond = Double(timing.fetchedBytes) / wall / 1_048_576
+            let hostSummary = hostsUsed.sorted { $0.key < $1.key }
+                .map { "\($0.key):\($0.value)" }.joined(separator: ",")
+            SteamLog.event(String(format: "[steam-depot] timing depot=%u fetched-chunks=%d fetched-bytes=%llu wall=%.2fs network-sum=%.2fs decode-sum=%.2fs write-sum=%.2fs retries=%d MiBps=%.2f hosts=%@ concurrency-limit=%d",
+                                  plan.depotID, fetchedChunks, timing.fetchedBytes, wall,
+                                  timing.network, timing.decode, timing.write, timing.retries,
+                                  mibPerSecond, hostSummary, maximum))
         }
 
         // 4. Install record. Sizes come from the manifests; no tree walk.
@@ -276,6 +300,16 @@ final class DepotDownloader {
         let file: Int
         let chunk: Int
         var key: UInt64 { UInt64(file) << 32 | UInt64(chunk) }
+    }
+
+    /// Sums of chunk work may overlap because chunk tasks run concurrently.
+    struct ChunkTiming: Sendable {
+        var network = 0.0
+        var decode = 0.0
+        var write = 0.0
+        var retries = 0
+        var host = ""
+        var fetchedBytes: UInt64 = 0
     }
 
     struct Prepared: Sendable {
@@ -386,8 +420,9 @@ final class DepotDownloader {
     }
 
     private nonisolated static func fetchChunk(_ chunk: DepotManifest.ChunkEntry, plan: DepotPlan,
-                                               path: String, attempts: Int, seed: Int) async throws {
+                                               path: String, attempts: Int, seed: Int) async throws -> ChunkTiming {
         var lastError: Error = SteamError.chunkDownloadFailed("No content server responded.")
+        var result = ChunkTiming()
         for attempt in 0..<max(1, attempts) {
             try Task.checkCancellation()
             // Healthy servers first, starting from a per-chunk offset.
@@ -395,19 +430,28 @@ final class DepotDownloader {
             let host = order[attempt % order.count]
             let url = "\(host)/depot/\(plan.depotID)/chunk/\(chunk.shaHex)\(plan.auth[host] ?? "")"
             do {
+                let networkStart = ProcessInfo.processInfo.systemUptime
                 let encrypted = try await download(url)
+                result.network += ProcessInfo.processInfo.systemUptime - networkStart
+                let decodeStart = ProcessInfo.processInfo.systemUptime
                 let data = try ContentDecryptor.processChunk(encryptedData: encrypted, depotKey: plan.key,
                                                              expectedCRC: chunk.crc,
                                                              expectedSize: Int(chunk.uncompressedSize))
                 guard data.count == Int(chunk.uncompressedSize) else { throw SteamError.checksumMismatch }
+                result.decode += ProcessInfo.processInfo.systemUptime - decodeStart
+                let writeStart = ProcessInfo.processInfo.systemUptime
                 try write(data, to: path, offset: chunk.offset)
+                result.write += ProcessInfo.processInfo.systemUptime - writeStart
+                result.host = URL(string: host)?.host ?? "unknown"
+                result.fetchedBytes = UInt64(encrypted.count)
                 plan.health.recordSuccess(host)
-                return
+                return result
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
                 if Task.isCancelled { throw CancellationError() }
                 lastError = error
+                result.retries += 1
                 plan.health.recordFailure(host, reason: failureReason(error))
                 SteamLog.trace("chunk attempt \(attempt + 1) failed: \(failureReason(error))")
                 if attempt + 1 < attempts { try await Task.sleep(nanoseconds: UInt64(attempt + 1) * 400_000_000) }

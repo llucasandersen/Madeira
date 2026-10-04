@@ -19,17 +19,11 @@ source tests only; they do not build or validate an IPA.
 
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
-whether it has been re-executed from a clean checkout. A fresh recursive
-clone of the repository at commit 8a8cabe was tested on 2026-09-16 (with
-the submodule URLs redirected to the local forks, since nothing is pushed):
-the app target does NOT build from the clone alone, because the inputs
-marked "not in the repository" below are absent. Two further findings:
-`app/Madeira/x86_64-vcruntime` is required by the project but ignored, and
-the submodule commits (FEX, its nested rpmalloc fork, wine branch
-`madeira-lgpl`, dxmt) exist only locally: the forks named in `.gitmodules`
-(all under github.com/willfaust) do not yet carry them, so a recipient's
-recursive clone fails at the first submodule until every fork is pushed. This document is the
-remediation; steps marked UNVERIFIED have not yet been re-run from scratch.
+whether it has been re-executed from a clean checkout. The 2026-09-16
+clean-clone test at `8a8cabe` found missing native build inputs and then-local
+submodule commits. Source retrieval is now fixed as described above; a fresh
+checkout still lacks the inputs marked "not in the repository" below.
+Steps marked UNVERIFIED have not yet been re-run from scratch.
 
 ## Inputs that are not in the repository
 
