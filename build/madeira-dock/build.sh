@@ -27,6 +27,13 @@ OUT="$REPO_ROOT/app/Madeira/arm64ec-windows"
 [ -x "$CC" ] || { echo "missing cross compiler: $CC (set LLVM_MINGW)" >&2; exit 1; }
 
 if [ "${1:-}" = "--check" ]; then
+    (
+    # Direct Xcode clang invocation needs the macOS SDK for host C headers.
+    # Scope it to checks so the PE cross compiler retains its own setup.
+    if [ "$(uname -s)" = Darwin ]; then
+        SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+        export SDKROOT
+    fi
     # These fake-API host tests should finish quickly. Bound the complete suite
     # and its children so a compiler/runtime hang cannot consume a build job.
     if [ -n "${HOST_CC:-}" ]; then "$HOST_CC" --version; fi
@@ -44,6 +51,7 @@ except subprocess.TimeoutExpired:
     sys.exit(124)
 sys.exit(result if result >= 0 else 128 - result)
 PY
+    )
 fi
 
 TMP="$(mktemp -d)"

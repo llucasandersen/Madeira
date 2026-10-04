@@ -397,7 +397,8 @@ configured engine again.
 
 The diagnostic macOS runtime build selects Xcode's native `clang` explicitly
 through `HOST_CC` for Dock's ASan/UBSan checks. The integration build wrapper
-bounds the suite and its child processes to 300 seconds and fails on timeout.
+resolves the macOS SDK for those checks, bounds the suite and its child
+processes to 300 seconds and fails on timeout.
 Run 37233256882 timed out with `test-probe` still alive after rebuilding ntdll;
 the log does not identify the hang inside that process. A clean retry is
 required to verify the compiler selection and complete runtime build.
