@@ -132,6 +132,14 @@ target; the earlier selector incorrectly assigned that tracked DLL to DXMT.
 A fresh Wine rebuild is required to verify the corrected selection. No new
 graphics DLL has been staged into the diagnostic app or tested on the phone.
 
+The graphics workflow now continues with the existing
+`build/madeira-d3d12/build-pe.sh`, using DXMT's freshly generated winemetal
+import library. It retains the three Madeira D3D12 DLLs and three guest test
+executables in a separate `Madeira-D3D12-source-build` artifact, with hashes
+and PE metadata. This extension requires a new clean build; compiling the
+test executables does not establish that they execute or render on the phone.
+The isolated outputs are not installed over tracked app DLLs.
+
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now
