@@ -106,6 +106,20 @@ The graphics outputs, hashes and metadata are isolated under
 build must pass before this step can be considered verified. Madeira D3D12
 is a separate component and is not included in these five DLL outputs.
 
+The clean graphics build passed in
+[run 37243959329](https://github.com/llucasandersen/Madeira/actions/runs/37243959329)
+at Madeira `b45638b` / DXMT `8937c08c3` / Wine `f8a089569`.
+All five downloaded file hashes and PE metadata records matched, with PE32+
+headers, relocations and direct import filenames available in the tracked
+farm. Four DLLs have the same direct import lists as their tracked
+counterparts. The fifth, DXMT's `d3d9.dll`, is an alternative renderer: it
+imports `winemetal.dll`, while the tracked `d3d9.dll` imports Wine's
+`wined3d.dll`. It must not silently replace that existing path during source
+assembly. The Wine farm selector now includes its configured `d3d9.dll`
+target; the earlier selector incorrectly assigned that tracked DLL to DXMT.
+A fresh Wine rebuild is required to verify the corrected selection. No new
+graphics DLL has been staged into the diagnostic app or tested on the phone.
+
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now

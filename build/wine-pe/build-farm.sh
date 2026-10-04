@@ -23,7 +23,7 @@ import json, re, sys
 from pathlib import Path
 root, build, out = map(Path, sys.argv[1:])
 owners = {'d3d10core.dll': 'DXMT', 'd3d11.dll': 'DXMT', 'dxgi.dll': 'DXMT',
-          'd3d9.dll': 'DXMT', 'winemetal.dll': 'DXMT',
+          'winemetal.dll': 'DXMT',
           'd3d12.dll': 'Madeira D3D12', 'd3d12core.dll': 'Madeira D3D12',
           'madeira_d3d12.dll': 'Madeira D3D12', 'xtajit64.dll': 'FEX'}
 rules = re.findall(r'^(?:dlls|programs)/[^/\s]+/arm64ec-windows/[^/:\s]+',
