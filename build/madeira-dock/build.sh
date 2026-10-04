@@ -27,7 +27,23 @@ OUT="$REPO_ROOT/app/Madeira/arm64ec-windows"
 [ -x "$CC" ] || { echo "missing cross compiler: $CC (set LLVM_MINGW)" >&2; exit 1; }
 
 if [ "${1:-}" = "--check" ]; then
-    (cd "$SRC" && bash tools/check.sh)
+    # These fake-API host tests should finish quickly. Bound the complete suite
+    # and its children so a compiler/runtime hang cannot consume a build job.
+    if [ -n "${HOST_CC:-}" ]; then "$HOST_CC" --version; fi
+    python3 - "$SRC" <<'PY'
+import os, signal, subprocess, sys
+process = subprocess.Popen(['bash', 'tools/check.sh'], cwd=sys.argv[1],
+                           start_new_session=True)
+try:
+    result = process.wait(timeout=300)
+except subprocess.TimeoutExpired:
+    print('Dock host checks exceeded 300 seconds; terminating test process group.',
+          file=sys.stderr, flush=True)
+    os.killpg(process.pid, signal.SIGKILL)
+    process.wait()
+    sys.exit(124)
+sys.exit(result if result >= 0 else 128 - result)
+PY
 fi
 
 TMP="$(mktemp -d)"

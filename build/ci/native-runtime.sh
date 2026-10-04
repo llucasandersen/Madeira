@@ -20,7 +20,9 @@ make -C wine/build-macos -j3 include/all dlls/ntdll/unix/version.c
 (cd wine/build-arm64ec && ../configure --enable-archs=arm64ec --without-x --disable-tests --enable-winegstreamer)
 make -C wine/build-arm64ec -j3 include/all
 bash build/wine-pe/build-ntdll.sh
-bash build/madeira-dock/build.sh --check
+# The LLVM bin directory above is for Mach-O objcopy. Select Xcode's native
+# compiler explicitly for host sanitizer tests instead of inheriting its clang.
+HOST_CC="$(xcrun --find clang)" bash build/madeira-dock/build.sh --check
 (cd build/gnutls-ios/src && shasum -a 256 -c SHA256SUMS)
 bash build/gnutls-ios/build.sh
 bash build/ffmpeg/build.sh

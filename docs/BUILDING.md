@@ -27,6 +27,17 @@ DXMT's Metal side and the Debug app. This workflow is being verified from a
 clean GitHub runner; a workflow file by itself is not evidence of a successful
 build. Logs and failed compiler outputs are retained for diagnosis.
 
+The native runtime job in run 37233256882 reached the rebuilt ARM64EC ntdll
+at 20:48 UTC, then produced no further output before its two-hour timeout.
+Runner cleanup terminated a `test-probe` process from Dock's host checks.
+The runtime PATH placed Homebrew LLVM 20 before the Windows cross compiler,
+and Dock's default host compiler lookup inherited that `clang`. The next build
+selects Xcode's native compiler through the existing `HOST_CC` option and
+bounds the complete Dock host-check process group to 300 seconds. A timeout
+fails the build; no test is skipped. The exact cause inside the hung process
+is not established by this log. The compiler selection change and remaining
+runtime components require a new clean build before claiming resolution.
+
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now
