@@ -54,8 +54,11 @@ headers, and an rpmalloc diagnostic referenced when the native allocator is
 disabled. The native runtime, corrected header artifact and DXMT archive
 now build. The latest FEX allocator guard compiled in native iOS and both
 guest source builds; both guest artifacts retain the rpmalloc diagnostic,
-and all 59 host checks passed. Native app linking is still pending. These
-are build corrections, with no game pass inferred from them.
+and all 59 host checks passed. Native app linking and packaging subsequently
+passed in run 37244570613. The verified first diagnostic IPA is available in
+[diagnostic release 1](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.1)
+and on the requested USB stick. These are build corrections, with no game
+pass inferred from them. The user will install it and return the phone log.
 
 The clean diagnostic build exposed a source-build defect in the pinned Madeira
 FEX fork: `IosFfsBypassLog` and `IosCbEntryLog` were declared under

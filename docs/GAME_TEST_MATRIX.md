@@ -13,6 +13,18 @@ Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extende
 
 Host tests and a source build are separate gates. They do not stand in for the device results above.
 
+## Diagnostic package delivery
+
+[Diagnostic release 1](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.1)
+contains `Madeira-diagnostic-e6f6a2c.ipa`, version 0.1.3/build 100, from
+Madeira `e6f6a2c`. The package identity/checksum/runtime checks passed,
+including verification of the USB copy at `E:\Madeira-Compatibility-Test`.
+Its SHA-256 is
+`c02c67e857a9995821b3bd14b32ee71b8e846936c947b91fb7962fe8d3fc89ee`.
+The CI build passed Xcode linking and macOS codesign verification. Phone
+installation and gameplay are still untested; the first requested result
+is a complete PEAK launch log from this exact IPA.
+
 ## Host regression evidence
 
 On Madeira `980371c`, [Linux run 37234581507](https://github.com/llucasandersen/Madeira/actions/runs/37234581507)

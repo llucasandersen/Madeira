@@ -1,5 +1,10 @@
 # Diagnostic iPhone test
 
+First diagnostic: **`Madeira-diagnostic-e6f6a2c.ipa`**, version 0.1.3, build 100.
+The SHA-256 is
+`c02c67e857a9995821b3bd14b32ee71b8e846936c947b91fb7962fe8d3fc89ee`.
+Keep the matching `build-provenance.json` and checksum beside the IPA.
+
 This package is for collecting evidence on iPhone 17 Pro Max / iOS 26.6.2.
 It includes the numbered Steam launch-option fix, ARM64EC PE rejection-stage
 logging and initial depot timing. The four target games have not yet passed

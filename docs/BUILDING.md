@@ -123,6 +123,27 @@ The native FEX archive SHA-256 is
 and both configuration inline headers are present. All 59 host checks passed
 in run 37244575135. Native app linking and device execution remain pending.
 
+The app job in [run 37244570613](https://github.com/llucasandersen/Madeira/actions/runs/37244570613)
+subsequently passed Xcode compilation/linking, ad-hoc signing, deep strict
+codesign verification and packaging at Madeira `e6f6a2c`. The downloaded
+`Madeira-diagnostic-e6f6a2c.ipa` passed `verify-diagnostic-ipa.py` with that
+exact full commit, matching upstream app/helper IDs, version 0.1.3/build 100,
+runtime hashes, ZIP CRC and checksum. Its SHA-256 is
+`c02c67e857a9995821b3bd14b32ee71b8e846936c947b91fb7962fe8d3fc89ee`.
+The provenance records Xcode 26.6 (17F113), iPhoneOS SDK 26.5, requested JIT
+and increased-memory entitlements, and no extended virtual addressing. The
+package needs normal re-signing before installation. This is the first
+diagnostic IPA, not a device-tested final compatibility release.
+
+It is published as
+[compatibility diagnostic 1](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.1),
+tagged at the exact IPA source commit. The release's four asset sizes and
+server SHA-256 digests match the verified USB files: IPA, checksum,
+provenance and README. The IPA was copied to
+`E:\Madeira-Compatibility-Test\Madeira-diagnostic-e6f6a2c.ipa` and the package
+verifier passed against that USB copy. Installation, data retention, JIT,
+Memory+ and every game acceptance result remain pending phone verification.
+
 `dxmt-arm64ec-build.yml` builds the five DXMT-owned ARM64EC graphics DLLs
 with `build/dxmt-ios/build-pe.sh`, using the pinned DXMT cross file and Wine
 import libraries built from the pinned Madeira Wine source. Wine import
