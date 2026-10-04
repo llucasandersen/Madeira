@@ -27,6 +27,24 @@ The forked Wine loader now emits `[pe-image]` only for invalid-image failures in
 
 `DepotDownloader.swift` already uses a bounded task group with eight concurrent chunks, a shared `URLSession` and offset based `pwrite` assembly. The claim that its network stage is simply serial is not supported by the current source. Throughput, stage times, CDN behavior and iOS CPU and memory load still need measurement before tuning.
 
+## Bomber Crew window investigation
+
+The pinned upstream app already has a bounded restore path in
+`Winios.m`'s `winios_census_note_frame`: while the Dock start's window census
+is enabled, a visible top-level window whose first show has `WS_MINIMIZE`
+receives one posted `SC_RESTORE` and a foreground request. A window shown
+normally before being minimized is left alone. The production census harness
+in `check-dock-start-screen.py` covers both cases, including the parked
+`-32000,-32000` coordinates, and passed in the full host suite.
+
+That path is not general geometry normalization: zero-sized windows are not
+shown in the census, and a non-minimized off-screen rect is not corrected by
+this restore rule. The diagnostic Bomber Crew run must establish the window
+style/geometry sequence and whether `[born-minimized]` reports a successful
+post. The reported symptom alone does not prove which path failed or that
+the existing restore covers this game. No Bomber Crew fix or device pass is
+claimed by this source audit.
+
 ## Verification still required
 
 The clean diagnostic build exposed a source-build defect in the pinned Madeira
