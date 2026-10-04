@@ -41,3 +41,10 @@ at Madeira `c76fd42`. Both downloaded result inventories were checked against
 the repository's complete host check list. The known decoder vectors use the
 measured pipeline; checksum rejection, corruption recovery, interruption,
 resume and update behavior remain covered by the production-code harness.
+
+After the native diagnostic counter and compile-failure gate change, all 59
+checks passed in
+[run 37242309362](https://github.com/llucasandersen/Madeira/actions/runs/37242309362)
+at Madeira `a793ece`. The downloaded Linux and macOS result artifacts again
+matched all 59 repository checks, without duplicates or missing entries.
+These host results do not validate the native iOS compile or phone gameplay.
