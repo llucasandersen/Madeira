@@ -27,8 +27,8 @@ Failures that ultimately abort the depot remain visible in the existing
 per-attempt trace but have no completion line. This is a first measurement
 point, not a complete URLSession transaction trace: connection setup,
 time-to-first-byte, local resume SHA-1 time and CPU load are not yet separately
-recorded. The first diagnostic IPA build dispatched before this extension
-contains the earlier aggregate timing; match the source commit to the log
+recorded. Build attempts dispatched before this extension use the earlier
+aggregate timing; match the source commit to the log
 fields when comparing measurements.
 
 ## Device benchmark protocol

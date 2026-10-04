@@ -31,7 +31,10 @@ Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now
 excludes iOS with Darwin in that condition, in addition to the existing
-AddLLVM export/dead-strip adjustments. A successful LLVM rebuild is pending.
+AddLLVM export/dead-strip adjustments. The clean LLVM rebuild and artifact
+upload passed in [run 37235516076](https://github.com/llucasandersen/Madeira/actions/runs/37235516076)
+at Madeira `a66c795`. This verifies that component; app packaging and device
+installation remain pending.
 
 The diagnostic IPA uses an ad-hoc signature carrying the requested JIT and
 increased-memory-limit entitlements. It has no provisioning profile, private
@@ -95,7 +98,7 @@ git-ignored and consumed by the app project.
    port was built and device-tested with on the WSL toolchain; the macOS form
    of the script is UNVERIFIED.
 2. FEX (submodule, branch ios-port-2607):
-   - `FEX/build-ios`: `build/fex-ios/build.sh` (same options as the development CMakeCache) -> `FEX/build-ios/FEXCore/Source/lib{FEXCore,FEXCore_Base,JemallocLibs}.a` and the `External/{cephes,fmt,SoftFloat-3e,xxhash}` archives. UNVERIFIED from clean.
+   - `FEX/build-ios`: `build/fex-ios/build.sh` -> `FEX/build-ios/FEXCore/Source/lib{FEXCore,FEXCore_Base,JemallocLibs}.a` and the `External/{cephes,fmt,SoftFloat-3e,xxhash}` archives. Clean native build passed in run 37234579200 at Madeira `980371c` / FEX `259f3ba7f`; this does not verify the separate Windows guest translator or gameplay.
    - `FEX/build-arm64ec`: `build/fex-arm64ec/build.sh` (configures with `FEX/Data/CMake/toolchain_mingw.cmake` and the recorded options on first run, builds target `arm64ecfex`, copies `Bin/libarm64ecfex.dll` to `app/Madeira/arm64ec-windows/xtajit64.dll`). The build step was verified this session; the first-run configure in the script is reconstructed from CMakeCache and UNVERIFIED.
 3. Wine (submodule, branch madeira-lgpl):
    - unix side: `build/ntdll-unix/build.sh`, `build/wineserver/build.sh`,
