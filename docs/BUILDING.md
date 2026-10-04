@@ -38,6 +38,18 @@ components and the device acceptance tests remain required for the final
 release. `build-provenance.json` records that distinction and the source/DLL
 hashes for each generated IPA.
 
+Before publishing or copying a diagnostic artifact, run the read-only package
+check (Python 3.11 or newer) using the exact commit built by Actions:
+
+```text
+python tools/verify-diagnostic-ipa.py Madeira-diagnostic-<commit>.ipa --provenance build-provenance.json --checksum Madeira-diagnostic-<commit>.ipa.sha256 --expected-commit <full-built-commit>
+```
+
+It checks the IPA checksum/ZIP, upstream app and helper bundle IDs, build 100,
+and the packaged ntdll/Dock hashes and diagnostic markers. macOS `codesign`
+verification remains a packaging gate; this portable check does not verify
+signatures or establish successful installation/gameplay on the phone.
+
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
 whether it has been re-executed from a clean checkout. The 2026-09-16
