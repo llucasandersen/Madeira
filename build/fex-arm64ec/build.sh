@@ -6,11 +6,15 @@ R="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export PATH="$R/toolchains/llvm-mingw-20260421-ucrt-macos-universal/bin:$PATH"
 B="$R/FEX/build-arm64ec"
 if [ ! -f "$B/CMakeCache.txt" ]; then
-    cmake -S "$R/FEX" -B "$B" -DCMAKE_BUILD_TYPE=Release \
+    cmake -S "$R/FEX" -B "$B" -G Ninja -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_TOOLCHAIN_FILE="$R/FEX/Data/CMake/toolchain_mingw.cmake" \
-        -DENABLE_FEX_ALLOCATOR=ON -DENABLE_JEMALLOC_GLIBC_ALLOC=ON -DENABLE_OFFLINE_RUNTIME=ON \
-        -DBUILD_FEXCONFIG=ON -DENABLE_CLANG_THUNKS=ON -DENABLE_CCACHE=ON \
-        -DBUILD_TESTING=OFF -DBUILD_THUNKS=OFF -DENABLE_ASSERTIONS=OFF
+        -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
+        -DFEX_IOS_HOST_BUILD=ON -DCMAKE_C_FLAGS=-DFEX_IOS_HOST \
+        -DCMAKE_CXX_FLAGS=-DFEX_IOS_HOST -DCMAKE_ASM_FLAGS=-DFEX_IOS_HOST \
+        -DENABLE_FEX_ALLOCATOR=ON -DENABLE_JEMALLOC_GLIBC_ALLOC=OFF \
+        -DBUILD_FEXCONFIG=OFF -DENABLE_CLANG_THUNKS=ON -DENABLE_CCACHE=ON \
+        -DBUILD_TESTING=OFF -DBUILD_THUNKS=OFF -DENABLE_ASSERTIONS=OFF -DENABLE_LTO=OFF \
+        -DTUNE_ARCH=generic -DTUNE_CPU=none -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 fi
-cmake --build "$B" --target arm64ecfex
+cmake --build "$B" --target arm64ecfex -j2
 cp "$B/Bin/libarm64ecfex.dll" "$R/app/Madeira/arm64ec-windows/xtajit64.dll" && ls -l "$R/app/Madeira/arm64ec-windows/xtajit64.dll"

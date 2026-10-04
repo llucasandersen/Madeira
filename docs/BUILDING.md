@@ -59,6 +59,15 @@ and the packaged ntdll/Dock hashes and diagnostic markers. macOS `codesign`
 verification remains a packaging gate; this portable check does not verify
 signatures or establish successful installation/gameplay on the phone.
 
+`fex-guest-build.yml` separately rebuilds the ARM64EC Windows guest translator
+from the pinned Madeira FEX fork. Its clean configuration specifies the
+`arm64ec-w64-mingw32` triple and the iOS guest-host flags, including the default
+MinGW CRT link path required by this fork. These flags belong to the Windows
+guest module; the native iOS FEX build does not enable them. The guest workflow
+is being verified and its output must be device-tested before replacing the
+tracked translator in a release IPA. It does not change the current diagnostic
+app workflow's selected runtime artifacts.
+
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
 whether it has been re-executed from a clean checkout. The 2026-09-16
