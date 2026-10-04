@@ -1,5 +1,22 @@
 # Building Madeira from a clean checkout (reproducibility record, 2026-09-16)
 
+## Fork source retrieval update (2026-10-04)
+
+A Windows `git clone --recurse-submodules` of upstream `willfaust/Madeira` at
+`bbbf8d0` completed, including FEX's nested dependencies and the Madeira Wine,
+DXMT and Dock forks. This supersedes the historical statement below that those
+upstream submodule commits were only local. This compatibility fork pins its
+changed Wine and Dock commits to `llucasandersen/wine` and
+`llucasandersen/madeira-dock` in `.gitmodules`; FEX, its nested rpmalloc fork and
+DXMT remain the Madeira forks. After checkout, run
+`git submodule update --init --recursive` and verify `git submodule status` has
+no leading `-` or `+` entries before building.
+
+This is source-retrieval verification on Windows, not a clean macOS build or
+device test. The inputs and native build steps below remain required. The
+`steam-launch-host.yml` and Dock `host-checks.yml` workflows exercise portable
+source tests only; they do not build or validate an IPA.
+
 This is the "scripts to control compilation and installation" record the
 LGPL relink obligation depends on (docs/LICENSING.md). Each step says
 whether it has been re-executed from a clean checkout. A fresh recursive
