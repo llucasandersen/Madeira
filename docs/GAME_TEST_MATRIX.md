@@ -34,3 +34,10 @@ The Steam library/depot harness compiled production download code and ran its
 install, interruption/resume, update, corruption, ownership, shared-depot,
 uninstall and refusal phases under AddressSanitizer. This establishes host
 regression coverage; it supplies no real CDN/device throughput measurement.
+
+After the decoder stage/retry timing change, all 59 checks passed again in
+[run 37236100223](https://github.com/llucasandersen/Madeira/actions/runs/37236100223)
+at Madeira `c76fd42`. Both downloaded result inventories were checked against
+the repository's complete host check list. The known decoder vectors use the
+measured pipeline; checksum rejection, corruption recovery, interruption,
+resume and update behavior remain covered by the production-code harness.

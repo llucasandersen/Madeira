@@ -53,3 +53,8 @@ fields when comparing measurements.
    update, corruption and ownership tests after any downloader change.
 
 No phone benchmark or improvement claim has been made for this fork yet.
+
+The decoder timing extension passed the complete 59-check host suite in
+[run 37236100223](https://github.com/llucasandersen/Madeira/actions/runs/37236100223)
+at `c76fd42`, including the production depot/decoder harness under
+AddressSanitizer. This verifies host regression behavior, not phone throughput.
