@@ -67,6 +67,16 @@ the source. Packaging and verification checks now use that encoding; the
 earlier ASCII check would reject the correctly compiled Dock. This is runtime
 component evidence, with the DXMT/app build and phone tests still pending.
 
+The app job in that run compiled 86 DXMT units but failed
+`airconv_context.cpp`: the standalone iOS script had omitted the generated
+`air_msad.h`, `air_samplepos.h` and `air_tessellation.h` dependencies present
+in the pinned DXMT Meson build. It now compiles those three pinned Metal
+sources into AIR bitcode and embeds each with `xxd`, before compiling the
+consumer, using Meson's Metal 3.1 / AIR macOS 14 target and symbol names.
+These are bitcode inputs to LLVM linking, not metallib containers. The next
+clean DXMT build must verify generation and archive assembly; no app build
+or phone rendering pass is claimed for the failed run.
+
 Clean run 37233256882 compiled LLVM through its final library steps, then
 failed linking LTO because LLVM 15's `HandleLLVMOptions.cmake` treated iOS
 as an ELF target and added `-Wl,-z,defs`. The pinned source adjustment now
