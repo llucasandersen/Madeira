@@ -29,4 +29,13 @@ The forked Wine loader now emits `[pe-image]` only for invalid-image failures in
 
 ## Verification still required
 
+The clean diagnostic build exposed a source-build defect in the pinned Madeira
+FEX fork: `IosFfsBypassLog` and `IosCbEntryLog` were declared under
+`FEX_IOS_HOST`, while `CompileBlock` read them outside that condition. The native
+iOS core build, which does not enable the Windows guest-runtime hooks, failed
+with fourteen undeclared-identifier errors. The fork guards those telemetry
+reads with the same condition. This does not change the guest-runtime path.
+The native build is the regression check; a successful rebuild and device run
+are still pending.
+
 The loader fix needs a test against the exact failing SDL3 PE, host loader tests and a signed device run showing Steam stays alive and creates the game process. Gameplay, DXMT, input, sound, Steam authentication and repeat launch checks follow that. Teardown, Ravenfield, Bomber Crew and download acceptance checks are tracked separately in the matrix. No root cause or fix is claimed for those yet.

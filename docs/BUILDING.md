@@ -6,9 +6,10 @@ A Windows `git clone --recurse-submodules` of upstream `willfaust/Madeira` at
 `bbbf8d0` completed, including FEX's nested dependencies and the Madeira Wine,
 DXMT and Dock forks. This supersedes the historical statement below that those
 upstream submodule commits were only local. This compatibility fork pins its
-changed Wine and Dock commits to `llucasandersen/wine` and
-`llucasandersen/madeira-dock` in `.gitmodules`; FEX, its nested rpmalloc fork and
-DXMT remain the Madeira forks. After checkout, run
+changed FEX, Wine and Dock commits to `llucasandersen/FEX`,
+`llucasandersen/wine` and `llucasandersen/madeira-dock` in `.gitmodules`.
+These retain the Madeira fork histories; FEX's nested rpmalloc fork and DXMT
+remain the original Madeira forks. After checkout, run
 `git submodule update --init --recursive` and verify `git submodule status` has
 no leading `-` or `+` entries before building.
 
