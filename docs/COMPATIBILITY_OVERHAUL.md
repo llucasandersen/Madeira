@@ -29,6 +29,40 @@ The forked Wine loader now emits `[pe-image]` only for invalid-image failures in
 
 ## Bomber Crew window investigation
 
+## Child isolation on ntdll-copy failure
+
+Source inspection of `wine_ios_child_main` found a definite isolation violation:
+when `ios_jit_copy_module_for_child` failed, boot continued using the session's
+shared ntdll image. That image contains the parent's mutable module list and
+loader state. Allowing a second pseudo-process to initialize it can corrupt
+the parent. This is an unsafe failure path regardless of the game requesting
+the child; it has not been established as the cause of the reported Teardown
+dispatcher failure.
+
+The boot path now records `copy_child_ntdll` and uses the existing
+`CHILD_BOOT_FAIL` exit on copy failure, releasing the child boot lock before
+returning. Successful child copies retain their dispatcher-slot repairs and
+ARM64EC file-header patch. This does not gate successful helpers or alter the
+cross-architecture private-image path. The regression harness compiles the
+production copy block and failure macro with an injected failed allocation;
+it checks that no translation, dispatcher write or guest entry follows failure,
+and that successful EC/native children retain their initialization. Host and
+clean native-runtime builds are pending. This protects session integrity; it
+does not supply missing pool capacity or prove Teardown gameplay.
+
+## Teardown renderer investigation
+
+The application's logged `madeira-d3d12: gate off` came from the optional M1
+shader-converter canary in `ContentView.swift`. The `d3d12` setting controls
+running that self-test; it does not enable a game's D3D12 renderer. The log now
+says this explicitly to prevent mistaking it for renderer selection. Teardown's
+developer changelog confirms a D3D12 backend, but the exact installed game
+build and renderer-selection interface still need verification before applying
+an automatic profile. D3D12 gameplay and the reported callback mismatch remain
+unverified.
+
+## Bomber Crew window investigation (continued)
+
 The pinned upstream app already has a bounded restore path in
 `Winios.m`'s `winios_census_note_frame`: while the Dock start's window census
 is enabled, a visible top-level window whose first show has `WS_MINIMIZE`

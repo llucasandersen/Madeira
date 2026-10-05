@@ -2873,7 +2873,7 @@ struct ContentView: View {
                         logStore.log("madeira-d3d12: M1 canary FAILED (\(fails) checks)", level: .error)
                     }
                 } else {
-                    logStore.log("madeira-d3d12: gate off (madeira.cfg d3d12 \(raw == nil ? "unset" : "= '\(val)'"))", level: .debug)
+                    logStore.log("madeira-d3d12: shader-converter self-test disabled (madeira.cfg d3d12 \(raw == nil ? "unset" : "= '\(val)'")); this setting does not select the game's renderer", level: .debug)
                 }
             }
 
