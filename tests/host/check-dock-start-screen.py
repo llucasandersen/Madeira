@@ -290,6 +290,8 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
         }
         let unicodeImage = #"C:\Games\é🚀\Game.exe"#
         require(SteamExecutableCreation.parse(createdRecord(unicodeImage), expectedImage: unicodeImage) != nil, "Unicode and paired surrogates preserve identity")
+        let decomposedImage = "C:\\Games\\e\u{301}🚀\\Game.exe"
+        require(SteamExecutableCreation.parse(createdRecord(decomposedImage), expectedImage: unicodeImage) == nil, "do not conflate distinct Unicode path encodings")
         let encoded = createdRecord(selectedImage)
         for ending in ["", "\r\n", "\r", "\n"] {
             require(SteamExecutableCreation.parse(encoded + ending, expectedImage: selectedImage) != nil, "creation callback/file line endings")

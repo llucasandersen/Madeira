@@ -282,7 +282,7 @@ struct SteamExecutableCreation: Equatable {
             guard !components.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }) else { return nil }
             return path
         }
-        guard let actual = identity(image), let expected = identity(expectedImage), actual == expected,
+        guard let actual = identity(image), let expected = identity(expectedImage), actual.utf16.elementsEqual(expected.utf16),
               let module = image.replacingOccurrences(of: "/", with: "\\").split(separator: "\\").last.map(String.init),
               module.utf8.count <= 128 else { return nil }
         return Self(module: module, pid: pid, tid: tid)
