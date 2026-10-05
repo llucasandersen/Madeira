@@ -445,21 +445,25 @@ final class DepotDownloader {
                                                path: String, attempts: Int, seed: Int) async throws -> ChunkTiming {
         var lastError: Error = SteamError.chunkDownloadFailed("No content server responded.")
         var result = ChunkTiming()
+        var triedHosts = Set<String>()
         plan.networkMetrics.beginChunk()
         defer { plan.networkMetrics.endChunk() }
         for attempt in 0..<max(1, attempts) {
             try Task.checkCancellation()
-            // Healthy servers first, starting from a per-chunk offset.
-            let order = plan.health.order(plan.hosts, seed: seed)
-            let host = order[attempt % order.count]
+            // Try a different host before revisiting one. Re-ranking after a
+            // failure must not accidentally select that host again by index.
+            guard let host = plan.health.choose(plan.hosts, seed: seed, avoiding: triedHosts) else { throw lastError }
+            triedHosts.insert(host)
             let url = "\(host)/depot/\(plan.depotID)/chunk/\(chunk.shaHex)\(plan.auth[host] ?? "")"
             do {
                 let encrypted: Data
+                let requestStarted = ProcessInfo.processInfo.systemUptime
                 do {
                     let start = ProcessInfo.processInfo.systemUptime
                     defer { result.network += ProcessInfo.processInfo.systemUptime - start }
                     encrypted = try await download(url, metrics: plan.networkMetrics)
                 }
+                let requestSeconds = ProcessInfo.processInfo.systemUptime - requestStarted
                 result.fetchedBytes += UInt64(encrypted.count)
                 let data: Data
                 do {
@@ -482,7 +486,7 @@ final class DepotDownloader {
                     try write(data, to: path, offset: chunk.offset)
                 }
                 result.host = URL(string: host)?.host ?? "unknown"
-                plan.health.recordSuccess(host)
+                plan.health.recordSuccess(host, bytes: encrypted.count, seconds: requestSeconds)
                 return result
             } catch is CancellationError {
                 throw CancellationError()
@@ -940,21 +944,47 @@ final class ContentNetworkMetrics: NSObject, URLSessionTaskDelegate, @unchecked 
     }
 }
 
-/// Per-install content-server health. Chunks start on different servers
-/// (spreading load) and servers that keep failing move to the back of every
-/// chunk's rotation, instead of each chunk rediscovering a bad server.
+/// Per-install content-server health and observed valid-payload HTTP rates.
+/// Failure counts take precedence. Healthy unsampled hosts get initial trials;
+/// one in eight selections explores a healthy peer to refresh its rate.
 final class ContentHostHealth: @unchecked Sendable {
     private let lock = NSLock()
     private var failures: [String: Int] = [:]
+    private var rates: [String: Double] = [:]
+    private var selections = 0
     private var reported = 0
 
     func order(_ hosts: [String], seed: Int) -> [String] {
         guard !hosts.isEmpty else { return hosts }
-        let rotated = (0..<hosts.count).map { hosts[($0 + seed) % hosts.count] }
-        lock.lock(); let counts = failures; lock.unlock()
-        return rotated.enumerated()
-            .sorted { ((counts[$0.element] ?? 0), $0.offset) < ((counts[$1.element] ?? 0), $1.offset) }
-            .map(\.element)
+        let offset = ((seed % hosts.count) + hosts.count) % hosts.count
+        let rotated = (0..<hosts.count).map { hosts[($0 + offset) % hosts.count] }
+        lock.lock()
+        let counts = failures, observed = rates
+        selections &+= 1
+        let selection = selections
+        lock.unlock()
+        var ordered = rotated.enumerated().sorted {
+            let a = counts[$0.element] ?? 0, b = counts[$1.element] ?? 0
+            if a != b { return a < b }
+            let ar = observed[$0.element], br = observed[$1.element]
+            // Obtain a rate before judging a healthy server's performance.
+            if (ar == nil) != (br == nil) { return ar == nil }
+            if let ar, let br, ar != br { return ar > br }
+            return $0.offset < $1.offset
+        }.map(\.element)
+        if selection > 0 && selection % 8 == 0 {
+            let lowest = counts[ordered[0]] ?? 0
+            let peers = rotated.filter { (counts[$0] ?? 0) == lowest }
+            let probe = peers[(selection / 8 - 1) % peers.count]
+            ordered.removeAll { $0 == probe }
+            ordered.insert(probe, at: 0)
+        }
+        return ordered
+    }
+
+    func choose(_ hosts: [String], seed: Int, avoiding tried: Set<String>) -> String? {
+        let ordered = order(hosts, seed: seed)
+        return ordered.first { !tried.contains($0) } ?? ordered.first
     }
 
     func recordFailure(_ host: String, reason: String) {
@@ -969,9 +999,15 @@ final class ContentHostHealth: @unchecked Sendable {
         }
     }
 
-    func recordSuccess(_ host: String) {
+    func recordSuccess(_ host: String, bytes: Int = 0, seconds: Double = 0) {
         lock.lock()
         if let count = failures[host], count > 0 { failures[host] = count - 1 }
+        if bytes > 0, seconds.isFinite, seconds > 0 {
+            let rate = Double(bytes) / seconds
+            if rate.isFinite {
+                rates[host] = rates[host].map { $0 * 0.75 + rate * 0.25 } ?? rate
+            }
+        }
         lock.unlock()
     }
 }

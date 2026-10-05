@@ -165,3 +165,30 @@ resumed chunks and invalid clocks. The existing production install harness
 remains the gate for concurrent file assembly, resume, corruption and updates.
 CI for this scheduling change is pending; no measured speed improvement is
 attributed to it, and it is absent from the delivered `e6f6a2c` IPA.
+
+## Measured CDN selection and retry routing
+
+Source inspection found that retries re-sorted hosts by failure count but
+selected the next host by attempt index. With two hosts, failure of A changed
+the order from A,B to B,A; attempt 1 then selected A again. The new retry
+selection excludes hosts already tried by this chunk until all alternatives
+have been visited. Attempts remain bounded at five; cancellation, authorization
+and content validation retain their existing behavior.
+
+Validated chunk responses now feed a locked per-install throughput estimate:
+encrypted response bytes divided by the successful HTTP request's wall time,
+including connection setup and first byte latency. An exponential average
+uses 25% of the new observation. Decode/write time and unsuccessful/corrupt
+payloads do not feed this estimate. Failure counts take precedence over rates.
+Unsampled healthy hosts receive initial trials; then the fastest measured host
+is preferred, with one in eight selections rotating among the healthiest peers
+so slower or recovered servers can be reassessed. An already-tried host is
+still excluded on a chunk retry, even when an exploration selection picks it.
+
+The compiled policy test covers the A,B retry scenario, exhaustive alternatives,
+empty sets, negative seeds, invalid samples, throughput preference, continued
+exploration, failure demotion, changed rates and concurrent access. The full
+production depot harness remains required for ownership, encryption, corruption,
+file assembly, resume and update regressions. CI and device benchmarking for
+this extension are pending. Ranking individual responses can be affected by
+chunk size and shared bandwidth; no device speedup is inferred from it.

@@ -10,6 +10,7 @@ import tempfile
 root = Path(__file__).resolve().parents[2]
 source = (root / 'app/Madeira/SwiftSteam/Content/DepotDownloader.swift').read_text()
 policy = 'struct ContentConcurrency {' + source.split('struct ContentConcurrency {', 1)[1].split('/// Chunk-request measurements', 1)[0]
+health = 'final class ContentHostHealth:' + source.split('final class ContentHostHealth:', 1)[1].split('/// Append-only record', 1)[0]
 fixture = r'''
 import Foundation
 func expect(_ value: Bool, _ message: String) {
@@ -59,10 +60,50 @@ for i in 1...8 {
 }
 expect(p.limit == 8, "no premature tuning")
 print("check-depot-concurrency: bounded probes, gain/plateau, retries, processing, cooldown and resume passed")
+let hosts = ["https://fast", "https://slow", "https://new"]
+let h = ContentHostHealth()
+h.recordSuccess(hosts[0], bytes: 1_000_000, seconds: 0.1)
+h.recordSuccess(hosts[1], bytes: 1_000_000, seconds: 1)
+expect(h.choose(hosts, seed: 0, avoiding: []) == hosts[2], "unsampled host gets a trial")
+h.recordSuccess(hosts[2], bytes: 1_000_000, seconds: 2)
+var fast = 0, other = 0
+for _ in 0..<64 {
+    if h.choose(hosts, seed: 0, avoiding: []) == hosts[0] { fast += 1 } else { other += 1 }
+}
+expect(fast > 48 && other > 0, "prefer throughput while continuing exploration")
+h.recordFailure(hosts[0], reason: "fixture")
+for _ in 0..<24 {
+    expect(h.choose(hosts, seed: 0, avoiding: []) != hosts[0], "failure takes precedence over throughput/probes")
+}
+h.recordSuccess(hosts[0])
+for _ in 0..<24 { h.recordSuccess(hosts[0], bytes: 1_000_000, seconds: 10) }
+expect(h.choose(hosts, seed: 0, avoiding: []) == hosts[1], "rates adapt to a formerly fast host slowing")
+let retry = ContentHostHealth()
+var tried = Set<String>()
+for _ in 0..<hosts.count {
+    let picked = retry.choose(hosts, seed: 0, avoiding: tried)!
+    expect(!tried.contains(picked), "no repeated host before alternatives")
+    tried.insert(picked)
+    retry.recordFailure(picked, reason: "fixture")
+}
+expect(retry.choose(hosts, seed: 0, avoiding: tried) != nil, "revisit allowed after all alternatives")
+expect(retry.choose([], seed: 0, avoiding: []) == nil, "empty host set")
+expect(retry.order(hosts, seed: Int.min).count == hosts.count, "negative seed safe")
+let invalid = ContentHostHealth()
+invalid.recordSuccess(hosts[0], bytes: 100, seconds: .nan)
+invalid.recordSuccess(hosts[0], bytes: 100, seconds: 0)
+invalid.recordSuccess(hosts[0], bytes: -1, seconds: 1)
+expect(invalid.choose(hosts, seed: 1, avoiding: []) == hosts[1], "invalid measurements ignored")
+DispatchQueue.concurrentPerform(iterations: 512) { i in
+    h.recordSuccess(hosts[i % hosts.count], bytes: 1_000, seconds: 0.1)
+    expect(Set(h.order(hosts, seed: i)) == Set(hosts), "concurrent selection preserves host set")
+}
+print("check-depot-concurrency: measured host preference, exploration, failure/retry routing, rate changes and concurrent access passed")
 '''
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory)
-    path.joinpath('probe.swift').write_text('import Foundation\n' + policy + fixture)
+    stub = 'enum SteamLog { static func event(_ message: String) {} }\n'
+    path.joinpath('probe.swift').write_text('import Foundation\n' + stub + policy + health + fixture)
     compiler = shutil.which('swiftc')
     if not compiler:
         raise SystemExit('Swift compiler required; run the host regression workflow.')
