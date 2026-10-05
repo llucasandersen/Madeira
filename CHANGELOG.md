@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Retain each native Wine thread's original child socket record across PEB address reuse. Bind new workers before server initialization and explicitly bind child boot registration; old peers retain their retired descriptor/exit flag and cannot tear down a successor. Extend actual-descriptor generation/sanitizer coverage; new native/full gates and complete resource quiescence remain pending.
+- Verify all 75 distinct host checks at `7d57beb`, including corrected incomplete-XML refusal and executable-owner sanitizer fixtures; the fresh native runtime at `4f954eb` compiled successfully. Current app/source-stamp package gates and device acceptance remain pending.
 - Stamp each packaged diagnostic's exact source commit into the existing build label before signing, and verify it against provenance during packaging/release checks. Phone logs can distinguish diagnostics that share the preserved app/helper version 100.
 - Bind fixed-base executable readiness to the retired image's owner and generation. Prevent unrelated child cleanup from publishing another image's address for reuse before its translation cleanup. Snapshot readiness log fields under the mutex; add actual-retirement sanitizer/concurrent-owner fixtures. Fresh native/75-check/app gates and complete thread quiescence remain pending.
 - Add a consumed, versioned compatibility profile catalog and per-library-entry opt-out. Teardown's adapter selects D3D12 through its supplied registry schema, preserves other settings byte for byte, backs up original settings and refuses unknown or ambiguous formats. Generic games retain their ordinary path; new 74-check/app gates and device renderer selection are pending.

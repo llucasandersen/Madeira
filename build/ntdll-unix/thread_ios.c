@@ -1299,6 +1299,10 @@ static void start_thread( TEB *teb )
                 (unsigned int)(ULONG_PTR)teb->ClientId.UniqueThread, raw, (void *)teb,
                 raw == teb ? "MATCH" : "MISMATCH");
     }
+    {
+        extern void ios_bind_proc_socket_thread(void);
+        ios_bind_proc_socket_thread();
+    }
     server_init_thread( thread_data->start, &suspend );
     signal_start_thread( thread_data->start, thread_data->param, suspend, teb );
 }

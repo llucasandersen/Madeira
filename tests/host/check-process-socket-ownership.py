@@ -20,6 +20,9 @@ assert 'ios_session_peb = ios_jit_current_peb();' in initial
 child = source[source.index('size_t server_init_process_child('):]
 assert 'if (!ios_register_proc_socket(' in child and 'close( child_fd_socket );' in child
 assert '-include "$BUILD_DIR/shims/wine_ios_exit.h"' in (root / 'build/ntdll-unix/build.sh').read_text()
+thread_source = (root / 'build/ntdll-unix/thread_ios.c').read_text()
+worker = thread_source[thread_source.index('static void start_thread( TEB *teb )'):]
+assert worker.index('ios_bind_proc_socket_thread();') < worker.index('server_init_thread(')
 code = r'''
 #include <assert.h>
 #include <errno.h>
@@ -65,6 +68,13 @@ code += r'''
 static void parent_alive(void) { assert(fcntl(fd_socket, F_GETFD) >= 0); }
 static void closed(int fd) { errno = 0; assert(fcntl(fd, F_GETFD) == -1 && errno == EBADF); }
 static void *exit_peer(void *peb) { owner = peb; process_exit_wrapper(0); return NULL; }
+static int successor_fd;
+static void *register_successor(void *peb) {
+    owner = peb;
+    assert(ios_register_proc_socket(owner, successor_fd));
+    assert(ios_current_fd_socket() == successor_fd);
+    return NULL;
+}
 static void *many_owners(void *lane_ptr) {
     uintptr_t lane = (uintptr_t)lane_ptr;
     for (unsigned i = 0; i < 200; i++) {
@@ -101,19 +111,35 @@ int main(void) {
     void *retired_owner = owner;
     owner = (void *)0x3000; int new_fd = dup(fd_socket); assert(new_fd >= 0);
     assert(ios_register_proc_socket(owner, new_fd));
-    owner = retired_owner; process_exit_wrapper(0); assert(fcntl(new_fd, F_GETFD) >= 0); parent_alive();
+    owner = retired_owner; ios_thread_proc_socket = NULL; /* fixture switches native process context */
+    process_exit_wrapper(0); assert(fcntl(new_fd, F_GETFD) >= 0); parent_alive();
     /* Latest registration at a reused PEB address wins; prior flag pointers stay valid. */
     child_fd = dup(fd_socket); assert(ios_register_proc_socket(owner, child_fd));
     assert(ios_current_fd_socket() == child_fd && ios_process_exiting_ptr() != old_flag && *old_flag == TRUE);
-    process_exit_wrapper(0); owner = (void *)0x3000; process_exit_wrapper(0);
+    process_exit_wrapper(0);
+    /* An old peer has captured the retired generation. Register a successor
+     * at exactly the same PEB address on a different native thread. */
+    BOOL *retired_flag = ios_process_exiting_ptr();
+    successor_fd = dup(fd_socket); assert(successor_fd >= 0);
+    assert(pthread_create(&peers[0], NULL, register_successor, owner) == 0);
+    assert(pthread_join(peers[0], NULL) == 0);
+    assert(ios_current_fd_socket() == -1 && ios_process_exiting_ptr() == retired_flag);
+    unsigned after_retired = reclaims;
+    process_exit_wrapper(0);
+    assert(reclaims == after_retired && fcntl(successor_fd, F_GETFD) >= 0);
+    assert(pthread_create(&peers[0], NULL, exit_peer, owner) == 0);
+    assert(pthread_join(peers[0], NULL) == 0);
+    closed(successor_fd); assert(reclaims == after_retired + 1); parent_alive();
+    owner = (void *)0x3000; ios_thread_proc_socket = NULL; process_exit_wrapper(0);
     before = reclaims;
     for (uintptr_t i = 0; i < 4; i++) assert(pthread_create(&peers[i], NULL, many_owners, (void *)i) == 0);
     for (unsigned i = 0; i < 4; i++) pthread_join(peers[i], NULL);
     assert(reclaims == before + 800 && parent_exits == 0); parent_alive();
-    owner = NULL; assert(ios_current_fd_socket() == fd_socket); /* initial/foreign bootstrap */
+    owner = NULL; ios_thread_proc_socket = NULL;
+    assert(ios_current_fd_socket() == fd_socket); /* initial/foreign bootstrap */
     owner = ios_session_peb; process_exit_wrapper(0); assert(parent_exits == 1); closed(fd_socket);
     close(pipefd[1]);
-    puts("PASS: >64 child owners, stable retired identity, allocation failure, duplicate/concurrent teardown and parent isolation");
+    puts("PASS: >64 child owners, stable per-thread generation after PEB reuse, retired identity, allocation failure, duplicate/concurrent teardown and parent isolation");
 }
 '''
 compiler = shutil.which('cc') or shutil.which('clang')

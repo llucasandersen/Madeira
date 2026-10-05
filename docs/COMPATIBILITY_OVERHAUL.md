@@ -4,6 +4,32 @@ This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility
 
 ## Automatic renderer profiles: supplied Teardown registry
 
+### Thread-stable child socket ownership
+
+The old registry found the most recently registered record at a PEB address on
+every access. Stable retired records prevented a peer from becoming the parent,
+but after address reuse that peer could instead select a successor's descriptor
+and exit flag. `server_ios.c` now binds a native thread to its original record
+on first valid access, and returns that stable thread-local identity thereafter,
+without rereading a possibly retired TEB/PEB to choose a new generation. Child
+boot registration explicitly binds its new record; `thread_ios.c` captures each
+Wine worker's record before its first server initialization request. Stable
+metadata remains allocated for the session, and later registration can still
+serve a new unbound native thread at the same PEB address.
+
+The extended actual-registry/exit fixture registers a successor at exactly the
+same PEB address on another pthread. It proves the old peer still receives its
+closed descriptor and original exit flag, duplicate exit does not reclaim or
+close the successor, and a new successor peer can close its own descriptor.
+Existing >64-owner, allocation-failure and concurrent duplicate-exit fixtures
+remain. Artificial context changes inside the harness explicitly clear the
+binding; actual child boot registration performs its own binding. Both
+ASan/UBSan and TSan and a fresh native build are required. This does not yet
+prove all peer threads stop or protect JIT/image/window allocations from reuse
+while those peers are alive. Native guest threads bypassing Wine's startup path
+must acquire a record before their birth PEB can disappear; complete thread
+and code resource quiescence remain under audit.
+
 ### Additional fixed-image cleanup owner defect
 
 The child lifetime audit found `ios_exe_win_mark_ready(dead_peb)` ignored its

@@ -187,6 +187,10 @@ static struct ios_proc_socket
     BOOL teardown_started;
     struct ios_proc_socket *next;
 } *ios_proc_sockets[IOS_PROC_SOCKET_BUCKETS];
+/* A live native thread retains its original process record even if a later
+ * child reuses the PEB address. The boot thread is explicitly rebound during
+ * registration; Wine workers bind before their first server request. */
+static _Thread_local struct ios_proc_socket *ios_thread_proc_socket;
 static pthread_mutex_t ios_proc_socket_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *ios_session_peb;
 static BOOL ios_unknown_process_exiting = TRUE;
@@ -215,10 +219,21 @@ static struct ios_proc_socket *ios_proc_socket_find_locked( void *owner )
 static struct ios_proc_socket *ios_current_proc_socket(void)
 {
     struct ios_proc_socket *entry;
+    void *owner;
+    if (ios_thread_proc_socket) return ios_thread_proc_socket;
+    owner = ios_jit_current_peb();
     pthread_mutex_lock( &ios_proc_socket_lock );
-    entry = ios_proc_socket_find_locked( ios_jit_current_peb() );
+    entry = ios_proc_socket_find_locked( owner );
     pthread_mutex_unlock( &ios_proc_socket_lock );
+    if (entry) ios_thread_proc_socket = entry;
     return entry;
+}
+
+/* Capture ownership while a new worker's TEB still names its birth process,
+ * before a server call can block and outlive that process's PEB storage. */
+void ios_bind_proc_socket_thread(void)
+{
+    (void)ios_current_proc_socket();
 }
 
 static BOOL ios_session_socket_owner(void)
@@ -230,10 +245,9 @@ static BOOL ios_session_socket_owner(void)
 /* Master socket for the CURRENT thread's pseudo-process (parent = global). */
 static int ios_current_fd_socket(void)
 {
-    struct ios_proc_socket *entry;
+    struct ios_proc_socket *entry = ios_current_proc_socket();
     int fd;
     pthread_mutex_lock( &ios_proc_socket_lock );
-    entry = ios_proc_socket_find_locked( ios_jit_current_peb() );
     fd = entry ? entry->fd : ios_session_socket_owner() ? fd_socket : -1;
     pthread_mutex_unlock( &ios_proc_socket_lock );
     return fd;
@@ -374,6 +388,7 @@ static BOOL ios_register_proc_socket(void *peb_id, int fd)
     entry->next = ios_proc_sockets[bucket];
     ios_proc_sockets[bucket] = entry;
     pthread_mutex_unlock( &ios_proc_socket_lock );
+    if (peb_id == ios_jit_current_peb()) ios_thread_proc_socket = entry;
     return TRUE;
 }
 #endif
