@@ -25,6 +25,33 @@ do not establish device memory survival, renderer selection, launch timeout
 behavior or the download control target. The whole goal and final release
 remain unfinished.
 
+## Optional helper containment path matching
+
+Source review found that `NtCreateUserProcess` searched every character of an
+image path for a blocked helper's name. A normal executable beneath a folder
+such as `hardwareupdater simulator` or `UnityCrashHandler64 Edition` therefore
+returned `STATUS_ACCESS_DENIED` before its process could be created. Prefixed
+filenames also matched despite not being the contained helper. This is a
+deterministic source defect; no particular reported game failure is attributed
+to it without a matching device path.
+
+`ios_optional_helper_gate` now compares exact executable basenames in counted
+UTF-16 input, with ASCII case folding, slash/backslash paths and drive-relative
+names supported. Known Steam reporter/driver-query/survey helpers and the
+existing Unity crash reporter remain refused with the same status. Crashpad
+and other game children are not covered by a blanket restriction. This improves
+the generic launch path without loosening Steam ownership or the loader's
+machine checks. It does not make the contained helper protocols functional;
+their earlier containment evidence and remaining optional-query work still
+apply.
+
+`check-optional-helper-gate.py` compiles the actual matcher with ASan/UBSan and
+checks all contained basenames, case/path variants, directory/prefix/suffix
+false positives, short nonterminated buffers and ordinary game children.
+The native runtime must be rebuilt for this change; the previously verified
+runtime artifact cannot stand in for the changed C source. New full host,
+native/app and device regression gates are required.
+
 ## Recoverable launch-stage deadlines
 
 The starting screen now also retains the last explicit `[pe-image]` rejection

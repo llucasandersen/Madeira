@@ -1040,6 +1040,40 @@ static void madeira_steam_session_log( const UNICODE_STRING *image )
 }
 #endif
 
+#ifdef WINE_IOS
+/* Optional helper containment applies to an executable basename, never to a
+ * directory or an arbitrary substring in a game's path. Counted UTF-16 input
+ * need not be NUL terminated. Keep the existing refusal result for these helpers. */
+static const char *ios_optional_helper_gate( const WCHAR *image, unsigned length )
+{
+    static const char *const names[] = {
+        "steamerrorreporter.exe", "steamerrorreporter64.exe",
+        "gldriverquery.exe", "gldriverquery64.exe",
+        "vulkandriverquery.exe", "vulkandriverquery64.exe",
+        "steamsysinfo.exe", "steamsysinfo64.exe",
+        "hardwareupdater.exe", "unitycrashhandler64.exe"
+    };
+    unsigned start = 0, i, j;
+    if (!image || !length) return NULL;
+    if (length >= 2 && image[1] == ':' &&
+        ((image[0] >= 'A' && image[0] <= 'Z') || (image[0] >= 'a' && image[0] <= 'z'))) start = 2;
+    for (i = start; i < length; i++) if (image[i] == '\\' || image[i] == '/') start = i + 1;
+    for (i = 0; i < ARRAY_SIZE(names); i++)
+    {
+        unsigned n = strlen( names[i] );
+        if (length - start != n) continue;
+        for (j = 0; j < n; j++)
+        {
+            WCHAR c = image[start + j];
+            if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+            if (c != (WCHAR)names[i][j]) break;
+        }
+        if (j == n) return names[i];
+    }
+    return NULL;
+}
+#endif
+
 /**********************************************************************
  *           NtCreateUserProcess  (NTDLL.@)
  */
@@ -1188,33 +1222,13 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
          * "EnterEC wrote it" does NOT name the origin — Core.cpp says so explicitly:
          * EnterEC storing an x64 target in State.rip is its job. The upstream producer
          * still needs finding via x9 at DispatchJump/RetToEntryThunk/ExitToX64. */
-        static const char * const blocked_names[] = { "steamerrorreporter", "gldriverquery", "vulkandriverquery",
-                                                      "steamsysinfo", "hardwareupdater",
-                                                      "unitycrashhandler64" };
-        const WCHAR *ip = params->ImagePathName.Buffer;
-        int ip_len = params->ImagePathName.Length / sizeof(WCHAR);
-        unsigned b;
-
-        for (b = 0; b < sizeof(blocked_names)/sizeof(blocked_names[0]); b++)
+        const char *blocked = ios_optional_helper_gate( params->ImagePathName.Buffer,
+                                                       params->ImagePathName.Length / sizeof(WCHAR) );
+        if (blocked)
         {
-            const char *blocked = blocked_names[b];
-            int bl = (int)strlen( blocked ), k, j;
-
-            for (k = 0; k + bl <= ip_len; k++)
-            {
-                for (j = 0; j < bl; j++)
-                {
-                    WCHAR c = ip[k + j];
-                    if (c >= 'A' && c <= 'Z') c += 32;
-                    if (c != (WCHAR)blocked[j]) break;
-                }
-                if (j == bl)
-                {
-                    dprintf(2, "[proc-gate] REFUSING spawn of %s (%s gate)\n",
-                            debugstr_us( &params->ImagePathName ), blocked );
-                    return STATUS_ACCESS_DENIED;
-                }
-            }
+            dprintf(2, "[proc-gate] REFUSING spawn of %s (%s gate)\n",
+                    debugstr_us( &params->ImagePathName ), blocked );
+            return STATUS_ACCESS_DENIED;
         }
     }
 
