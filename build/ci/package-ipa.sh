@@ -78,6 +78,7 @@ report = {
     'sdk': subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip(),
     'ntdll_sha256': sha(app / 'arm64ec-windows/ntdll.dll'),
     'dockhost_sha256': sha(app / 'arm64ec-windows/dockhost.exe'),
+    'xaudio2_9_sha256': sha(app / 'arm64ec-windows/xaudio2_9.dll'),
     'signing': 'ad-hoc; re-sign before installing',
     'entitlements': ent,
     'microsoft_runtime_binaries_included': False,
@@ -93,6 +94,12 @@ if staging.exists():
     assert sha(app / 'arm64ec-windows/d3d9.dll') == graphics['preserved_wine_d3d9_sha256'], 'packaged Wine D3D9 changed'
     report['source_built_dxmt'] = graphics
     report['unchanged_PE_components'] = 'tracked upstream binaries except rebuilt ntdll, Dock and four DXMT graphics DLLs; complete clean PE rebuild pending'
+d3d12_staging = out / 'd3d12-staging.json'
+if d3d12_staging.exists():
+    graphics = json.loads(d3d12_staging.read_text())
+    for name, expected in graphics['staged_sha256'].items():
+        assert sha(app / 'arm64ec-windows' / name) == expected, f'packaged D3D12 mismatch: {name}'
+    report['source_built_d3d12'] = graphics
 (out / 'build-provenance.json').write_text(json.dumps(report, indent=2) + '\n')
 PY
 PACKAGE="$(mktemp -d "$OUT/package.XXXXXX")"

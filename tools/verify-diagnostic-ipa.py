@@ -51,6 +51,13 @@ def verify(ipa, provenance, checksum, commit):
             require(hashlib.sha256(data).hexdigest() == report[key], filename + ' provenance mismatch')
             require(marker in data, filename + ' diagnostic marker missing')
         graphics = report.get('source_built_dxmt')
+        if 'xaudio2_9_sha256' in report:
+            require(hashlib.sha256(archive.read(prefix + 'arm64ec-windows/xaudio2_9.dll')).hexdigest()
+                    == report['xaudio2_9_sha256'], 'XAudio2.9 provenance mismatch')
+        if 'source_built_d3d12' in report:
+            for filename, expected in report['source_built_d3d12']['staged_sha256'].items():
+                require(hashlib.sha256(archive.read(prefix + 'arm64ec-windows/' + filename)).hexdigest()
+                        == expected, filename + ' source build mismatch')
         if graphics is not None:
             require(set(graphics['staged_sha256']) == {'d3d10core.dll', 'd3d11.dll', 'dxgi.dll', 'winemetal.dll'},
                     'unexpected source-built graphics inventory')
