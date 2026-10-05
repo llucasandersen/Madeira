@@ -27,6 +27,27 @@ remain unfinished.
 
 ## Recoverable launch-stage deadlines
 
+The starting screen now also retains the last explicit `[pe-image]` rejection
+from the log tail while its launch hold is active, even with the live log hidden.
+The diagnostic parser accepts only the loader's known section, architecture,
+map, module setup and PE64 conversion formats. Input and basename lengths are
+bounded; full paths are discarded. Numeric status values and architecture
+machine codes are validated. Architecture records without a status show the
+actual machines rather than inventing an NTSTATUS. The diagnostic appears
+beside a stage timeout or host failure. It is reset per launch and does not
+turn optional media DLL rejection into a fatal result. Startup temporarily
+keeps the existing tail reader active while suppressing ordinary UI parsing;
+the tail returns to its normal hidden-log pause after the game is revealed or
+the session ends. No extra file reader or log history is retained.
+
+The production parser's fixture tests cover all recorded stages, exact status,
+architecture-without-status, path removal, unrelated records, bounded input and
+malformed/duplicate fields. Capture ordering and tail activation are checked
+alongside existing UI wiring. Full host/Xcode gates for this subsequent change
+are pending. The latest rejection can be from an optional component; the UI
+labels it as an observation, not the established cause of the stall. Exact
+process identity/fatal dependency attribution still require native evidence.
+
 The supplied required-content refusal remains retryable for hours in the host,
 while the starting screen previously repeated its original message indefinitely.
 `SteamLaunchProgress` in `DockStartScreen.swift` now records the current observed

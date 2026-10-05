@@ -57,7 +57,7 @@ require('/* DockStartScreen.swift in Sources */,' in project and 'path = "DockSt
 require(re.search(r'\bView\b|SwiftUI|MadeiraDock\.|MadeiraConfig|getenv', rules.replace('// MARK: - Rules', '')) is None,
         'the rules are Foundation-only and pure (switches are passed in)')
 for text in (screen, winios[winios.index('Top-level window census'):winios.index('void winios_pDestroyWindow(HWND hwnd)')]):
-    require(not re.findall(r'"[^"\n]*\.exe"', text), 'no program names in the rules or the census')
+    require(not re.findall(r'"[^"\n]+\.exe"', text), 'no program names in the rules or the census (bare extension filters allowed)')
 require('clientImages' not in screen and 'helperImages' not in screen and 'helperPrefixes' not in screen,
         'no program-name lists: owners are classed by folder')
 require('library.begin(.dockSession(title: game.name, width: width, height: height), remember: false, dock: game)' in content
@@ -79,10 +79,18 @@ require('if dockStart.failure != nil {' in row and 'if dockStart.holding {' in r
         'close session only once the Dock stopped; show desktop only while the desktop is held back')
 require('Text("Madeira Dock stopped")' in library and 'DockInstallers.note' in library and 'DockStartStatus.text(' in library,
         'the starting screen shows the Dock status, the one-time-install note, and a stop with its words')
-require('if let warning = dockStart.progressWarning { return warning }' in library and
+require('if let warning = dockStart.progressWarning {' in library and 'dockStart.loaderDiagnostic.map' in library and
         'let warning = hostStarted ? progress.warning(now: elapsed) : nil' in screen and
         'progress = SteamLaunchProgress(startedAt: elapsed)' in screen,
         'recoverable stage warning reaches the starting screen and excludes one-time installer duration')
+store = (app / 'LogStore.swift').read_text(encoding='utf-8')
+capture = store[store.index('private func handleRawLine'):store.index('// Filter out lines')]
+require(capture.index('SteamLoaderRejection.parse(raw)') < capture.index('if suppressed { return }') and
+        'let pause = suppress && !launchDiagnosticsActive' in store and
+        'let pause = displaySuppressed && !active' in store and
+        'LogStore.shared.setLaunchDiagnosticsActive(true)' in screen and
+        'LogStore.shared.setLaunchDiagnosticsActive(false)' in screen,
+        'startup diagnostic capture survives hidden live log and stops with the launch hold')
 status = library[library.index('    private var dockStatus: String {'):]
 status = status[:status.index('\n    }\n')]
 require(status.index('DockInstallers.poll(drive: MadeiraDock.drive)') < status.index('DockInstallers.finishedAt ?? model.launchStartedAt')
@@ -231,6 +239,21 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
                 "a flapping dialog stops toggling and stays shown (reveals=\(reveals) covers=\(covers))")
 
         // --- The status line: the furthest stage the host reported.
+        let rejected = SteamLoaderRejection.parse(#"00b0:err:module:[pe-image] section rejected L"C:\Program Files (x86)\Steam\SDL3.dll" status=c000007b"#)
+        require(rejected?.module == "SDL3.dll" && rejected?.phase == "section" && rejected?.status == "C000007B", "exact loader stage, basename and status")
+        require(rejected?.text.contains("0xC000007B") == true && rejected?.text.contains("Program Files") == false, "UI diagnostic retains status without private paths")
+        let arch = SteamLoaderRejection.parse(#"[pe-image] architecture rejected L"C:\Steam\SDL3.dll" file_machine=8664 current_machine=a641 wow_teb=0 code=1"#)
+        require(arch?.status == nil && arch?.fileMachine == "8664" && arch?.currentMachine == "A641", "architecture record uses measured machines, not invented status")
+        for phase in ["map", "module setup", "PE64 conversion"] {
+            let line = "[pe-image] " + phase + #" rejected L"C:\Steam\video64.dll" status=c000007b machine=8664"#
+            require(SteamLoaderRejection.parse(line)?.phase == phase, "parse loader phase " + phase)
+        }
+        require(SteamLoaderRejection.parse(#"[pe-image] section rejected L"C:\Steam\SDL3.dll" status=success"#) == nil, "reject malformed status")
+        require(SteamLoaderRejection.parse(#"[pe-image] section rejected L"C:\Steam\SDL3.dll" status=c000007b status=c0000005"#) == nil, "reject ambiguous status")
+        require(SteamLoaderRejection.parse(#"[pe-image] architecture rejected L"C:\Steam\SDL3.dll" file_machine=8664 current_machine=bogus"#) == nil, "reject malformed architecture")
+        require(SteamLoaderRejection.parse(#"[pe-image] section rejected L"C:\private\token.txt" status=c000007b"#) == nil, "only module filenames are captured")
+        require(SteamLoaderRejection.parse(String(repeating: "x", count: 4097)) == nil, "bounded input")
+        require(SteamLoaderRejection.parse("ordinary log line") == nil, "ignore unrelated logs")
         var tracker = SteamLaunchProgress()
         require(tracker.warning(now: 59) == nil && tracker.warning(now: 60) != nil, "startup warning boundary")
         require(tracker.step(["session-authenticated-online": "1"], programObserved: false, rendered: false, now: 61), "authentication advances stage")

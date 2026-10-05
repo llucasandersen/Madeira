@@ -3505,7 +3505,8 @@ struct LibraryHUD: View {
                 if dockStart.failure == nil { ProgressView().tint(.white) }
                 if let failure = dockStart.failure {
                     Text("Madeira Dock stopped").font(.headline)
-                    Text(failure).font(.caption).multilineTextAlignment(.center).frame(maxWidth: 360)
+                    Text(failure + (dockStart.loaderDiagnostic.map { "\n" + $0 } ?? ""))
+                        .font(.caption).multilineTextAlignment(.center).frame(maxWidth: 360)
                 } else if dockStart.active {
                     // What the Dock start is waiting for, from the host's report, and what it
                     // does with the game's one-time installs.
@@ -3589,7 +3590,9 @@ struct LibraryHUD: View {
             let progress = DockInstallers.poll(drive: MadeiraDock.drive)
             // The host starts at once, or after this start's one-time installs finished.
             let hostDue = DockInstallers.finishedAt ?? model.launchStartedAt
-            if let warning = dockStart.progressWarning { return warning }
+            if let warning = dockStart.progressWarning {
+                return warning + (dockStart.loaderDiagnostic.map { "\n" + $0 } ?? "")
+            }
             return DockStartStatus.text(MadeiraDock.pollReport().fields, installers: DockInstallers.script != nil,
                                         installerProgress: progress, installsFinished: DockInstallers.finishedAt != nil,
                                         waited: Date().timeIntervalSince(hostDue))

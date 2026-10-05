@@ -184,6 +184,46 @@ struct SteamLaunchHold {
     }
 }
 
+/// A bounded diagnostic from the loader's explicit rejection records. Optional
+/// DLL rejection is evidence to display after a stall, not a launch failure.
+struct SteamLoaderRejection: Equatable {
+    let module: String
+    let phase: String
+    let status: String?
+    let fileMachine: String?
+    let currentMachine: String?
+
+    private static let record = try! NSRegularExpression(pattern:
+        #"\[pe-image\] (section|architecture|map|module setup|PE64 conversion) rejected L?"([^"\r\n]*)" (.*)$"#)
+
+    static func parse(_ raw: String) -> Self? {
+        guard raw.utf8.count <= 4096, raw.contains("[pe-image]"),
+              let match = record.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)) else { return nil }
+        func part(_ index: Int) -> String { String(raw[Range(match.range(at: index), in: raw)!]) }
+        let module = part(2).replacingOccurrences(of: "/", with: "\\").split(separator: "\\").last.map(String.init) ?? ""
+        guard !module.isEmpty, module.utf8.count <= 128,
+              module.unicodeScalars.allSatisfy({ $0.value >= 32 && $0.value != 127 }),
+              [".dll", ".exe"].contains(where: { module.lowercased().hasSuffix($0) }) else { return nil }
+        let tokens = part(3).split(separator: " ")
+        func hex(_ key: String, digits: Int) -> String? {
+            let values = tokens.filter { $0.hasPrefix(key + "=") }
+            guard values.count == 1 else { return nil }
+            let value = values[0].dropFirst(key.count + 1)
+            guard value.count == digits, value.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { return nil }
+            return value.uppercased()
+        }
+        let status = hex("status", digits: 8)
+        let file = hex("file_machine", digits: 4), current = hex("current_machine", digits: 4)
+        guard part(1) == "architecture" ? file != nil && current != nil : status != nil else { return nil }
+        return Self(module: module, phase: part(1), status: status, fileMachine: file, currentMachine: current)
+    }
+
+    var text: String {
+        let detail = status.map { "status 0x" + $0 } ?? "file machine 0x\(fileMachine ?? "?"); current machine 0x\(currentMachine ?? "?")"
+        return "Last observed loader rejection: \(module), \(phase), \(detail)."
+    }
+}
+
 /// Recoverable inactivity warnings based on evidence, not on retry counters.
 /// A Steam running flag is not proof that an executable or render window exists.
 struct SteamLaunchProgress {
@@ -330,6 +370,7 @@ final class DockStartScreen: ObservableObject {
     /// A window that may need the user is up behind the starting screen.
     @Published private(set) var attention = false
     @Published private(set) var progressWarning: String?
+    @Published private(set) var loaderDiagnostic: String?
 
     private var hold: SteamLaunchHold?
     private var progress = SteamLaunchProgress()
@@ -345,8 +386,10 @@ final class DockStartScreen: ObservableObject {
         endHold(reason: nil)
         active = game != nil; appID = game?.id; failure = nil
         progress = SteamLaunchProgress(); progressWarning = nil
+        loaderDiagnostic = nil; LogStore.shared.resetLaunchRejection()
         exitObserved = false; hostStarted = false; early = []; started = start
         guard let game, MadeiraConfig.flag("MADEIRA_DOCK_HIDE_DESKTOP") else { return }   // 0: a Dock start's starting screen ends on the desktop's first frame, as before
+        LogStore.shared.setLaunchDiagnosticsActive(true)
         let hold = SteamLaunchHold(autoReveal: MadeiraConfig.flag("MADEIRA_DOCK_AUTO_REVEAL"))   // 0: a window that may need the user never reveals the desktop by itself (Show desktop still does)
         self.hold = hold; sceneLines = 0; holding = true
         winios_window_census_enable(1)
@@ -358,12 +401,16 @@ final class DockStartScreen: ObservableObject {
         endHold(reason: "session-ended")
         active = false; appID = nil; failure = nil
         progressWarning = nil
+        loaderDiagnostic = nil
+        LogStore.shared.setLaunchDiagnosticsActive(false)
     }
 
     /// Every 0.5 s from LibraryModel.poll while a session runs. `rendered`: D3D
     /// frames reached the screen since the start began.
     func poll(_ model: LibraryModel, rendered: Bool) {
         guard active else { return }
+        let diagnostic = LogStore.shared.launchRejection?.text
+        if loaderDiagnostic != diagnostic { loaderDiagnostic = diagnostic }
         let elapsed = Date().timeIntervalSince(started)
         var report: MadeiraDock.Report?
         // The host's result: a start that stopped keeps the starting screen with the report's words.
@@ -441,6 +488,7 @@ final class DockStartScreen: ObservableObject {
 
     private func endHold(reason: String?) {
         guard hold != nil || holding else { return }
+        LogStore.shared.setLaunchDiagnosticsActive(false)
         if let reason, let hold {
             LogStore.shared.log("[steam-launch-view] end reason=\(reason) scene=\(hold.scene.name) revealed=\(hold.revealed ? 1 : 0) t=\(Int(Date().timeIntervalSince(started)))s")
         }
