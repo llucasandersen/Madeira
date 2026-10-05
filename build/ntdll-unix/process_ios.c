@@ -604,6 +604,7 @@ static NTSTATUS spawn_process( const RTL_USER_PROCESS_PARAMETERS *params, int so
     char **argv;
     struct ios_child_args *args;
     pthread_t child_thread;
+    NTSTATUS status;
     int ret, argc;
 
     argv = build_argv( &params->CommandLine, 2 );
@@ -619,13 +620,17 @@ static NTSTATUS spawn_process( const RTL_USER_PROCESS_PARAMETERS *params, int so
     args = calloc( 1, sizeof(*args) );
     if (!args) { free( argv ); return STATUS_NO_MEMORY; }
 
-    /* dup the socketfd — parent will close the original after we return */
-    args->socketfd = dup( socketfd );
-    /* dup the unixdir — parent will also close the original (iOS shares fd table) */
-    args->unixdir = (unixdir != -1) ? dup( unixdir ) : -1;
+    args->socketfd = args->unixdir = args->slot = -1;
     args->argv = argv;
     args->argc = argc;
     args->pe_info = *pe_info;
+
+    /* dup the socketfd — parent will close the original after we return */
+    args->socketfd = dup( socketfd );
+    if (args->socketfd == -1) { status = errno_to_status( errno ); goto failed; }
+    /* dup the unixdir — parent will also close the original (iOS shares fd table) */
+    args->unixdir = (unixdir != -1) ? dup( unixdir ) : -1;
+    if (unixdir != -1 && args->unixdir == -1) { status = errno_to_status( errno ); goto failed; }
     args->slot = ios_child_slot_take( &params->ImagePathName );
 
     if (winedebug) putenv( winedebug );
@@ -636,14 +641,20 @@ static NTSTATUS spawn_process( const RTL_USER_PROCESS_PARAMETERS *params, int so
     ret = pthread_create( &child_thread, NULL, ios_child_thread_entry, args );
     if (ret) {
         ERR("spawn_process: pthread_create failed: %d\n", ret);
-        ios_child_slot_release( args->slot );
-        free( argv );
-        free( args );
-        return STATUS_NO_MEMORY;
+        status = STATUS_NO_MEMORY;
+        goto failed;
     }
     pthread_detach( child_thread );
 
     return STATUS_SUCCESS;
+failed:
+    /* No child owns these yet. Never close the parent's original descriptors. */
+    if (args->socketfd != -1) close( args->socketfd );
+    if (args->unixdir != -1) close( args->unixdir );
+    ios_child_slot_release( args->slot );
+    free( argv );
+    free( args );
+    return status;
 #else
     NTSTATUS status = STATUS_SUCCESS;
     int stdin_fd = -1, stdout_fd = -1;

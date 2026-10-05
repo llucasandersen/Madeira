@@ -34,6 +34,33 @@ multiline rejection. The remaining risk is that a later unrelated optional
 failure replaces an earlier diagnostic, hence the UI labels it the last
 observed rejection. New full host and Xcode app gates are required.
 
+## Child spawn failure descriptor ownership
+
+Source review found two errors in the iOS `spawn_process` path. Both `dup`
+results were unchecked, so descriptor exhaustion could start a child with an
+invalid startup socket or silently lose its requested working directory.
+If `pthread_create` failed, the duplicated socket and directory descriptors
+were leaked. Repeated failed launches could therefore exhaust the shared Mach
+process's descriptor table. This is a deterministic source defect, not a
+confirmed cause of the supplied Teardown content wait.
+
+`build/ntdll-unix/process_ios.c` now initializes owned descriptors to `-1`,
+checks both duplication results and returns Wine's mapped NTSTATUS before
+starting a child on failure. A single cleanup path closes only the duplicates,
+releases any acquired census slot and frees startup allocations. Successful
+thread creation still transfers those resources to the child. Original parent
+descriptors remain owned by the caller; no running child is terminated.
+
+`check-child-spawn-failure.py` extracts the actual production iOS spawn
+function and injects argument/allocation, first/second duplication and thread
+creation failures under ASan/UBSan with leak detection. Real pipe/directory
+descriptors verify closure and parent preservation, including 1,000 failed
+thread starts and successful ownership transfer with/without a directory.
+Native compilation and all 71 host checks are required for this new change;
+the earlier successful runtime predates it. Device relaunch acceptance remains
+pending. The primary regression risk is returning an explicit error where
+the old path incorrectly attempted startup with an invalid descriptor.
+
 ## Earlier verified app baseline: a5669ae
 
 [Host run 37253512089](https://github.com/llucasandersen/Madeira/actions/runs/37253512089)
