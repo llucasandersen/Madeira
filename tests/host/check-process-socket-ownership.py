@@ -23,6 +23,10 @@ assert '-include "$BUILD_DIR/shims/wine_ios_exit.h"' in (root / 'build/ntdll-uni
 thread_source = (root / 'build/ntdll-unix/thread_ios.c').read_text()
 worker = thread_source[thread_source.index('static void start_thread( TEB *teb )'):]
 assert worker.index('ios_bind_proc_socket_thread();') < worker.index('server_init_thread(')
+startup_start = thread_source.index('struct ios_thread_start_args\n{')
+startup = thread_source[startup_start:thread_source.index('static SIZE_T get_machine_context_size', startup_start)]
+assert startup.index('args->process_record = ios_capture_proc_socket_thread();') < startup.index('pthread_create(')
+assert 'ios_create_native_thread( &pthread_id, &pthread_attr, teb )' in thread_source
 code = r'''
 #include <assert.h>
 #include <errno.h>
@@ -65,6 +69,30 @@ code += registry + registration + teardown
 code += r'''
 #undef calloc
 #undef exit
+typedef struct { void *owner; } TEB;
+static int startup_fd, started_count, fail_start_alloc, fail_thread_create;
+static void *queued_start_args;
+static void *(*queued_start)(void *);
+static void start_thread(TEB *teb) {
+    owner = teb->owner;
+    ++started_count;
+    startup_fd = ios_current_fd_socket();
+}
+static void *probe_malloc(size_t size) { return fail_start_alloc ? NULL : malloc(size); }
+static int probe_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                                void *(*entry)(void *), void *arg) {
+    (void)attr;
+    if (fail_thread_create) return EAGAIN;
+    *thread = pthread_self(); queued_start = entry; queued_start_args = arg;
+    return 0; /* deterministic scheduling delay before executing the actual entry */
+}
+#define malloc probe_malloc
+#define pthread_create probe_pthread_create
+'''
+code += startup
+code += r'''
+#undef malloc
+#undef pthread_create
 static void parent_alive(void) { assert(fcntl(fd_socket, F_GETFD) >= 0); }
 static void closed(int fd) { errno = 0; assert(fcntl(fd, F_GETFD) == -1 && errno == EBADF); }
 static void *exit_peer(void *peb) { owner = peb; process_exit_wrapper(0); return NULL; }
@@ -130,6 +158,24 @@ int main(void) {
     assert(pthread_create(&peers[0], NULL, exit_peer, owner) == 0);
     assert(pthread_join(peers[0], NULL) == 0);
     closed(successor_fd); assert(reclaims == after_retired + 1); parent_alive();
+    /* Capture the creator record before pthread scheduling. A successor may
+     * register at the same PEB before the actual worker entry gets a timeslice. */
+    TEB delayed_teb = { owner };
+    fail_start_alloc = 1;
+    assert(ios_create_native_thread(&peers[0], NULL, &delayed_teb) == ENOMEM);
+    fail_start_alloc = 0; fail_thread_create = 1;
+    assert(ios_create_native_thread(&peers[0], NULL, &delayed_teb) == EAGAIN);
+    fail_thread_create = 0;
+    assert(ios_create_native_thread(&peers[0], NULL, &delayed_teb) == 0);
+    successor_fd = dup(fd_socket); assert(successor_fd >= 0);
+    assert(pthread_create(&peers[0], NULL, register_successor, owner) == 0);
+    assert(pthread_join(peers[0], NULL) == 0);
+    assert(pthread_create(&peers[0], NULL, queued_start, queued_start_args) == 0);
+    assert(pthread_join(peers[0], NULL) == 0);
+    assert(started_count == 1 && startup_fd == -1 && fcntl(successor_fd, F_GETFD) >= 0);
+    assert(pthread_create(&peers[0], NULL, exit_peer, owner) == 0);
+    assert(pthread_join(peers[0], NULL) == 0);
+    closed(successor_fd); parent_alive();
     owner = (void *)0x3000; ios_thread_proc_socket = NULL; process_exit_wrapper(0);
     before = reclaims;
     for (uintptr_t i = 0; i < 4; i++) assert(pthread_create(&peers[i], NULL, many_owners, (void *)i) == 0);

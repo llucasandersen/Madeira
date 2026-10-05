@@ -30,6 +30,18 @@ while those peers are alive. Native guest threads bypassing Wine's startup path
 must acquire a record before their birth PEB can disappear; complete thread
 and code resource quiescence remain under audit.
 
+The worker's creator now also captures the original record before
+`pthread_create`, and a native startup wrapper adopts it before `start_thread`.
+This closes the socket-identity scheduling gap where startup occurs only after
+the original PEB address has been reused. The wrapper transfers its small
+argument allocation to the new thread and frees it on failed pthread creation;
+allocation failure uses the existing thread-creation cleanup path. The actual
+wrapper fixture delays entry across a successor registration and verifies it
+still sees the retired creator's closed descriptor. It injects allocation and
+pthread failures under the existing sanitizer/leak gates. This protects socket
+generation; it does not cancel late workers or prove their guest TEB/code
+remains mapped. The wider allocation/peer-thread lifetime problem remains.
+
 ### Additional fixed-image cleanup owner defect
 
 The child lifetime audit found `ios_exe_win_mark_ready(dead_peb)` ignored its

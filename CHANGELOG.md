@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Capture a worker's original socket record in its creator before pthread scheduling, then adopt it in the native startup wrapper. Preserve existing thread-creation cleanup and test delayed startup across PEB reuse plus allocation/pthread failures; fresh native/full gates are pending.
 - Retain each native Wine thread's original child socket record across PEB address reuse. Bind new workers before server initialization and explicitly bind child boot registration; old peers retain their retired descriptor/exit flag and cannot tear down a successor. Extend actual-descriptor generation/sanitizer coverage; new native/full gates and complete resource quiescence remain pending.
 - Verify all 75 distinct host checks at `7d57beb`, including corrected incomplete-XML refusal and executable-owner sanitizer fixtures; the fresh native runtime at `4f954eb` compiled successfully. Current app/source-stamp package gates and device acceptance remain pending.
 - Stamp each packaged diagnostic's exact source commit into the existing build label before signing, and verify it against provenance during packaging/release checks. Phone logs can distinguish diagnostics that share the preserved app/helper version 100.

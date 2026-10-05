@@ -236,6 +236,18 @@ void ios_bind_proc_socket_thread(void)
     (void)ios_current_proc_socket();
 }
 
+/* Carry a creator's stable record across pthread startup scheduling. Looking
+ * it up from the new thread's TEB only after startup could be too late. */
+void *ios_capture_proc_socket_thread(void)
+{
+    return ios_current_proc_socket();
+}
+
+void ios_adopt_proc_socket_thread(void *record)
+{
+    ios_thread_proc_socket = record;
+}
+
 static BOOL ios_session_socket_owner(void)
 {
     void *owner = ios_jit_current_peb();

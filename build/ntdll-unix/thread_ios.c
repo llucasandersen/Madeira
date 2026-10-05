@@ -1307,6 +1307,38 @@ static void start_thread( TEB *teb )
     signal_start_thread( thread_data->start, thread_data->param, suspend, teb );
 }
 
+/* The creator captures the socket generation while it is still alive. A new
+ * pthread can be scheduled after process exit or PEB reuse, so startup must
+ * adopt that record before reading server ownership from the TEB. */
+struct ios_thread_start_args
+{
+    TEB *teb;
+    void *process_record;
+};
+
+static void *ios_start_native_thread(void *opaque)
+{
+    struct ios_thread_start_args args = *(struct ios_thread_start_args *)opaque;
+    extern void ios_adopt_proc_socket_thread(void *record);
+    free( opaque );
+    ios_adopt_proc_socket_thread( args.process_record );
+    start_thread( args.teb );
+    return NULL;
+}
+
+static int ios_create_native_thread(pthread_t *thread, const pthread_attr_t *attr, TEB *teb)
+{
+    struct ios_thread_start_args *args = malloc( sizeof(*args) );
+    extern void *ios_capture_proc_socket_thread(void);
+    int ret;
+    if (!args) return ENOMEM;
+    args->teb = teb;
+    args->process_record = ios_capture_proc_socket_thread();
+    ret = pthread_create( thread, attr, ios_start_native_thread, args );
+    if (ret) free( args );
+    return ret;
+}
+
 
 /***********************************************************************
  *           get_machine_context_size
@@ -1735,7 +1767,7 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE *handle, ACCESS_MASK access, OBJECT_ATT
     pthread_attr_setguardsize( &pthread_attr, 0 );
     pthread_attr_setscope( &pthread_attr, PTHREAD_SCOPE_SYSTEM ); /* force creating a kernel thread */
     InterlockedIncrement( &nb_threads );
-    if (pthread_create( &pthread_id, &pthread_attr, (void * (*)(void *))start_thread, teb ))
+    if (ios_create_native_thread( &pthread_id, &pthread_attr, teb ))
     {
         InterlockedDecrement( &nb_threads );
         virtual_free_teb( teb );
