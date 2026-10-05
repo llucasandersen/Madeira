@@ -102,7 +102,30 @@ launches. Steam's Windows client can subsequently sync options or the engine
 can rewrite them; a physical launch must confirm the active renderer and repeat
 launch behavior. An OpenGL DLL import alone is not an active-backend verdict.
 
-## Latest completed app and host gates: e0835ca
+## Latest completed app and host gates: 9a9156c; subsequent child gates
+
+All 75 distinct checks and the real Valve archive gate passed at `7d57beb`
+in 37263575853; downloaded Linux/macOS inventories exactly match that commit's
+test tree and every exit code is zero. `git diff --exit-code 7d57beb 9a9156c --
+app build/ntdll-unix tests/host` confirms identical app/native/test source for
+the later source-stamped package. Its complete Xcode/Metal/signing workflow
+37264002056 passed, using fresh runtime job 111614932259 from 37263341841
+(`4f954eb`). Local ZIP/identity/runtime/graphics/source-stamp verification
+passed for `Madeira-diagnostic-9a9156c.ipa` (87,356,202 bytes), SHA-256
+`5041916ad583bc23ad936c440e6dfa9b14364e153cb834438ff7da4ea2a04209`.
+This local package includes automatic renderer selection, incomplete-XML refusal,
+owner-bound executable readiness and exact build labeling, but predates the
+thread-stable socket/captured-worker changes.
+
+The subsequent `b9c3219` source passed all 75 checks and the real Valve archive
+gate in 37264682803. Downloaded inventories match all 75 repository checks,
+with no failures or duplicates. Fast push gate 37264683278 independently passed
+the actual renderer, fixed-image and extended socket-generation fixtures,
+including both sanitizers and delayed worker startup/failure cleanup. Native
+and app workflow 37264684593 remains live and is not yet a completed gate.
+Neither baseline constitutes physical acceptance or a final USB/release delivery.
+
+## Earlier completed app and host gates: e0835ca
 
 Subsequent renderer gates at `131baa1` and `6469e76` compiled the iOS app,
 but their new XML fixture failed: an incomplete XML document was accepted by

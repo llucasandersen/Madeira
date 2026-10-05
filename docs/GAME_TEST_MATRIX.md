@@ -2,7 +2,21 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
-Latest completed source validation: all 73 distinct checks and real Valve
+Latest completed host validation: all 75 checks and real Valve archives passed
+at `b9c3219` (37264682803). Downloaded inventories match the full test tree.
+This includes creator-captured worker/socket generation fixtures under
+ASan/UBSan and TSan. Fresh native/app workflow 37264684593 is still live.
+
+Latest completed app validation: workflow 37264002056 passed at `9a9156c`,
+using freshly compiled `4f954eb` runtime job 111614932259. Its app/native/test
+source is identical to the completed 75-check `7d57beb` baseline. Local package
+identity/runtime/graphics/source-stamp checks passed, SHA-256
+`5041916ad583bc23ad936c440e6dfa9b14364e153cb834438ff7da4ea2a04209`.
+This diagnostic predates later thread/socket changes and has no new physical
+acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
+repeated map loads and final delivery remain unverified.
+
+Earlier completed source validation: all 73 distinct checks and real Valve
 archives passed at `e0835ca` (37261593279). Fresh native socket changes compiled
 at `4503b36` (37261069251); complete app/package/signing gates at `e0835ca`
 passed (37261594883). Local package checks passed, SHA-256
@@ -11,7 +25,7 @@ The new automatic Teardown profile uses the supplied registry schema; its
 74-check/app gates and physical renderer/10-minute/relaunch acceptance remain
 pending. This is not a final release or a new USB delivery.
 
-Latest source validation: all 68 distinct host checks passed at `a5669ae`
+Earlier source validation: all 68 distinct host checks passed at `a5669ae`
 (run 37253512089); its Xcode/IPA build passed (run 37253514108). The downloaded
 package passed ZIP, identity, runtime and graphics provenance checks, SHA-256
 `c02e208064f6d41ad3014cad7146600df6d6449893f00aa9b158ff97676a8288`.
