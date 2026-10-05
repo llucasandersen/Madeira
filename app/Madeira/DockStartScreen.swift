@@ -184,6 +184,70 @@ struct SteamLaunchHold {
     }
 }
 
+/// Recoverable inactivity warnings based on evidence, not on retry counters.
+/// A Steam running flag is not proof that an executable or render window exists.
+struct SteamLaunchProgress {
+    enum Stage: String {
+        case starting, signingIn, authenticated, authorized, content, configuration
+        case requested, programObserved, rendered, exited, hostEnded
+
+        var timeout: Double? {
+            switch self {
+            case .starting: return 60
+            case .signingIn, .authenticated: return 120
+            case .authorized, .configuration, .requested, .programObserved: return 180
+            case .content: return 600
+            case .rendered, .exited, .hostEnded: return nil
+            }
+        }
+    }
+    private(set) var stage = Stage.starting
+    private(set) var since = 0.0
+    private var lastTime = 0.0
+
+    init(startedAt: Double = 0) {
+        if startedAt.isFinite && startedAt >= 0 { since = startedAt; lastTime = startedAt }
+    }
+
+    mutating func step(_ fields: [String: String], programObserved: Bool, rendered: Bool,
+                       now: Double) -> Bool {
+        guard now.isFinite, now >= lastTime else { return false }
+        lastTime = now
+        let next: Stage
+        if fields["probe-result"] != nil { next = .hostEnded }
+        else if fields["launch-game-ended"] == "1" { next = .exited }
+        else if rendered { next = .rendered }
+        else if programObserved { next = .programObserved }
+        else if fields["launch-update-wait"] != nil && fields["launch-update-ready"] == nil { next = .content }
+        else if fields["launch-config-wait"] != nil && ["22", "23"].contains(fields["launch-client-error"] ?? "") { next = .configuration }
+        else if fields["launch-request-submitted"] == "1" || fields["launch-client-error"] == "0" || fields["launch-game-running"] == "1" { next = .requested }
+        else if fields["session-requested-app-listed"] == "1" { next = .authorized }
+        else if fields["session-authenticated-online"] == "1" { next = .authenticated }
+        else if fields["session-native-token-submitted"] != nil || fields["session-logon-start-result"] != nil { next = .signingIn }
+        else { next = .starting }
+        guard next != stage else { return false }
+        stage = next; since = now
+        return true
+    }
+
+    func warning(now: Double) -> String? {
+        guard now.isFinite, now >= lastTime, let timeout = stage.timeout, now - since >= timeout else { return nil }
+        let reason: String
+        switch stage {
+        case .content: reason = "Steam has not reported the required content ready."
+        case .configuration: reason = "Steam has not finished loading the game's configuration."
+        case .requested: reason = "Steam received the launch request, but no game or launcher window has been observed."
+        case .programObserved: reason = "A game or launcher process has a window, but no game frame has been observed."
+        case .authorized: reason = "The license is confirmed, but Steam has not accepted the launch."
+        case .authenticated: reason = "Steam signed in, but has not confirmed the game's license."
+        case .signingIn: reason = "Steam has not confirmed sign-in."
+        case .starting: reason = "Steam startup has not advanced."
+        case .rendered, .exited, .hostEnded: return nil
+        }
+        return reason + " This stage has taken \(Int(now - since)) seconds. Show desktop to check for a prompt, or export the diagnostic log."
+    }
+}
+
 /// The starting screen's text for a Dock start, from the host's numeric report.
 /// The host writes its fields as it goes (madeira-dock src/main.c,
 /// session.c, launch.c), and the text follows the furthest stage reported: the
@@ -265,8 +329,10 @@ final class DockStartScreen: ObservableObject {
     @Published private(set) var holding = false
     /// A window that may need the user is up behind the starting screen.
     @Published private(set) var attention = false
+    @Published private(set) var progressWarning: String?
 
     private var hold: SteamLaunchHold?
+    private var progress = SteamLaunchProgress()
     private var sceneLines = 0
     private var early = Set<UInt64>()
     private var hostStarted = false
@@ -278,6 +344,7 @@ final class DockStartScreen: ObservableObject {
     func begin(_ game: DockGame?, at start: Date) {
         endHold(reason: nil)
         active = game != nil; appID = game?.id; failure = nil
+        progress = SteamLaunchProgress(); progressWarning = nil
         exitObserved = false; hostStarted = false; early = []; started = start
         guard let game, MadeiraConfig.flag("MADEIRA_DOCK_HIDE_DESKTOP") else { return }   // 0: a Dock start's starting screen ends on the desktop's first frame, as before
         let hold = SteamLaunchHold(autoReveal: MadeiraConfig.flag("MADEIRA_DOCK_AUTO_REVEAL"))   // 0: a window that may need the user never reveals the desktop by itself (Show desktop still does)
@@ -290,6 +357,7 @@ final class DockStartScreen: ObservableObject {
     func finish() {
         endHold(reason: "session-ended")
         active = false; appID = nil; failure = nil
+        progressWarning = nil
     }
 
     /// Every 0.5 s from LibraryModel.poll while a session runs. `rendered`: D3D
@@ -314,12 +382,24 @@ final class DockStartScreen: ObservableObject {
         guard var hold else { return }
         if !hostStarted {
             hostStarted = DockStartStatus.hostStarted((report ?? MainActor.assumeIsolated { MadeiraDock.pollReport() }).fields)
+            if hostStarted { progress = SteamLaunchProgress(startedAt: elapsed) }
         }
         let windows = Self.censusWindows()
         // Windows shown before the host started belong to the one-time installs.
         if !hostStarted { for window in windows where window.visible { early.insert(window.hwnd) } }
         let installerReveal = MadeiraConfig.flag("MADEIRA_DOCK_INSTALLER_REVEAL")   // 0: a one-time installer's dialog never reveals the desktop by itself
         let decision = SteamLaunchScene.decide(windows, rendered: rendered, places: places, early: early, installerReveal: installerReveal)
+        let fields = (report ?? MainActor.assumeIsolated { MadeiraDock.pollReport() }).fields
+        // The census proves that a program owns a window. A launcher may be that
+        // program; do not treat Steam's running bit as proof of game creation.
+        let programObserved = hostStarted && windows.contains {
+            !early.contains($0.hwnd) && SteamLaunchScene.owner($0.image, places: places) == .other
+        }
+        if progress.step(fields, programObserved: programObserved, rendered: decision.scene == .game, now: elapsed) {
+            LogStore.shared.log("[steam-launch-stage] stage=\(progress.stage.rawValue) t=\(Int(elapsed))s")
+        }
+        let warning = hostStarted ? progress.warning(now: elapsed) : nil
+        if progressWarning != warning { progressWarning = warning }
         if decision.scene != hold.scene, sceneLines < 24 {
             sceneLines += 1
             let window = decision.window.map {

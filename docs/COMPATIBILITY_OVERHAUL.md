@@ -25,6 +25,36 @@ do not establish device memory survival, renderer selection, launch timeout
 behavior or the download control target. The whole goal and final release
 remain unfinished.
 
+## Recoverable launch-stage deadlines
+
+The supplied required-content refusal remains retryable for hours in the host,
+while the starting screen previously repeated its original message indefinitely.
+`SteamLaunchProgress` in `DockStartScreen.swift` now records the current observed
+stage and its start time. Starting, sign-in, authenticated/license, authorized,
+configuration/content wait, submitted launch, observed program window, rendered
+game, Steam-reported game exit and host result are distinguished. Request
+submission is admitted by the numeric report parser. Retry counts do not reset
+the stage timer. The screen warns after 60 seconds of startup, 120 seconds of
+sign-in/license checking, 180 seconds of other launch waits or 600 seconds of
+required-content waiting. One-time installer duration is excluded.
+
+Warnings expose the stage and elapsed time and offer the existing desktop/log
+actions; they do not cancel a download, bypass authentication or mark the
+session failed. Progress clears the warning. Window observations establish a
+program with a window, potentially a secondary launcher; Steam's running flag
+alone is deliberately not called executable-creation evidence. A host result
+is not labeled a Steam crash without evidence. Exact process creation and
+module/status failure propagation still need native integration to fulfill the
+entire launch-state requirement. This change is absent from the locally
+verified `a5669ae` IPA and delivered USB update 2.
+
+The existing starting-screen harness compiles the production state rules and
+checks deadline boundaries, retries, recovery, invalid/backward clock values,
+installer exclusion, render/exit ordering and failed request submission. The
+actual report parser checks the new numeric field. New full host/Xcode gates
+are required. Risk: a legitimate slow operation can trigger a warning; keeping
+it recoverable preserves the session and user choice.
+
 ## Learned per-game JIT pool sizing
 
 The supplied Ravenfield run uses an 896 MB pool while its last pool-warmer

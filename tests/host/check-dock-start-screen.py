@@ -79,6 +79,10 @@ require('if dockStart.failure != nil {' in row and 'if dockStart.holding {' in r
         'close session only once the Dock stopped; show desktop only while the desktop is held back')
 require('Text("Madeira Dock stopped")' in library and 'DockInstallers.note' in library and 'DockStartStatus.text(' in library,
         'the starting screen shows the Dock status, the one-time-install note, and a stop with its words')
+require('if let warning = dockStart.progressWarning { return warning }' in library and
+        'let warning = hostStarted ? progress.warning(now: elapsed) : nil' in screen and
+        'progress = SteamLaunchProgress(startedAt: elapsed)' in screen,
+        'recoverable stage warning reaches the starting screen and excludes one-time installer duration')
 status = library[library.index('    private var dockStatus: String {'):]
 status = status[:status.index('\n    }\n')]
 require(status.index('DockInstallers.poll(drive: MadeiraDock.drive)') < status.index('DockInstallers.finishedAt ?? model.launchStartedAt')
@@ -227,6 +231,30 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
                 "a flapping dialog stops toggling and stays shown (reveals=\(reveals) covers=\(covers))")
 
         // --- The status line: the furthest stage the host reported.
+        var tracker = SteamLaunchProgress()
+        require(tracker.warning(now: 59) == nil && tracker.warning(now: 60) != nil, "startup warning boundary")
+        require(tracker.step(["session-authenticated-online": "1"], programObserved: false, rendered: false, now: 61), "authentication advances stage")
+        require(tracker.warning(now: 180) == nil && tracker.warning(now: 181) != nil, "timeout measures this stage")
+        let contentFields = ["launch-update-wait": "17", "launch-client-error": "17"]
+        require(tracker.step(contentFields, programObserved: false, rendered: false, now: 182), "content wait advances stage")
+        require(!tracker.step(contentFields.merging(["launch-update-retry": "99"]) { $1 }, programObserved: false, rendered: false, now: 700), "retries do not restart deadline")
+        require(tracker.warning(now: 781) == nil && tracker.warning(now: 782)?.contains("required content") == true, "content warning boundary")
+        require(tracker.step(["launch-request-submitted": "1"], programObserved: false, rendered: false, now: 783), "request recovers from content warning")
+        require(tracker.stage == .requested && tracker.warning(now: 783) == nil, "progress clears previous warning")
+        require(!tracker.step(["launch-game-running": "1"], programObserved: false, rendered: false, now: 800) && tracker.stage == .requested,
+                "Steam running bit does not prove executable creation")
+        require(tracker.step([:], programObserved: true, rendered: false, now: 801) && tracker.stage == .programObserved, "census proves a program window exists")
+        require(tracker.step([:], programObserved: true, rendered: true, now: 802) && tracker.stage == .rendered && tracker.warning(now: 10000) == nil,
+                "rendered game clears warnings without a time limit")
+        require(!tracker.step([:], programObserved: false, rendered: false, now: .nan) && tracker.stage == .rendered, "invalid time ignored")
+        require(!tracker.step([:], programObserved: false, rendered: false, now: 1) && tracker.stage == .rendered, "backward time ignored")
+        require(tracker.step(["launch-game-ended": "1"], programObserved: true, rendered: true, now: 803) && tracker.stage == .exited, "exit outranks old render observations")
+        require(tracker.step(["probe-result": "30"], programObserved: true, rendered: true, now: 804) && tracker.stage == .hostEnded,
+                "host result is terminal evidence, not an inferred Steam crash")
+        var afterInstaller = SteamLaunchProgress(startedAt: 900)
+        require(afterInstaller.warning(now: 959) == nil && afterInstaller.warning(now: 960) != nil, "installer duration excluded from startup deadline")
+        require(afterInstaller.step(["launch-request-submitted": "0"], programObserved: false, rendered: false, now: 961) == false,
+                "failed request submission does not advance stage")
         typealias D = DockStartStatus
         func text(_ fields: [String: String], installers: Bool = false, progress: String? = nil, finished: Bool = false,
                   waited: Double = 5) -> String {

@@ -3589,6 +3589,7 @@ struct LibraryHUD: View {
             let progress = DockInstallers.poll(drive: MadeiraDock.drive)
             // The host starts at once, or after this start's one-time installs finished.
             let hostDue = DockInstallers.finishedAt ?? model.launchStartedAt
+            if let warning = dockStart.progressWarning { return warning }
             return DockStartStatus.text(MadeiraDock.pollReport().fields, installers: DockInstallers.script != nil,
                                         installerProgress: progress, installsFinished: DockInstallers.finishedAt != nil,
                                         waited: Date().timeIntervalSince(hostDue))
