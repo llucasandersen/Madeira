@@ -51,6 +51,16 @@ fixed. The delivered update 2 predates the policy.
 The overlay's headroom value was also only read when its timers started.
 It now refreshes beside physical footprint on every 250 ms display tick.
 
+Integration review then found that the report parser did not whitelist Dock's
+numeric `launch-game-running` and `launch-game-ended` events. Without those,
+the new coordinator could never recognize a completed observed session even
+though its isolated policy test passed. Both fields are now admitted by the
+existing numeric-only parser, and `check-dock-report.py` exercises that actual
+report path, including nonnumeric rejection. The full 67-check run at
+`bb180ec` passed, including the policy/native frontier tests, but it does not
+validate this later integration correction. New full host/app gates are
+required; no smaller-pool device success is inferred from the isolated tests.
+
 ## Callback dispatcher diagnostic ownership
 
 In the supplied Teardown game log, callback thread 00ac has PEB 0x11bdf4000

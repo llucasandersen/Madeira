@@ -448,6 +448,7 @@ enum MadeiraDock {
         "session-timeout-subscription-count", "session-timeout-app-listed", "session-timeout-still-online",
         "session-online-blip", "session-online-blips", "session-online-lost", "session-entitlement-source",
         "launch-client-error", "launch-option", "launch-option-invalid", "launch-update-wait", "launch-update-retry", "launch-update-ready",
+        "launch-game-running", "launch-game-ended",
         "launch-config-wait", "launch-config-gave-up", "launch-session-wait", "launch-session-gave-up",
         "ceg-request", "ceg-request-result", "ceg-request-busy", "ceg-server-result", "ceg-job-result",
         "ceg-finished-jobs", "ceg-result", "ceg-disabled", "ceg-unsupported-client",
