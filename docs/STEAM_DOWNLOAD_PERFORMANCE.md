@@ -125,6 +125,37 @@ any Foundation backend.
 The new macOS fixture uses the production HTTP helper and delegate against a
 delayed localhost server, with both success and HTTP-error responses. The full
 host suite now has 60 checks: the existing 59 plus this Apple metrics fixture.
-Its first CI run and a new iOS compile are pending. This extension is not in
+The Apple fixture passed in run 37245983985: three completed requests had
+three callbacks, two reused connections, and 0.414 seconds of summed TTFB
+against the delayed HTTP server. The entire 60-check host run and iOS
+diagnostic build 37245986232 succeeded at `22b4341`; downloaded inventories
+and package verification are recorded separately once checked. This extension is not in
 the already delivered `e6f6a2c` diagnostic IPA. CPU load, resume SHA-1 timing,
-adaptive concurrency and a measured native control benchmark remain required.
+a measured native control benchmark remain required.
+
+## Adaptive chunk scheduling
+
+The next source revision replaces the fixed eight-task batch with a per-depot
+controller starting at eight and bounded between two and sixteen chunks.
+The shared URLSession permits up to sixteen HTTP connections per host; HTTP/2
+can multiplex requests. Completion-driven scheduling retains the same chunk
+validation, pwrite offsets, journal and cancellation behavior. Lowering the
+limit drains existing tasks before issuing replacements; it does not cancel
+successful work. Resumed chunks do not feed the controller.
+
+Each observation window requires at least two seconds and a full batch of
+downloaded chunks. Useful compressed bytes per wall second exclude retried
+payload. Retry pressure halves the limit; processing time exceeding network
+time lowers it by two. These stage durations are load proxies, not CPU
+utilization. Otherwise, the controller probes two extra tasks and retains them
+only with at least five percent throughput gain. Failed probes restore the
+previous limit. Reductions wait two observation windows before probing again.
+Decisions emit numeric limits and fixed reasons, without authorization data.
+
+This policy needs device tuning: network variability can affect a probe,
+and old tasks drain during a reduced window. Its deterministic regression
+check covers gain, plateau, bounds, retry/processing pressure, cooldown,
+resumed chunks and invalid clocks. The existing production install harness
+remains the gate for concurrent file assembly, resume, corruption and updates.
+CI for this scheduling change is pending; no measured speed improvement is
+attributed to it, and it is absent from the delivered `e6f6a2c` IPA.

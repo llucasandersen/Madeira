@@ -49,7 +49,6 @@ final class DepotDownloader {
     private let session: SteamCMSession
     private var depotKeys: [UInt32: Data] = [:]
     private var cdnAuthTokens: [String: String] = [:]  // "depot|host" -> "?auth=…" fragment
-    private let maxConcurrentChunks = 8
     private let attemptsPerChunk = 5
     private let hostPoolSize = 6
 
@@ -59,7 +58,7 @@ final class DepotDownloader {
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 300
-        config.httpMaximumConnectionsPerHost = 8
+        config.httpMaximumConnectionsPerHost = 16
         return URLSession(configuration: config)
     }()
 
@@ -172,8 +171,9 @@ final class DepotDownloader {
             let work = prepared.pending[index]
             let paths = prepared.paths[index]
             let existing = prepared.existing[index]
-            let maximum = maxConcurrentChunks, attempts = attemptsPerChunk
+            let attempts = attemptsPerChunk
             let depotStarted = ProcessInfo.processInfo.systemUptime
+            var concurrency = ContentConcurrency(started: depotStarted)
             defer {
                 for line in plan.networkMetrics.report(depotID: plan.depotID) { SteamLog.event(line) }
             }
@@ -182,9 +182,11 @@ final class DepotDownloader {
             var hostsUsed: [String: Int] = [:]
             try await withThrowingTaskGroup(of: (UInt64, UInt64, ChunkTiming).self) { group in
                 var next = 0
+                var active = 0
                 func enqueue() {
                     guard next < work.count else { return }
                     let item = work[next]; next += 1
+                    active += 1
                     let chunk = plan.manifest.files[item.file].chunks[item.chunk]
                     let path = paths[item.file]
                     let verify = existing[item.file]
@@ -197,8 +199,9 @@ final class DepotDownloader {
                         return (item.key, UInt64(chunk.compressedSize), measured)
                     }
                 }
-                for _ in 0..<min(maximum, work.count) { enqueue() }
+                while active < concurrency.limit && next < work.count { enqueue() }
                 for try await (key, bytes, chunkTiming) in group {
+                    active -= 1
                     journal.append(key)
                     state.doneBytes += bytes
                     if chunkTiming.fetchedBytes > 0 {
@@ -212,6 +215,12 @@ final class DepotDownloader {
                         timing.write += chunkTiming.write
                         timing.retries += chunkTiming.retries
                         hostsUsed[chunkTiming.host, default: 0] += 1
+                        if let change = concurrency.observe(now: ProcessInfo.processInfo.systemUptime,
+                                                            bytes: bytes, network: chunkTiming.network,
+                                                            processing: chunkTiming.decode + chunkTiming.write,
+                                                            retries: chunkTiming.retries) {
+                            SteamLog.event("[steam-depot] concurrency depot=\(plan.depotID) limit=\(concurrency.limit) reason=\(change)")
+                        }
                     }
                     let now = Date()
                     if now.timeIntervalSince(lastReport) >= 0.25 {
@@ -220,7 +229,9 @@ final class DepotDownloader {
                         if elapsed > 1 { state.bytesPerSecond = Double(state.doneBytes - resumedBytes) / elapsed }
                         report(state)
                     }
-                    enqueue()
+                    // A decrease drains existing tasks; it never cancels a valid
+                    // chunk or discards its write/journal result.
+                    while active < concurrency.limit && next < work.count { enqueue() }
                 }
             }
             let wall = max(0.001, ProcessInfo.processInfo.systemUptime - depotStarted)
@@ -231,7 +242,7 @@ final class DepotDownloader {
                                   plan.depotID, fetchedChunks, timing.fetchedBytes, wall,
                                   timing.network, timing.decode, timing.decrypt, timing.decompress,
                                   timing.checksum, timing.write, timing.retries,
-                                  mibPerSecond, hostSummary, maximum))
+                                  mibPerSecond, hostSummary, concurrency.peak))
         }
 
         // 4. Install record. Sizes come from the manifests; no tree walk.
@@ -784,6 +795,68 @@ final class DepotDownloader {
             cdnAuthTokens[cacheKey] = ""
             return ""
         }
+    }
+}
+
+/// Completion-driven tuning, owned by the task-group consumer. Uses useful
+/// compressed bytes per wall second, excluding resumed chunks and retry bytes.
+/// Processing durations are load proxies, not a measurement of CPU utilization.
+struct ContentConcurrency {
+    private(set) var limit = 8
+    private(set) var peak = 8
+    private var started: Double
+    private var chunks = 0
+    private var bytes = 0.0
+    private var network = 0.0
+    private var processing = 0.0
+    private var retries = 0
+    private var probe: (limit: Int, rate: Double)?
+    private var cooldown = 0
+
+    init(started: Double) { self.started = started }
+
+    mutating func observe(now: Double, bytes usefulBytes: UInt64, network networkTime: Double,
+                          processing processingTime: Double, retries retryCount: Int) -> String? {
+        guard now.isFinite, now >= started, networkTime.isFinite, networkTime >= 0,
+              processingTime.isFinite, processingTime >= 0, retryCount >= 0,
+              usefulBytes > 0 else { return nil }
+        chunks += 1
+        bytes += Double(usefulBytes)
+        network += networkTime
+        processing += processingTime
+        retries += retryCount
+        let elapsed = now - started
+        // Observe a full batch and at least two seconds before judging it.
+        guard chunks >= limit, elapsed >= 2 else { return nil }
+        let rate = bytes / elapsed
+        let retryPressure = retries >= max(2, chunks / 4)
+        let processingPressure = processing > network && processing > 0
+        started = now
+        chunks = 0; bytes = 0; network = 0; processing = 0; retries = 0
+        if retryPressure || processingPressure {
+            probe = nil
+            cooldown = 2
+            let reduced = retryPressure ? max(2, limit / 2) : max(2, limit - 2)
+            guard reduced != limit else { return nil }
+            limit = reduced
+            return retryPressure ? "retries" : "processing"
+        }
+        if let previous = probe {
+            probe = nil
+            // Keep a larger batch only when it improved useful throughput.
+            if rate < previous.rate * 1.05 {
+                limit = previous.limit
+                cooldown = 2
+                return "probe-no-gain"
+            }
+            return "probe-gain"
+        }
+        if cooldown > 0 { cooldown -= 1; return nil }
+        guard limit < 16 else { return nil }
+        probe = (limit, rate)
+        limit = min(16, limit + 2)
+        peak = max(peak, limit)
+        return "probe"
     }
 }
 
