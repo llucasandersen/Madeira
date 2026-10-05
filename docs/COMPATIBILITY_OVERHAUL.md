@@ -4,6 +4,16 @@ This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility
 
 ## Latest native and host gates: 959e37c
 
+The corrected parser and child-spawn cleanup subsequently passed all 71
+distinct host checks at `08c3862` in
+[run 37258321726](https://github.com/llucasandersen/Madeira/actions/runs/37258321726).
+Both downloaded inventories match the test filenames at that commit exactly,
+with all exit codes zero. The separate real Valve archive gate passed too.
+The fresh runtime job 111598907893 in run 37257941171 succeeded, and the full
+app/Xcode/packaging run 37258340849 succeeded using that runtime. This evidence
+predates the new successful-process creation record below. Physical acceptance
+and the final release remain unfinished.
+
 [Host run 37256826493](https://github.com/llucasandersen/Madeira/actions/runs/37256826493)
 passed all 70 distinct checks. The downloaded Linux/macOS inventories were
 checked against the current test filenames; all checks appear exactly once and
@@ -66,6 +76,33 @@ Native compilation and all 71 host checks are required for this new change;
 the earlier successful runtime predates it. Device relaunch acceptance remains
 pending. The primary regression risk is returning an explicit error where
 the old path incorrectly attempted startup with an invalid descriptor.
+
+## Explicit successful-process creation evidence
+
+Previously the unconditional child trace reported a spawn request, while the
+server-confirmed successful `NtCreateUserProcess` result appeared only in a
+Wine `TRACE` record that can be disabled. A reserved child census slot or a
+spawned pthread is not proof that the Windows executable was created: child
+bring-up may still fail before the server's success reply.
+
+The native iOS path now emits `[process-created]` only after the successful
+server reply. It records the actual Windows PID/TID and resolved image path as
+bounded counted UTF-16 hex. The encoding preserves Unicode and prevents path
+quotes/newlines from introducing another record. Paths over 512 UTF-16 units
+are omitted rather than truncated into ambiguous identities. There are no
+command-line arguments or credentials in this record; the private path itself
+is diagnostic data, and encoding is not anonymization. Private device logs
+remain excluded from the repository.
+
+`check-process-created-record.py` compiles the actual formatter with ASan/UBSan
+and covers Unicode/surrogates, line injection, maximum length, nonterminated
+buffers, malformed lengths, empty/null inputs and zero IDs. It also checks the
+publication point after the server's success branch. Fresh native compilation
+and the now 72-check host gate are required. This first step provides precise
+native evidence; the startup UI still uses its existing window observations.
+Matching the chosen Steam launch executable and integrating creation/exit
+evidence into the UI remain outstanding. No game-creation or phone acceptance
+pass is inferred from the new source.
 
 ## Earlier verified app baseline: a5669ae
 

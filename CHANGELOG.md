@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Emit a bounded machine-readable Windows process creation record only after the server confirms successful `NtCreateUserProcess`. Preserve Unicode image identity without command lines; add formatter sanitizer and publication-order fixtures. Fresh native/72-check gates and UI lifecycle integration are pending.
+- Verify all 71 host checks and the real Valve archive gate at `08c3862`; the fresh child-spawn cleanup runtime and complete app build passed. Physical acceptance and final delivery remain pending.
+
 - Reject failed startup descriptor duplication before creating an iOS pseudo-process, and release duplicated descriptors after failed thread creation. Preserve parent descriptors and successful child ownership. Add real-descriptor failure-injection and repeated-launch sanitizer fixtures; fresh native and 71-check gates are pending.
 
 - Capture Wine's final DLL dependency-resolution status in startup diagnostics, including the supplied SDL3 `0xC000007B` record. Preserve architecture evidence in the full log and avoid treating optional failures as fatal. Extend the production parser fixtures; new host/app gates are pending.

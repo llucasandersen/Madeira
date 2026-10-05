@@ -1052,6 +1052,29 @@ static void madeira_steam_session_log( const UNICODE_STRING *image )
 #endif
 
 #ifdef WINE_IOS
+/* Counted UTF-16 hex avoids ambiguous debug-string escaping in machine-readable
+ * process evidence. This is a private diagnostic path, never a command line. */
+static void ios_log_process_created( const UNICODE_STRING *image, unsigned pid, unsigned tid )
+{
+    static const char hex[] = "0123456789abcdef";
+    char encoded[512 * 4 + 1];
+    unsigned i, length;
+
+    if (!image || !image->Buffer || !pid || !tid || image->Length % sizeof(WCHAR)) return;
+    length = image->Length / sizeof(WCHAR);
+    if (!length || length > 512) return;
+    for (i = 0; i < length; i++)
+    {
+        unsigned c = image->Buffer[i];
+        encoded[i * 4] = hex[(c >> 12) & 15];
+        encoded[i * 4 + 1] = hex[(c >> 8) & 15];
+        encoded[i * 4 + 2] = hex[(c >> 4) & 15];
+        encoded[i * 4 + 3] = hex[c & 15];
+    }
+    encoded[length * 4] = 0;
+    dprintf( 2, "[process-created] pid=%08x tid=%08x status=00000000 image_utf16=%s\n", pid, tid, encoded );
+}
+
 /* Optional helper containment applies to an executable basename, never to a
  * directory or an arbitrary substring in a game's path. Counted UTF-16 input
  * need not be NUL terminated. Keep the existing refusal result for these helpers. */
@@ -1762,6 +1785,12 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
     TRACE( "%s pid %04x tid %04x handles %p/%p\n", debugstr_us(&path),
            HandleToULong(id.UniqueProcess), HandleToULong(id.UniqueThread),
            process_handle, thread_handle );
+
+#ifdef WINE_IOS
+    /* Only the server-confirmed successful creation is evidence. A spawn
+     * request or a thread/census slot reservation is not a created process. */
+    ios_log_process_created( &path, HandleToULong(id.UniqueProcess), HandleToULong(id.UniqueThread) );
+#endif
 
     /* update output attributes */
 
