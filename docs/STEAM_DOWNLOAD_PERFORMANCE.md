@@ -1,5 +1,37 @@
 # Steam download performance
 
+## Phone native control measurement
+
+The source adds **Download speed measurement** to a Steam game's download
+sheet. With Steam signed in and no game/download running, **Measure native
+download speed** obtains a depot key and manifest through the existing owned
+content path and makes three direct URLSession control trials against one CDN
+host. A suitable sample contains 16–64 MiB of distinct encrypted chunks, at
+most 256 requests and eight concurrent transfers. Each response goes to a
+temporary file that is removed after measurement; no game file, install record
+or journal is modified. The control includes URLSession temporary-file I/O but
+excludes Steam decrypt, decompress, hash, assembly and manifest preparation.
+It uses a separate ephemeral session with caching disabled and reuses
+connections across trials. A byte-size mismatch, non-200 response, host change,
+failed request or cancellation rejects the result; there is no retry/rotation
+inside a trial that could silently change its host or workload.
+
+Keep the app open. Cancelling, backgrounding or starting a game cancels the
+measurement. Downloads queue while it runs; required-content preparation and
+Dock handoff cancel and await it. Successful results overwrite the numeric-only
+`madeira-control.json` in Madeira's Documents folder. Copy that file together
+with the install trial logs and run the report with `--control`. The control's
+log records app/depot, hostname, bytes, times and concurrency; it excludes URLs,
+tokens and headers. Compare only equivalent workloads on the same phone,
+network and CDN hostname. The fixed eight-transfer control measures the
+response path; it is not a full install or an arbitrary Internet speed test.
+
+The new actual-source HTTP fixture covers three trials, bounded concurrency,
+invalid samples, HTTP/length refusal, cancellation and numeric JSON. Its Apple
+and full 79-check gates, updated IPA and actual phone measurement are pending.
+Delivered candidate 4 predates this feature. No throughput result is inferred
+from the implementation or fixture.
+
 ## Process CPU, resume checks and whole-install intervals
 
 The downloader now samples `getrusage(RUSAGE_SELF)` user plus system CPU time

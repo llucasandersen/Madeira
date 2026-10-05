@@ -2,6 +2,26 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Native download control measurement
+
+The existing benchmark reporter accepts measured control JSON but cannot run
+the missing phone transfer. The source now exposes a cancellable native control
+in a Steam game's download sheet. It obtains the existing owned-depot key and
+manifest, samples one authorized CDN host and measures three bounded encrypted
+response transfers using [URLSession downloads](https://developer.apple.com/documentation/foundation/urlsession).
+Temporary-file responses avoid retaining the full sample in memory. No install
+or journal finalization is invoked; numeric results are exported for the report.
+Downloads and account handoff serialize with the measurement, and incomplete
+results are rejected. Files changed: DepotDownloader.swift, SteamOwnedLibrary.swift,
+SteamGames.swift, host test/CI inventory and benchmark documentation.
+
+Regression risks include account handoff/cancellation, response-size assumptions
+and sample/hostname comparability. The actual-source local HTTP fixture checks
+transfer bounds, three exact-byte trials, HTTP/length refusal and cancellation;
+the full owned-library harness also compiles the production downloader. Apple,
+full 79-check and updated app gates are pending. Candidate 4 and its accepted
+build evidence remain unchanged; this feature has no device throughput result.
+
 ## Mach writable-alias integer paired stores
 
 ### Follow-up scalar register/writeback audit

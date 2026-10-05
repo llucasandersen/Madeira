@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an owned-depot native URLSession control measurement to the Steam download sheet, with three bounded trials, cancellation/handoff serialization and numeric JSON export. Add actual-source HTTP refusal/concurrency/cancellation coverage; new 79-check and app gates remain pending. Candidate 4 predates this feature.
+
 - Verify fresh native and app packaging at `889c6be` in workflow 37274760178, including strict macOS codesign verification. Downloaded and USB candidate-4 IPA checks passed; physical acceptance and the final release remain pending.
 
 - Verify all 78 host checks and real Valve archives at `889c6be` in 37274755529, including explicit Mach scalar register/pre-index regressions. Downloaded inventories have zero raw/effective exits and no sanitizer diagnostics; fresh native/app packaging remains pending.

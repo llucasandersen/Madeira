@@ -202,6 +202,9 @@ final class SteamOwnedLibrary: ObservableObject {
     @Published private(set) var downloads: [Int: Download] = [:]
     private var queue: [Int] = []
     private var active: (id: Int, task: Task<Void, Never>)?
+    @Published private(set) var controlAppID: Int?
+    @Published private(set) var controlStatus = ""
+    private var controlTask: Task<Void, Never>?
     /// A game session runs: downloads wait, and the Steam connection stays closed.
     private var inSession = false
     private var resumeAfterSession = Set<Int>()
@@ -872,6 +875,7 @@ final class SteamOwnedLibrary: ObservableObject {
         guard Self.enabled, running != inSession else { return }
         if running {
             inSession = true
+            controlTask?.cancel()
             if let current = active {
                 resumeAfterSession.insert(current.id)
                 current.task.cancel()
@@ -900,8 +904,10 @@ final class SteamOwnedLibrary: ObservableObject {
     /// `dockEnded()` and the end of the session.
     func prepareDock() async {
         let running = active?.task
+        let control = controlTask
         sessionChanged(active: true)
         await running?.value
+        await control?.value
         await gate.holdForDock()
         SteamLog.event("[steam-library] connection closed for Madeira Dock")
     }
@@ -915,6 +921,9 @@ final class SteamOwnedLibrary: ObservableObject {
         }
         preparingDockContent = true
         defer { preparingDockContent = false; pump() }
+        let control = controlTask
+        control?.cancel()
+        await control?.value
         let running = active?.task
         if let current = active { resumeAfterSession.insert(current.id) }
         running?.cancel()
@@ -971,6 +980,7 @@ final class SteamOwnedLibrary: ObservableObject {
     /// when Madeira is active again (SteamDownloadBackground). Finished
     /// chunks are journaled, so nothing is lost.
     func pauseForBackground() {
+        controlTask?.cancel()
         if let current = active { resumeAfterBackgroundIDs.insert(current.id); current.task.cancel() }
         for id in queue { resumeAfterBackgroundIDs.insert(id); downloads[id]?.state = .paused }
         queue.removeAll()
@@ -986,6 +996,40 @@ final class SteamOwnedLibrary: ObservableObject {
     }
 
     // MARK: Downloads
+
+    /// Optional diagnostic transfer; serializes with downloads and Dock handoff.
+    func startNativeControl(_ appID: Int) {
+        guard Self.enabled, signedIn, !inSession, !preparingDockContent,
+              active == nil, queue.isEmpty, controlTask == nil, game(appID) != nil,
+              appID > 0, appID <= Int(UInt32.max) else {
+            controlStatus = "Finish the current download or game session before measuring."
+            return
+        }
+        controlAppID = appID
+        controlStatus = "Measuring Steam download speed..."
+        controlTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.controlTask = nil; self.controlAppID = nil; self.pump() }
+            do {
+                guard let info = try await self.fetcher.fetchInstallInfo(appID: UInt32(appID)) else {
+                    throw SteamError.appInfoNotFound(UInt32(appID))
+                }
+                try Task.checkCancellation()
+                let trials = try await self.downloader.nativeControl(info)
+                try Task.checkCancellation()
+                let output = URL.documentsDirectory.appendingPathComponent("madeira-control.json")
+                try JSONEncoder().encode(trials).write(to: output, options: .atomic)
+                let rates = trials.map { Double($0.bytes) / $0.seconds / 1048576 }.sorted()
+                self.controlStatus = String(format: "Native control median: %.2f MiB/s. Results saved to madeira-control.json.", rates[1])
+            } catch {
+                let cancelled = Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled
+                self.controlStatus = cancelled ? "Measurement cancelled." : "Measurement failed (\(Self.reason(error)))."
+                SteamLog.event("[steam-control] app=\(appID) completed=0 reason=\(cancelled ? "cancelled" : Self.reason(error))")
+            }
+        }
+    }
+
+    func cancelNativeControl() { controlTask?.cancel() }
 
     /// Whether Steam lists a newer build than the installed record.
     func updateAvailable(appID: Int, installedBuild: Int?) -> Bool {
@@ -1063,7 +1107,7 @@ final class SteamOwnedLibrary: ObservableObject {
     }
 
     private func pump() {
-        guard active == nil, !inSession, !preparingDockContent, !queue.isEmpty else { return }
+        guard active == nil, controlTask == nil, !inSession, !preparingDockContent, !queue.isEmpty else { return }
         let appID = queue.removeFirst()
         downloads[appID]?.state = .active
         SteamDownloadBackground.shared.downloadStarted(appID: appID, name: game(appID)?.name ?? "Steam game")

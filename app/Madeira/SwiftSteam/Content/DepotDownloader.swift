@@ -77,6 +77,52 @@ final class DepotDownloader {
 
     // MARK: - Public API
 
+    /// Read-only control measurement using an owned depot's authorized chunks.
+    /// Key/manifest authorization remains the same as installation. No install
+    /// folder, journal or appmanifest is opened or written.
+    func nativeControl(_ app: SteamAppInfo) async throws -> [ContentControlTrial] {
+        let hosts: [String]
+        if let provider = contentHosts { hosts = try await provider(app.appID) }
+        else { hosts = try await contentServers(appID: app.appID) }
+        guard let host = hosts.first else { throw SteamError.chunkDownloadFailed("No content servers are available.") }
+        for depot in app.installDepots() {
+            try Task.checkCancellation()
+            guard let gid = depot.publicManifestID else { continue }
+            let key = try await depotKey(depotID: depot.depotID, appID: app.appID)
+            let contentApp = !app.freeToDownload ? (depot.fromApp ?? app.appID) : app.appID
+            let manifest = try await fetchManifest(depotID: depot.depotID, appID: contentApp,
+                manifestGID: gid, key: key, hosts: [host])
+            let auth = await cdnAuthFragment(depotID: depot.depotID, appID: contentApp, host: host)
+            var requests: [ContentControlRequest] = []
+            var bytes: UInt64 = 0
+            var seen = Set<Data>()
+            sample: for file in manifest.files {
+                for chunk in file.chunks where chunk.compressedSize > 0 && seen.insert(chunk.sha).inserted {
+                    if requests.count == 256 || bytes == 64 * 1024 * 1024 { break sample }
+                    let size = UInt64(chunk.compressedSize)
+                    guard size <= 8 * 1024 * 1024 else { continue }
+                    guard bytes + size <= 64 * 1024 * 1024, requests.count < 256 else { continue }
+                    guard let url = URL(string: "\(host)/depot/\(depot.depotID)/chunk/\(chunk.shaHex)\(auth)") else {
+                        throw SteamError.chunkDownloadFailed("Invalid content URL.")
+                    }
+                    requests.append(ContentControlRequest(url: url, bytes: size))
+                    bytes += size
+                }
+            }
+            guard bytes >= 16 * 1024 * 1024 else { continue }
+            let hostname = URL(string: host)?.host ?? "unavailable"
+            SteamLog.event("[steam-control] begin app=\(app.appID) depot=\(depot.depotID) host=\(hostname) chunks=\(requests.count) bytes-per-trial=\(bytes) trials=3 concurrency=8")
+            let results = try await ContentControl.run(requests)
+            for (index, trial) in results.enumerated() {
+                SteamLog.event(String(format: "[steam-control] timing app=%u depot=%u host=%@ trial=%d completed=1 bytes=%llu seconds=%.6f MiBps=%.3f",
+                    app.appID, depot.depotID, hostname, index + 1, trial.bytes, trial.seconds,
+                    Double(trial.bytes) / trial.seconds / 1048576))
+            }
+            return results
+        }
+        throw SteamError.chunkDownloadFailed("This game's depots do not have a suitable 16 MiB control sample.")
+    }
+
     /// Download an app into `steamApps/common/<installdir>` and write its
     /// appmanifest. Returns the install folder. Throws CancellationError when
     /// the calling task is cancelled; completed chunks stay journaled.
@@ -854,6 +900,73 @@ final class DepotDownloader {
             cdnAuthTokens[cacheKey] = ""
             return ""
         }
+    }
+}
+
+struct ContentControlRequest: Sendable {
+    let url: URL
+    let bytes: UInt64
+}
+
+struct ContentControlTrial: Codable, Sendable {
+    let bytes: UInt64
+    let seconds: Double
+}
+
+/// Direct URLSession control: bounded encrypted response downloads to temporary
+/// files, without Steam decode/assembly. Reuses connections on one CDN host.
+/// The caller supplies requests from a key-authorized, decrypted manifest.
+enum ContentControl {
+    static func run(_ requests: [ContentControlRequest]) async throws -> [ContentControlTrial] {
+        guard !requests.isEmpty, requests.count <= 256,
+              let host = requests.first?.url.host,
+              requests.allSatisfy({ $0.url.host == host && $0.bytes > 0 && $0.bytes <= 8 * 1024 * 1024 }),
+              requests.reduce(UInt64(0), { $0 + $1.bytes }) <= 64 * 1024 * 1024 else {
+            throw SteamError.chunkDownloadFailed("Invalid control sample.")
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.httpMaximumConnectionsPerHost = 8
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 300
+        let http = URLSession(configuration: config)
+        defer { http.invalidateAndCancel() }
+        var results: [ContentControlTrial] = []
+        for _ in 0..<3 {
+            try Task.checkCancellation()
+            let started = ProcessInfo.processInfo.systemUptime
+            let bytes = try await withThrowingTaskGroup(of: UInt64.self) { group in
+                var next = 0
+                func enqueue() {
+                    let request = requests[next]
+                    next += 1
+                    group.addTask {
+                        try Task.checkCancellation()
+                        let (file, response) = try await http.download(from: request.url)
+                        defer { try? FileManager.default.removeItem(at: file) }
+                        try Task.checkCancellation()
+                        guard let response = response as? HTTPURLResponse,
+                              response.statusCode == 200, response.url?.host == host,
+                              let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                              UInt64(size) == request.bytes else {
+                            throw SteamError.chunkDownloadFailed("Control response did not match its authorized sample.")
+                        }
+                        return UInt64(size)
+                    }
+                }
+                for _ in 0..<min(8, requests.count) { enqueue() }
+                var total: UInt64 = 0
+                while let count = try await group.next() {
+                    total += count
+                    if next < requests.count { enqueue() }
+                }
+                return total
+            }
+            let wall = max(0.000001, ProcessInfo.processInfo.systemUptime - started)
+            results.append(ContentControlTrial(bytes: bytes, seconds: wall))
+        }
+        return results
     }
 }
 

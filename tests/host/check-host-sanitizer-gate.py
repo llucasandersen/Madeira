@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory(prefix='madeira-host-gate-') as name:
     (root / 'build/ci').mkdir(parents=True)
     (root / 'tests/host').mkdir(parents=True)
     shutil.copy2(runner, root / 'build/ci/host-regressions.py')
-    for name in ['check-jit-network.py', 'check-steam-cloud.py', 'check-depot-network-metrics.py', 'check-mach-stp-alias.py']:
+    for name in ['check-jit-network.py', 'check-steam-cloud.py', 'check-depot-network-metrics.py', 'check-depot-native-control.py', 'check-mach-stp-alias.py']:
         (root / 'tests/host' / name).write_text('pass\n')
     for name, output, code in [
         ('check-a-clean.py', 'PASS: clean', 0),

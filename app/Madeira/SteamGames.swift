@@ -907,6 +907,21 @@ struct SteamGameSheet: View {
                             Label("View in the Steam Store", systemImage: "safari")
                         }
                     }
+                    Section {
+                        DisclosureGroup("Download speed measurement") {
+                            Text("Downloads three samples of up to 64 MiB from this game's Steam content server. Keep Madeira open. Game files are unchanged.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                            if steam.controlAppID != nil {
+                                Button("Cancel measurement") { steam.cancelNativeControl() }
+                            } else {
+                                Button("Measure native download speed") { steam.startNativeControl(appID) }
+                                    .disabled(!steam.signedIn || steam.hasActiveDownload)
+                            }
+                            if !steam.controlStatus.isEmpty {
+                                Text(steam.controlStatus).font(.footnote)
+                            }
+                        }
+                    }
                 } else {
                     ContentUnavailableView("Game unavailable", systemImage: "questionmark.square.dashed",
                                            description: Text("Refresh your Steam library and try again."))
