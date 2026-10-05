@@ -16,7 +16,7 @@ if sys.platform != 'darwin':
 
 root = Path(__file__).resolve().parents[2]
 source = (root / 'app/Madeira/SwiftSteam/Content/DepotDownloader.swift').read_text()
-collector = source.split('final class ContentNetworkMetrics:', 1)[1].split('/// Per-install content-server health.', 1)[0]
+collector = source.split('final class ContentNetworkMetrics:', 1)[1].split('\nfinal class ContentHostHealth:', 1)[0]
 collector = 'final class ContentNetworkMetrics:' + collector
 http_source = source.split('    private nonisolated static let http:', 1)[1].split('    /// Replaces the content server', 1)[0]
 http_source = '    private nonisolated static let http:' + http_source

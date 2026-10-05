@@ -163,8 +163,14 @@ and old tasks drain during a reduced window. Its deterministic regression
 check covers gain, plateau, bounds, retry/processing pressure, cooldown,
 resumed chunks and invalid clocks. The existing production install harness
 remains the gate for concurrent file assembly, resume, corruption and updates.
-CI for this scheduling change is pending; no measured speed improvement is
-attributed to it, and it is absent from the delivered `e6f6a2c` IPA.
+All 61 host checks passed in run 37246614671 at `8ad72d0`, including the
+compiled controller test and production depot harness under AddressSanitizer.
+Downloaded inventories matched all 61 distinct checks with no failures.
+The iOS app built and packaged in run 37246616477. Its downloaded IPA passed
+the package verifier, SHA-256
+`6b0d48c8a43745b4823eebb1ed2f4ed06175cca13af95d72e734d4373f92ca41`.
+No measured device speed improvement is attributed to this policy, and it is
+absent from the published/USB `e6f6a2c` diagnostic, which remains unchanged.
 
 ## Measured CDN selection and retry routing
 
@@ -192,3 +198,10 @@ production depot harness remains required for ownership, encryption, corruption,
 file assembly, resume and update regressions. CI and device benchmarking for
 this extension are pending. Ranking individual responses can be affected by
 chunk size and shared bandwidth; no device speedup is inferred from it.
+
+The first Apple test run at `390540e` exposed a fixture extraction defect:
+the metrics test used the CDN class's documentation comment as its end marker.
+Updating that comment caused the fixture to include the unrelated class and
+fail on its missing SteamLog dependency. The test now ends at the next class
+declaration. The gate remained failed until this correction; a fresh full
+host run is required.
