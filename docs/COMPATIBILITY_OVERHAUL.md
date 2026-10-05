@@ -27,8 +27,6 @@ The forked Wine loader now emits `[pe-image]` only for invalid-image failures in
 
 `DepotDownloader.swift` already uses a bounded task group with eight concurrent chunks, a shared `URLSession` and offset based `pwrite` assembly. The claim that its network stage is simply serial is not supported by the current source. Throughput, stage times, CDN behavior and iOS CPU and memory load still need measurement before tuning.
 
-## Bomber Crew window investigation
-
 ## Child isolation on ntdll-copy failure
 
 Source inspection of `wine_ios_child_main` found a definite isolation violation:
@@ -56,12 +54,24 @@ The application's logged `madeira-d3d12: gate off` came from the optional M1
 shader-converter canary in `ContentView.swift`. The `d3d12` setting controls
 running that self-test; it does not enable a game's D3D12 renderer. The log now
 says this explicitly to prevent mistaking it for renderer selection. Teardown's
-developer changelog confirms a D3D12 backend, but the exact installed game
+[developer changelog](https://teardowngame.com/changelog/) records the D3D12
+backend in version 1.5.1, but the exact installed game
 build and renderer-selection interface still need verification before applying
 an automatic profile. D3D12 gameplay and the reported callback mismatch remain
 unverified.
 
-## Bomber Crew window investigation (continued)
+An anonymous query through Valve-signed SteamCMD on October 4, 2026 returned
+app-info change number `39450024` and public build `25295735`. Launch option
+0 is `teardown.exe`, type `default`, with no arguments. Options 1–5 point to
+`teardown64_profile_steam.exe` and are restricted to developer beta branches.
+There is no public DX12 launch option in that metadata, so selecting a
+different numbered Steam launch entry cannot implement renderer selection.
+The isolated query's transcript is retained in
+`build/ci-output/steamcmd/teardown-appinfo-current.log`; no personal Steam
+account or game-content download was used. The installed device build and
+settings still need matching against this public metadata.
+
+## Bomber Crew window investigation
 
 The pinned upstream app already has a bounded restore path in
 `Winios.m`'s `winios_census_note_frame`: while the Dock start's window census

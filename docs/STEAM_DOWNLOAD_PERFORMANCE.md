@@ -205,3 +205,12 @@ Updating that comment caused the fixture to include the unrelated class and
 fail on its missing SteamLog dependency. The test now ends at the next class
 declaration. The gate remained failed until this correction; a fresh full
 host run is required.
+
+The corrected full host run 37247281022 passed at `68e4bce`. Both downloaded
+inventories matched all 61 distinct checks, including measured CDN selection,
+concurrent health access and the production depot harness. The CDN app source
+also built and packaged in run 37247108050 at `390540e`; its downloaded IPA
+passed package verification with SHA-256
+`0e41aa4e8d8a8be5c0432a59ff7122875bd50a73a8ecc0024815ef816b7d8927`.
+That local package is separate from the first diagnostic release/USB copy.
+Device performance and the native-control benchmark remain pending.
