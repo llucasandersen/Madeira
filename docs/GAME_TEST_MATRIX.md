@@ -2,6 +2,17 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+October 5 candidate-6 phone follow-up: the source stamp is `7257ae1`.
+D3D12 presents frames, then gameplay freezes. The 8GB FEX-only arena
+`[0xb30000000,0xd30000000)` is exhausted; worker 0230 fails emulator
+initialization with `c0000017`. Its creator 0194 holds a Steam lock while
+waiting for the worker's startup event, blocking Steam thread 0050 and the
+game's IPC reply. A new candidate first attempts a 12GB constrained arena,
+retaining the explicit cap and smaller fallback reservations. The actual
+reservation fixture and full native/app gates are pending. This is a
+capacity repair candidate; sustained phone gameplay and relaunch remain
+required before final acceptance. No private log is committed.
+
 Latest startup-crash candidate: `7257ae1`, with per-process late-alias
 registrations. Full 79-check host workflow 37319437329 passed at `dd2f973`;
 downloaded inventories and sanitizer logs are clean. `dd2f973` changes only
@@ -18,7 +29,8 @@ Candidate 6 is delivered at
 The [candidate 6 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.6)
 is for crash retesting. Candidate 5's actual phone log confirms content ready
 and D3D12 device creation but startup access violations. The main-thread fault
-producer and candidate-6 gameplay/relaunch remain unverified.
+producer remains unverified; candidate 6 now has initial rendering followed by
+the separately identified arena-exhaustion freeze above.
 
 Previous completed host validation: all 79 checks and real Valve archives passed
 at `7301473` in 37279302920. Downloaded inventories match every distinct check,

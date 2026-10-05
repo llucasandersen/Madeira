@@ -22676,9 +22676,12 @@ static NTSTATUS get_extended_params( const MEM_EXTENDED_PARAMETER *parameters, U
  * placement is excluded from it as a CONSEQUENCE rather than by a separate
  * mechanism. FEX later replaces placeholder slices instead of selecting a band.
  *
- * Sizes: hardware's dedicated high band is 16GB; the constrained regime wants
- * 8GB (4GB is demonstrably too tight -- FEX needs ~3.5GB of spans and code for
- * ~74 threads), with 4GB accepted only as an explicitly-logged limited arena.
+ * Sizes: hardware's dedicated high band is 16GB. Constrained tasks first try
+ * 12GB, then 8GB and smaller reservations. A 63GB phone run filled the 8GB
+ * arena while Steam started its I/O workers: thread 0230 failed ThreadInit,
+ * its creator retained a Steam lock waiting for the startup event, and the
+ * game stopped receiving IPC replies. The larger reservation changes virtual
+ * capacity, not resident memory; the existing cap and fallback ladder remain.
  *
  * ⚠️ Runs ONCE per Mach task. Pseudo-processes share one address space, so the
  * arena must be reserved and published process-wide -- they must not each pick
@@ -22702,6 +22705,7 @@ void ios_reserve_fex_arena(void)
      * The VM's ceiling is 63GiB, so nothing above that can ever succeed. */
     static const struct { ULONG_PTR lo, hi; SIZE_T size; const char *what; } plan[] = {
         { 0x7c00000000ull, 0x7fffffffffull, 0x400000000ull, "hardware high band 16GB"  },
+        { 0x0800000000ull, 0x0fffffffffull, 0x300000000ull, "constrained 12GB"         },
         { 0x0800000000ull, 0x0fffffffffull, 0x200000000ull, "constrained 8GB"          },
         { 0x0400000000ull, 0x07ffffffffull, 0x200000000ull, "8GB @16-32G"              },
         { 0x0200000000ull, 0x03ffffffffull, 0x200000000ull, "8GB @8-16G"               },
