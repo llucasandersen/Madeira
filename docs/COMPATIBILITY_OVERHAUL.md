@@ -2,6 +2,35 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Mach writable-alias integer paired stores
+
+Upstream [report #123](https://github.com/willfaust/Madeira/issues/123)
+includes CoreCLR's `0xa9882149` (`STP x9,x8,[x10,#128]!`). Mach case 4
+previously recognized only offset integer pairs, wrote two independent C
+scalars at the fault address, and omitted indexed address writeback.
+
+`signal_arm64_ios.c` now decodes 32/64-bit integer STP/STNP offset, pre-index
+and post-index forms. It derives the effective address from the captured base
+register and signed scaled immediate, accepts faults on either half, and
+validates the entire contiguous writable alias before mutation. One native
+STP performs the write; successful indexed forms then update the base register.
+Frame/link/SP and source zero registers use their actual Mach state fields.
+For constrained base/source overlap the adapter selects the permitted original
+source value. SIMD, load and reserved forms remain outside this adapter.
+See the [Arm instruction reference](https://documentation-service.arm.com/static/67e40f3398aa3c3b6eea6a85)
+and [Arm's LSE2 pair atomicity description](https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/armv8-sequential-consistency).
+
+`check-mach-stp-alias.py` extracts the production adapter and compiles it against
+the actual Apple Mach state header on an ARM Mac with FEAT_LSE2. It exercises
+the reported opcode, widths, signed offsets, addressing modes, either-half
+faults, register combinations, writeback and unchanged refusal. A protected
+page checks that a rejected span never writes its first half. Competing native
+STP writers and an LDP reader verify 100,000 pair writes. ASan/UBSan and TSan
+check the surrounding C; inline assembly itself is checked by hardware accesses
+and these explicit assertions. Native ARM host, full 77-check and fresh iOS
+build gates are pending. Device exception delivery, exclusive reservations,
+peer-thread quiescence and physical acceptance remain unproven.
+
 ## Mach writable-alias LSE atomics
 
 Upstream [report #123](https://github.com/willfaust/Madeira/issues/123)
@@ -38,8 +67,9 @@ Both ASan/UBSan and TSan passed in the targeted workflow (37269300151) and
 complete host workflow (37269300382) at `5d10bb3`. Downloaded inventories match
 all 76 distinct checks, with no omissions or duplicates; the real Valve archive
 gate passed too. Fresh native iOS job 111632689095 passed in 37269302622.
-App/package gates are still live. This does not implement exclusive reservations (`STLXR`) or pre-index
-integer `STP`, prove all three reported runtimes work, or solve peer-thread
+App/package workflow 37269302622 also passed, including app job 111635040105;
+local artifact verification is pending. This scalar fix does not implement
+exclusive reservations (`STLXR`), prove all three reported runtimes work, or solve peer-thread
 quiescence. Device exception delivery and game acceptance remain required.
 
 ## Fixed-image owner publication

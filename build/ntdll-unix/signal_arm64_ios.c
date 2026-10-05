@@ -1404,6 +1404,63 @@ static int ios_mach_emulate_lse_alias(uint32_t insn, uintptr_t fault_addr, uintp
     return 1;
 }
 
+/* Integer store-pair forms, including pre/post indexing. Execute one native
+ * STP through the writable alias so the CPU's pair atomicity is preserved;
+ * two independent C stores would weaken FEAT_LSE2 semantics. Validate both
+ * halves before any write. A fault on the second half still names the same
+ * effective operand. No allocation, logging, or guest callbacks here. */
+static int ios_mach_emulate_stp_alias(uint32_t insn, uintptr_t fault_addr, uintptr_t rw_addr,
+                                      uintptr_t pool_rx, size_t pool_size, int in_jit,
+                                      arm_thread_state64_t *state)
+{
+    extern uintptr_t ios_jit_anon_alias_lookup(uintptr_t fault_addr);
+    unsigned width, span, mode, rn, rt, rt2;
+    int offset;
+    uint64_t base, address, first, second;
+    uintptr_t target;
+    if (!state || !rw_addr || (insn & 0x7e400000u) != 0x28000000u) return 0;
+    width = (insn >> 31) ? 8 : 4;
+    span = width * 2;
+    mode = (insn >> 23) & 3;
+    rn = (insn >> 5) & 31;
+    rt = insn & 31;
+    rt2 = (insn >> 10) & 31;
+    /* Choose the defined pre-writeback value for architectural constrained
+     * overlap, rather than replacing it with the updated base. */
+    offset = (insn >> 15) & 127;
+    if (offset & 64) offset -= 128;
+    offset *= (int)width;
+    base = rn < 29 ? state->__x[rn] : rn == 29 ? state->__fp : rn == 30 ? state->__lr : state->__sp;
+    address = mode == 1 ? base : base + (uint64_t)offset;
+    if (address > UINTPTR_MAX - (span - 1) || fault_addr < address || fault_addr - address >= span ||
+        rw_addr < fault_addr - address) return 0;
+    target = rw_addr - (fault_addr - address);
+    if (!target || target > UINTPTR_MAX - (span - 1)) return 0;
+    if (in_jit)
+    {
+        if (!pool_rx || address < pool_rx || pool_size < span || address - pool_rx > pool_size - span) return 0;
+    }
+    else if (ios_jit_anon_alias_lookup(address) != target ||
+             ios_jit_anon_alias_lookup(address + span - 1) != target + span - 1) return 0;
+    first = rt < 29 ? state->__x[rt] : rt == 29 ? state->__fp : rt == 30 ? state->__lr : 0;
+    second = rt2 < 29 ? state->__x[rt2] : rt2 == 29 ? state->__fp : rt2 == 30 ? state->__lr : 0;
+    if (width == 8)
+        __asm__ volatile("stp %x[first], %x[second], [%x[target]]" ::
+                         [first] "r"(first), [second] "r"(second), [target] "r"(target) : "memory");
+    else
+        __asm__ volatile("stp %w[first], %w[second], [%x[target]]" ::
+                         [first] "r"(first), [second] "r"(second), [target] "r"(target) : "memory");
+    if (mode == 1 || mode == 3)
+    {
+        uint64_t updated = base + (uint64_t)offset;
+        if (rn < 29) state->__x[rn] = updated;
+        else if (rn == 29) state->__fp = updated;
+        else if (rn == 30) state->__lr = updated;
+        else state->__sp = updated;
+    }
+    return 1;
+}
+
 /* ml938/ml939: defined far below, next to the store emulator they reuse.
  * Declared here because the Mach exception thread is the primary caller and
  * sits earlier in the file. */
@@ -3374,24 +3431,9 @@ static void *ios_mach_exception_thread( void *arg )
                         *(uint16_t *)rw_addr = (uint16_t)IOS_STORE_SRC(rt);
                         emulated = 1;
                     }
-                    /* STP (signed offset, 64-bit): 10101001 00 imm7 Rt2 Rn Rt */
-                    else if ((insn & 0xffc00000) == 0xa9000000)
-                    {
-                        int rt = insn & 0x1f;
-                        int rt2 = (insn >> 10) & 0x1f;
-                        *(uint64_t *)rw_addr = IOS_STORE_SRC(rt);
-                        *(uint64_t *)(rw_addr + 8) = IOS_STORE_SRC(rt2);
-                        emulated = 1;
-                    }
-                    /* STP (signed offset, 32-bit): 00101001 00 imm7 Rt2 Rn Rt */
-                    else if ((insn & 0xffc00000) == 0x29000000)
-                    {
-                        int rt = insn & 0x1f;
-                        int rt2 = (insn >> 10) & 0x1f;
-                        *(uint32_t *)rw_addr = (uint32_t)IOS_STORE_SRC(rt);
-                        *(uint32_t *)(rw_addr + 4) = (uint32_t)IOS_STORE_SRC(rt2);
-                        emulated = 1;
-                    }
+                    /* STP/STNP integer pairs: offset, pre-index and post-index. */
+                    else if ((insn & 0x7e400000u) == 0x28000000u)
+                        emulated = ios_mach_emulate_stp_alias(insn, fault_addr, rw_addr, rx, sz, in_jit, &state);
                     /* STR (register, 64-bit): 1111 1000 001 Rm option S 10 Rn Rt */
                     else if ((insn & 0xffe00c00) == 0xf8200800)
                     {

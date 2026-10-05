@@ -9,6 +9,12 @@ permissions:
   contents: read
 
 jobs:
+  mach-stp:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native ARM paired-store alias regression
+        run: python3 tests/host/check-mach-stp-alias.py
   steam-launch:
     runs-on: ubuntu-24.04
     steps:
