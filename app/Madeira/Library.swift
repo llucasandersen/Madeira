@@ -187,6 +187,9 @@ struct LibraryEntry: Codable, Identifiable {
     var controlLayout: String?
     var lastPlayed: Date?
     var graphicsAPI: String?
+    /// nil/true enables evidence-backed automatic compatibility profiles.
+    /// This is independent of the import-derived graphicsAPI label above.
+    var automaticCompatibility: Bool?
     var folderBytes: Int64?
     var metadataChecked: Date?
     var metadataRevision: Int?
@@ -2704,6 +2707,11 @@ struct LibraryDetail: View {
                 }
                 Section {
                     Toggle("Reduced-precision x87", isOn: $entry.reducedX87)
+                    if entry.steamAppID != nil {
+                        Toggle("Automatic compatibility profile", isOn: Binding(
+                            get: { entry.automaticCompatibility != false },
+                            set: { entry.automaticCompatibility = $0 ? nil : false }))
+                    }
                     // Exported for this game only when chosen (applyEnvironment).
                     Toggle("AVX and AVX2", isOn: Binding(get: { entry.avx ?? false }, set: { entry.avx = $0 ? true : nil }))
                     // Exported for this game only when chosen (applyEnvironment).

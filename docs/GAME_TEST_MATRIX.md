@@ -2,6 +2,15 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+Latest completed source validation: all 73 distinct checks and real Valve
+archives passed at `e0835ca` (37261593279). Fresh native socket changes compiled
+at `4503b36` (37261069251); complete app/package/signing gates at `e0835ca`
+passed (37261594883). Local package checks passed, SHA-256
+`b034dbf2409aef16360a7f51af6a2c7f764c7422eec2eb1760ab85294f73bf2e`.
+The new automatic Teardown profile uses the supplied registry schema; its
+74-check/app gates and physical renderer/10-minute/relaunch acceptance remain
+pending. This is not a final release or a new USB delivery.
+
 Latest source validation: all 68 distinct host checks passed at `a5669ae`
 (run 37253512089); its Xcode/IPA build passed (run 37253514108). The downloaded
 package passed ZIP, identity, runtime and graphics provenance checks, SHA-256

@@ -2,7 +2,63 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
-## Latest completed app and host gates: af27470
+## Automatic renderer profiles: supplied Teardown registry
+
+The user supplied `options.xml` on the USB after the earlier export omitted it.
+Its root is `<registry version="2.1.0">`; `options/gfx/gfxapi` and
+`options/gfx/d3d12support` both contain `value="1"`. The earlier supplied game
+trace creates a native D3D12 device. This supports the D3D12 settings mapping,
+but does not show the file's complete history or prove the infinite Steam
+content preparation wait was a graphics failure. The developer's
+[FAQ](https://teardowngame.com/faq.html) and
+[changelog](https://teardowngame.com/changelog/) confirm a D3D12 renderer and
+DX12/OpenGL selection. The registry's version is a settings schema identifier,
+not an independently established game build number.
+
+`GameCompatibility.swift` defines a versioned profile catalog, with the generic
+path for unknown App IDs and a Teardown registry adapter for App 1167630.
+`LibraryEntry.automaticCompatibility` permits a per-entry opt-out, exposed in
+the library editor; it is separate from the metadata-only `graphicsAPI` badge.
+The Dock launch consumes this policy after native Steam Cloud settlement and
+required-content preparation, after disconnecting native Steam, while Wine is
+still stopped. The adapter locates the same Windows user folder used by native
+Cloud and selects the two supported values in `AppData/Local/Teardown/options.xml`.
+It preserves every other byte, including input, audio, display and unknown
+settings, and stores the original in `options.xml.madeira-renderer-backup`
+without overwriting an earlier backup. Missing files retain the engine's
+default rather than inventing a registry version. Malformed XML, unknown schema
+versions, duplicate settings, entities, ambiguous matching comments and symbolic
+links are refused with a visible launch error and without replacing the source.
+The app's canonical prefix path is resolved before selecting the user folder,
+so Apple's `/var` alias is not mistaken for an escaping settings link.
+
+Regression: `check-game-compatibility.py` compiles the actual production Swift
+adapter and checks the exact two-value delta, Unicode/CRLF/settings preservation,
+idempotence, backups, malformed/ambiguous/version failures, link refusal and
+generic/disabled profiles. It checks the production launch ordering and Xcode
+source inclusion. New 74-check and app gates are pending. This first catalog
+does not yet integrate every possible profile category or non-Dock direct
+launches. Steam's Windows client can subsequently sync options or the engine
+can rewrite them; a physical launch must confirm the active renderer and repeat
+launch behavior. An OpenGL DLL import alone is not an active-backend verdict.
+
+## Latest completed app and host gates: e0835ca
+
+All 73 distinct host checks passed in run 37261593279, including the real
+socket registry/exit saturation fixture under ASan/UBSan and TSan and the real
+Valve archive gate. Downloaded Linux and Apple inventories exactly match the
+73 checks at `e0835ca`, with every exit code zero. The fresh native runtime
+compiled in job 111608221061 of run 37261069251 (`4503b36`). Complete app,
+Metal, Xcode, packaging and codesign gates passed in run 37261594883, which
+reuses that source-equivalent fresh runtime. Downloaded package identity,
+runtime, source pins and checksums passed for `Madeira-diagnostic-e0835ca.ipa`
+(87,336,585 bytes), SHA-256
+`b034dbf2409aef16360a7f51af6a2c7f764c7422eec2eb1760ab85294f73bf2e`.
+This local diagnostic predates the new renderer profile, is not the final
+release and has not replaced USB update 2. Physical acceptance and the
+generation/quiescence audit remain outstanding.
+
+## Earlier completed app and host gates: af27470
 
 The selected executable UI integration and UTF-16 identity comparison passed
 all 72 host checks in run 37259671288 at `af27470`. The app/Metal/Xcode/package

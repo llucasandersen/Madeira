@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a consumed, versioned compatibility profile catalog and per-library-entry opt-out. Teardown's adapter selects D3D12 through its supplied registry schema, preserves other settings byte for byte, backs up original settings and refuses unknown or ambiguous formats. Generic games retain their ordinary path; new 74-check/app gates and device renderer selection are pending.
+- Verify all 73 host checks and the real Valve archive gate at `e0835ca`, fresh native socket-ownership compilation at `4503b36`, and the complete `e0835ca` IPA. Local package identity, runtime, source pins and checksums passed. Generation/quiescence, physical acceptance and final delivery remain pending.
 - Replace the overflowing 64-entry child socket registry with stable mutex-protected owner records. Retain retired identities, claim teardown once and prevent unknown child owners from falling through to the parent socket. Add real-descriptor saturation/duplicate-exit/concurrency sanitizer fixtures; new native/73-check gates and generation/quiescence audit are pending.
 - Complete the 72-check host and app build gates at `af27470`, including selected executable startup evidence and exact UTF-16 identity matching. Physical acceptance and final delivery remain pending.
 

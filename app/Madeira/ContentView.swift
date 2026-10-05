@@ -3197,6 +3197,15 @@ struct ContentView: View {
                 guard let signIn = SteamSignIn.credentialsForDock() else {
                     throw DockError.message("Sign in to Steam in Madeira before starting Dock.")
                 }
+                if let compatibility = GameCompatibilityProfile.resolve(appID: game.id,
+                    enabled: profile?.automaticCompatibility != false) {
+                    guard let user = SteamCloudPaths.userFolder(drive: MadeiraDock.drive.resolvingSymlinksInPath()) else {
+                        throw DockError.message("The Windows user folder is unavailable for renderer selection.")
+                    }
+                    let options = compatibility.settingsFile(userFolder: user.url)
+                    let changed = try compatibility.prepare(options: options)
+                    logStore.log("[compatibility-profile] app=\(game.id) revision=\(compatibility.revision) renderer=\(compatibility.preferredRenderer.rawValue) settings=\(changed ? "updated" : "unchanged-or-default")")
+                }
                 try MadeiraDock.writeHandoff(account: signIn.accountName, token: signIn.refreshToken, appID: game.id)
             } catch { fail(error); return }
             let launchImage = launchChoice.map { game.windowsInstallPath + "\\" + $0.program.replacingOccurrences(of: "/", with: "\\") }
