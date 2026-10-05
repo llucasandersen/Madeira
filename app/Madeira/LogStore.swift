@@ -197,7 +197,7 @@ final class LogStore: ObservableObject {
     private func handleRawLine(_ raw: String) {
         // Capture rare explicit loader failures even when the live log's display
         // parsing is suspended. Do not retain paths or scan generic log noise.
-        if raw.contains("[pe-image]"), let rejection = SteamLoaderRejection.parse(raw) {
+        if (raw.contains("[pe-image]") || raw.contains("[dll-missing]")), let rejection = SteamLoaderRejection.parse(raw) {
             stateLock.lock(); latestLaunchRejection = rejection; stateLock.unlock()
         }
         stateLock.lock(); let suppressed = displaySuppressed; stateLock.unlock()

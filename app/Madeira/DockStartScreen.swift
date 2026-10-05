@@ -195,16 +195,34 @@ struct SteamLoaderRejection: Equatable {
 
     private static let record = try! NSRegularExpression(pattern:
         #"\[pe-image\] (section|architecture|map|module setup|PE64 conversion) rejected L?"([^"\r\n]*)" (.*)$"#)
+    private static let resolutionRecord = try! NSRegularExpression(pattern:
+        #"\[dll-missing\] (?:ml718 UNCAPPED|rev=ml336 #[0-9]+) L?"([^"\r\n]*)" (.*)$"#)
 
     static func parse(_ raw: String) -> Self? {
-        guard raw.utf8.count <= 4096, raw.contains("[pe-image]"),
-              let match = record.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)) else { return nil }
+        guard raw.utf8.count <= 4096 else { return nil }
+        var raw = raw
+        // Native callbacks can include one line terminator; file-tail records do not.
+        if raw.hasSuffix("\r\n") { raw.removeLast(2) }
+        else if raw.hasSuffix("\n") || raw.hasSuffix("\r") { raw.removeLast() }
+        guard !raw.contains("\n"), !raw.contains("\r") else { return nil }
+        let range = NSRange(raw.startIndex..., in: raw)
+        let match: NSTextCheckingResult
+        let phase: String, moduleIndex: Int, detailIndex: Int
+        if raw.contains("[pe-image]"), let rejected = record.firstMatch(in: raw, range: range) {
+            match = rejected
+            phase = String(raw[Range(match.range(at: 1), in: raw)!])
+            moduleIndex = 2; detailIndex = 3
+        } else if raw.contains("[dll-missing]"), let missing = resolutionRecord.firstMatch(in: raw, range: range) {
+            match = missing
+            phase = "dependency resolution"
+            moduleIndex = 1; detailIndex = 2
+        } else { return nil }
         func part(_ index: Int) -> String { String(raw[Range(match.range(at: index), in: raw)!]) }
-        let module = part(2).replacingOccurrences(of: "/", with: "\\").split(separator: "\\").last.map(String.init) ?? ""
+        let module = part(moduleIndex).replacingOccurrences(of: "/", with: "\\").split(separator: "\\").last.map(String.init) ?? ""
         guard !module.isEmpty, module.utf8.count <= 128,
               module.unicodeScalars.allSatisfy({ $0.value >= 32 && $0.value != 127 }),
               [".dll", ".exe"].contains(where: { module.lowercased().hasSuffix($0) }) else { return nil }
-        let tokens = part(3).split(separator: " ")
+        let tokens = part(detailIndex).split(separator: " ")
         func hex(_ key: String, digits: Int) -> String? {
             let values = tokens.filter { $0.hasPrefix(key + "=") }
             guard values.count == 1 else { return nil }
@@ -214,8 +232,9 @@ struct SteamLoaderRejection: Equatable {
         }
         let status = hex("status", digits: 8)
         let file = hex("file_machine", digits: 4), current = hex("current_machine", digits: 4)
-        guard part(1) == "architecture" ? file != nil && current != nil : status != nil else { return nil }
-        return Self(module: module, phase: part(1), status: status, fileMachine: file, currentMachine: current)
+        guard phase == "architecture" ? file != nil && current != nil : status != nil else { return nil }
+        if phase == "dependency resolution", status == "00000000" { return nil }
+        return Self(module: module, phase: phase, status: status, fileMachine: file, currentMachine: current)
     }
 
     var text: String {

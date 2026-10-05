@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Capture Wine's final DLL dependency-resolution status in startup diagnostics, including the supplied SDL3 `0xC000007B` record. Preserve architecture evidence in the full log and avoid treating optional failures as fatal. Extend the production parser fixtures; new host/app gates are pending.
+- Verify all 70 host checks, actual Valve archives and the fresh native runtime at `959e37c`, including exact-basename optional-helper containment. App packaging and device acceptance remain pending.
+
 - Pin the coherent supported Valve AMD64 Steam runtime with SDL3 and FFmpeg dependencies. Add automatic verified January-runtime upgrades before Dock launch, old-file backups, complete publication preflight, atomic file writes and interrupted-upgrade recovery. Preserve unknown files and game/account data. Add filesystem regression coverage and actual Valve archive validation to CI; new gates and device acceptance are pending.
 
 - Verify all 68 host checks and the Xcode/Metal/IPA gates at `a5669ae`, including process CPU/resume profiling, JIT policy, report lifecycle integration, ring reclamation and callback diagnostics. Downloaded package identity/runtime/graphics hashes passed. Device acceptance and the final release remain pending; USB update 2 is preserved.

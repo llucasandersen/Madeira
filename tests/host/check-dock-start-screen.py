@@ -86,6 +86,7 @@ require('if let warning = dockStart.progressWarning {' in library and 'dockStart
 store = (app / 'LogStore.swift').read_text(encoding='utf-8')
 capture = store[store.index('private func handleRawLine'):store.index('// Filter out lines')]
 require(capture.index('SteamLoaderRejection.parse(raw)') < capture.index('if suppressed { return }') and
+        'raw.contains("[dll-missing]")' in capture and
         'let pause = suppress && !launchDiagnosticsActive' in store and
         'let pause = displaySuppressed && !active' in store and
         'LogStore.shared.setLaunchDiagnosticsActive(true)' in screen and
@@ -244,6 +245,21 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
         require(rejected?.text.contains("0xC000007B") == true && rejected?.text.contains("Program Files") == false, "UI diagnostic retains status without private paths")
         let arch = SteamLoaderRejection.parse(#"[pe-image] architecture rejected L"C:\Steam\SDL3.dll" file_machine=8664 current_machine=a641 wow_teb=0 code=1"#)
         require(arch?.status == nil && arch?.fileMachine == "8664" && arch?.currentMachine == "A641", "architecture record uses measured machines, not invented status")
+        let suppliedArch = SteamLoaderRejection.parse(#"[pe-image] architecture rejected L"C:\Steam\SDL3.dll" file_machine=014c current_machine=8664 wow_teb=0 code=1"#)
+        require(suppliedArch?.fileMachine == "014C" && suppliedArch?.currentMachine == "8664", "supplied x86 DLL in AMD64 caller retains exact machine evidence")
+        for header in ["ml718 UNCAPPED", "rev=ml336 #123"] {
+            let line = "0024:err:module:load_dll [dll-missing] " + header + #" L"C:\private\Steam\SDL3.dll" status=c000007b -- loader detail"#
+            let final = SteamLoaderRejection.parse(line)
+            require(final?.module == "SDL3.dll" && final?.phase == "dependency resolution" && final?.status == "C000007B", "final loader resolution status: " + header)
+            require(final?.text.contains("private") == false && final?.fileMachine == nil, "resolution does not retain paths or invent architecture")
+        }
+        require(SteamLoaderRejection.parse(#"[dll-missing] ml718 UNCAPPED L"C:\Steam\video64.dll" status=c0000135 (subsystem dependency)"#)?.status == "C0000135", "dependency not found status is explicit")
+        require(SteamLoaderRejection.parse(#"[dll-missing] rev=ml336 #3 L"SDL3.dll" status=c000007b"# + "\r\n")?.status == "C000007B", "native callback line terminator is accepted")
+        for detail in ["status=00000000", "status=bogus", "status=c000007b status=c0000135"] {
+            require(SteamLoaderRejection.parse("[dll-missing] rev=ml336 #1 " + #"L"C:\Steam\SDL3.dll" "# + detail) == nil, "reject invalid or ambiguous resolution: " + detail)
+        }
+        require(SteamLoaderRejection.parse(#"[dll-missing] unknown L"C:\Steam\SDL3.dll" status=c000007b"#) == nil, "only the production loader record formats are captured")
+        require(SteamLoaderRejection.parse("prefix\n" + #"[pe-image] section rejected L"C:\Steam\SDL3.dll" status=c000007b"#) == nil, "reject multiline records")
         for phase in ["map", "module setup", "PE64 conversion"] {
             let line = "[pe-image] " + phase + #" rejected L"C:\Steam\video64.dll" status=c000007b machine=8664"#
             require(SteamLoaderRejection.parse(line)?.phase == phase, "parse loader phase " + phase)

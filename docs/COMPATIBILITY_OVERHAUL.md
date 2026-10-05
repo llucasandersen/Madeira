@@ -2,7 +2,39 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
-## Latest verified build: a5669ae
+## Latest native and host gates: 959e37c
+
+[Host run 37256826493](https://github.com/llucasandersen/Madeira/actions/runs/37256826493)
+passed all 70 distinct checks. The downloaded Linux/macOS inventories were
+checked against the current test filenames; all checks appear exactly once and
+have exit code zero. The separate real Valve archive gate also passed.
+The fresh native runtime job 111595602245 in
+[IPA run 37256828172](https://github.com/llucasandersen/Madeira/actions/runs/37256828172)
+passed, including the exact-basename helper containment change. App packaging
+and device acceptance remain pending for this build. USB update 2 is preserved.
+
+## Final dependency-resolution status in startup diagnostics
+
+The supplied PEAK log records SDL3's architecture rejection and then the
+loader's final `[dll-missing]` status `c000007b`. The earlier startup UI parser
+accepted only `[pe-image]` records, so a dependency-resolution failure without
+a preceding mapping rejection was invisible, and the architecture record did
+not contain the final NTSTATUS. `SteamLoaderRejection` now also accepts the two
+actual Wine final-resolution record formats. `LogStore` captures them before
+hidden-live-log suppression, so the startup warning can display the measured
+module basename, resolution stage and exact status without retaining paths.
+Architecture evidence remains in the full diagnostic log; no status or machine
+type is inferred. This observation does not declare an optional DLL fatal or
+change the launch result.
+
+The production Swift parser fixtures cover both final-resolution formats,
+the supplied x86/AMD64 machine pair, missing dependencies, malformed/duplicate
+status tokens, success-record rejection, callback line terminators and
+multiline rejection. The remaining risk is that a later unrelated optional
+failure replaces an earlier diagnostic, hence the UI labels it the last
+observed rejection. New full host and Xcode app gates are required.
+
+## Earlier verified app baseline: a5669ae
 
 [Host run 37253512089](https://github.com/llucasandersen/Madeira/actions/runs/37253512089)
 passed all 68 distinct repository checks. Both downloaded Linux/macOS result
@@ -65,9 +97,8 @@ apply.
 `check-optional-helper-gate.py` compiles the actual matcher with ASan/UBSan and
 checks all contained basenames, case/path variants, directory/prefix/suffix
 false positives, short nonterminated buffers and ordinary game children.
-The native runtime must be rebuilt for this change; the previously verified
-runtime artifact cannot stand in for the changed C source. New full host,
-native/app and device regression gates are required.
+The fresh native runtime and all 70 host checks passed at `959e37c`, as
+recorded above. App packaging and device regression gates remain required.
 
 The current public [Portal 2 report](https://github.com/willfaust/Madeira/issues/192)
 was reviewed again on October 4. It describes a game rendering while Steam
