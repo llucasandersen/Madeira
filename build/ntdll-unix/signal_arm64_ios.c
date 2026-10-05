@@ -1313,6 +1313,97 @@ static int ios_mach_emulate_cas(uint32_t insn, uintptr_t rw_addr, uint64_t gpr[2
     return 1;
 }
 
+/* LSE atomic memory operations through an existing writable alias. A genuine
+ * atomic RMW is required: other guest/native threads can access the same page
+ * while the Mach exception thread runs. Sequential consistency is stronger
+ * than every encoded acquire/release variant. No allocation or Wine calls. */
+static uint64_t ios_mach_lse_result(unsigned op, unsigned width, uint64_t old, uint64_t src)
+{
+    uint64_t mask = width == 8 ? UINT64_MAX : (1ULL << (width * 8)) - 1;
+    uint64_t sign = 1ULL << (width * 8 - 1);
+    old &= mask;
+    src &= mask;
+    switch (op)
+    {
+    case 0: return (old + src) & mask;                       /* LDADD */
+    case 1: return old & ~src;                              /* LDCLR */
+    case 2: return old ^ src;                               /* LDEOR */
+    case 3: return old | src;                               /* LDSET */
+    case 4: return (old ^ sign) >= (src ^ sign) ? old : src;  /* LDSMAX */
+    case 5: return (old ^ sign) <= (src ^ sign) ? old : src;  /* LDSMIN */
+    case 6: return old >= src ? old : src;                   /* LDUMAX */
+    case 7: return old <= src ? old : src;                   /* LDUMIN */
+    default: return src;                                   /* SWP */
+    }
+}
+
+static int ios_mach_emulate_lse(uint32_t insn, uintptr_t rw_addr, uint64_t src, uint64_t *old)
+{
+    unsigned width = 1u << (insn >> 30), op = (insn >> 12) & 15;
+    if ((insn & 0x3f200c00u) != 0x38200000u || op > 8 || !old ||
+        !rw_addr || (rw_addr & (width - 1))) return 0;
+    _Static_assert(__atomic_always_lock_free(1, 0) && __atomic_always_lock_free(2, 0) &&
+                   __atomic_always_lock_free(4, 0) && __atomic_always_lock_free(8, 0),
+                   "Mach LSE emulation requires lock-free scalar atomics");
+#define IOS_LSE_RMW(type) \
+    { \
+        switch (op) \
+        { \
+        case 0: *old = __atomic_fetch_add((type *)rw_addr, (type)src, __ATOMIC_SEQ_CST); return 1; \
+        case 1: *old = __atomic_fetch_and((type *)rw_addr, (type)~src, __ATOMIC_SEQ_CST); return 1; \
+        case 2: *old = __atomic_fetch_xor((type *)rw_addr, (type)src, __ATOMIC_SEQ_CST); return 1; \
+        case 3: *old = __atomic_fetch_or((type *)rw_addr, (type)src, __ATOMIC_SEQ_CST); return 1; \
+        case 8: *old = __atomic_exchange_n((type *)rw_addr, (type)src, __ATOMIC_SEQ_CST); return 1; \
+        } \
+        type expected = __atomic_load_n((type *)rw_addr, __ATOMIC_SEQ_CST); \
+        for (;;) \
+        { \
+            type previous = expected; \
+            type desired = (type)ios_mach_lse_result(op, sizeof(type), expected, src); \
+            if (__atomic_compare_exchange_n((type *)rw_addr, &expected, desired, 0, \
+                                            __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) \
+            { *old = previous; return 1; } \
+        } \
+    }
+    switch (width)
+    {
+    case 1: IOS_LSE_RMW(uint8_t);
+    case 2: IOS_LSE_RMW(uint16_t);
+    case 4: IOS_LSE_RMW(uint32_t);
+    case 8: IOS_LSE_RMW(uint64_t);
+    }
+#undef IOS_LSE_RMW
+    return 0;
+}
+
+/* Validate the entire operand, including secondary user-VA aliases, before
+ * touching memory or registers. Darwin stores x29/x30 outside __x[29]. */
+static int ios_mach_emulate_lse_alias(uint32_t insn, uintptr_t fault_addr, uintptr_t rw_addr,
+                                      uintptr_t pool_rx, size_t pool_size, int in_jit,
+                                      arm_thread_state64_t *state, uint64_t *old)
+{
+    extern uintptr_t ios_jit_anon_alias_lookup(uintptr_t fault_addr);
+    unsigned width = 1u << (insn >> 30), rs = (insn >> 16) & 31, rt = insn & 31, rn = (insn >> 5) & 31;
+    uint64_t src;
+    uintptr_t address;
+    if (!state || !old || (insn & 0x3f200c00u) != 0x38200000u || ((insn >> 12) & 15) > 8 ||
+        fault_addr > UINTPTR_MAX - (width - 1) || rw_addr > UINTPTR_MAX - (width - 1)) return 0;
+    address = rn < 29 ? state->__x[rn] : rn == 29 ? state->__fp : rn == 30 ? state->__lr : state->__sp;
+    if (address != fault_addr) return 0;
+    if (in_jit)
+    {
+        if (!pool_rx || fault_addr < pool_rx || pool_size < width ||
+            fault_addr - pool_rx > pool_size - width) return 0;
+    }
+    else if (!rw_addr || ios_jit_anon_alias_lookup(fault_addr + width - 1) != rw_addr + width - 1) return 0;
+    src = rs < 29 ? state->__x[rs] : rs == 29 ? state->__fp : rs == 30 ? state->__lr : 0;
+    if (!ios_mach_emulate_lse(insn, rw_addr, src, old)) return 0;
+    if (rt < 29) state->__x[rt] = *old;
+    else if (rt == 29) state->__fp = *old;
+    else if (rt == 30) state->__lr = *old;
+    return 1;
+}
+
 /* ml938/ml939: defined far below, next to the store emulator they reuse.
  * Declared here because the Mach exception thread is the primary caller and
  * sits earlier in the file. */
@@ -3603,42 +3694,19 @@ static void *ios_mach_exception_thread( void *arg )
                      * alias maps the SAME physical pages as the faulting RX view, so the
                      * atomic applies to the memory the guest actually shares.
                      *
-                     * ⛔ Deliberately NOT extended to LDADD/LDCLR/LDSET/CAS here. Those
-                     * encodings appear in this run only AFTER the SWPAL was mishandled,
-                     * inside FEX's exception path, so they are probably fallout. A wide
-                     * speculative decoder carries more correctness surface than this
-                     * blocker justifies — add families when they actually appear. */
-                    else if ((insn & 0x3F20FC00) == 0x38208000)
+                     * The later HotSpot report (#123) identifies LDADDAL as an
+                     * independent missing store. Handle the scalar LSE RMW family
+                     * through the same alias, with complete operand coverage and
+                     * true atomic updates. CAS remains in its separate path below. */
+                    else if ((insn & 0x3f200c00u) == 0x38200000u && ((insn >> 12) & 15) <= 8)
                     {
                         int size_lg2 = (insn >> 30) & 0x3;
                         int rs = (insn >> 16) & 0x1f;   /* value to store  */
                         int rt = insn & 0x1f;           /* old value lands here */
-                        uint64_t align_mask = (1ULL << size_lg2) - 1;
-
-                        /* An unaligned atomic cannot be emulated atomically. Fall through
-                         * to the discriminator rather than quietly doing something weaker. */
-                        if (rw_addr & align_mask)
+                        uint64_t in = rs < 29 ? state.__x[rs] : rs == 29 ? state.__fp : rs == 30 ? state.__lr : 0;
+                        uint64_t old;
+                        if (ios_mach_emulate_lse_alias(insn, fault_addr, rw_addr, rx, sz, in_jit, &state, &old))
                         {
-                            static int swp_unalign_n;
-                            if (swp_unalign_n < 4)
-                                dprintf(STDERR_FILENO,
-                                    "[swp-emul] ml626 #%d REFUSING unaligned atomic: insn=0x%08x size=%d "
-                                    "addr=0x%llx rw=0x%llx\n",
-                                    ++swp_unalign_n, insn, 1 << size_lg2,
-                                    (unsigned long long)fault_addr, (unsigned long long)rw_addr);
-                        }
-                        else
-                        {
-                            uint64_t in = (rs == 31) ? 0 : state.__x[rs];
-                            uint64_t old;
-                            switch (size_lg2)
-                            {
-                            case 0:  old = __atomic_exchange_n((uint8_t  *)rw_addr, (uint8_t )in, __ATOMIC_SEQ_CST); break;
-                            case 1:  old = __atomic_exchange_n((uint16_t *)rw_addr, (uint16_t)in, __ATOMIC_SEQ_CST); break;
-                            case 2:  old = __atomic_exchange_n((uint32_t *)rw_addr, (uint32_t)in, __ATOMIC_SEQ_CST); break;
-                            default: old = __atomic_exchange_n((uint64_t *)rw_addr,           in, __ATOMIC_SEQ_CST); break;
-                            }
-                            if (rt != 31) state.__x[rt] = old;  /* XZR discards the result */
                             emulated = 1;
 
                             /* ml648: THIS is Mono's backpatcher, and this is the fault
@@ -3658,7 +3726,7 @@ static void *ios_mach_exception_thread( void *arg )
                              * that). x28 is FEX's state frame, x18 the TEB; both are just
                              * numbers here and are treated as untrusted. Everything is
                              * interpreted later at the FEX safe point. */
-                            if (size_lg2 == 3)
+                            if (size_lg2 == 3 && ((insn >> 12) & 15) == 8)
                                 ios_mono_bridge_capture( state.__x[18], state.__x[28],
                                                          (uint64_t)state.__pc,
                                                          (uint64_t)fault_addr );
@@ -3666,7 +3734,7 @@ static void *ios_mach_exception_thread( void *arg )
                                 static int swp_n;
                                 if (swp_n < 8)
                                     dprintf(STDERR_FILENO,
-                                        "[swp-emul] ml626 #%d insn=0x%08x size=%d Rs=x%d Rt=x%d addr=0x%llx "
+                                        "[lse-emul] #%d insn=0x%08x size=%d Rs=x%d Rt=x%d addr=0x%llx "
                                         "rw=0x%llx in=0x%llx old=0x%llx\n",
                                         ++swp_n, insn, 1 << size_lg2, rs, rt,
                                         (unsigned long long)fault_addr, (unsigned long long)rw_addr,

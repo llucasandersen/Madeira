@@ -29,5 +29,7 @@ jobs:
         run: python3 tests/host/check-process-created-record.py
       - name: Launch lifetime and display state
         run: python3 tests/host/check-dock-start-screen.py
+      - name: Mach writable alias atomic operations
+        run: python3 tests/host/check-mach-lse-alias.py
       - name: Parse downloader source
         run: swiftc -frontend -parse app/Madeira/SwiftSteam/Content/DepotDownloader.swift

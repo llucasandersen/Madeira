@@ -2,6 +2,43 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Mach writable-alias LSE atomics
+
+Upstream [report #123](https://github.com/willfaust/Madeira/issues/123)
+identifies HotSpot's `0xb8e60020` (`LDADDAL w6,w0,[x1]`) as a store that reaches
+a valid writable alias but remains undecoded in Mach case 4. The Unix signal
+decoder contains related operations; that does not make them available to this
+Mach path. Its former scalar atomic branch handled only SWP.
+
+`signal_arm64_ios.c` now routes scalar LSE add/clear/xor/set, signed/unsigned
+min/max and swap through a lock-free scalar atomic implementation,
+for 8/16/32/64-bit operands and all encoded ordering variants. The update and
+returned prior value come from the same successful atomic transaction. The
+implementation uses sequential consistency, preserving the instruction's
+atomic and acquire/release requirements with stronger ordering. See the
+[Arm instruction reference](https://documentation-service.arm.com/static/6245c734b059dc5ff9a8bdab).
+Add/bitwise/swap operations retain direct atomic builtins; only min/max require
+a compare/exchange loop.
+
+The Mach adapter verifies the effective base register and complete alias
+coverage before mutation. Secondary user-VA aliases require the final byte to
+resolve to the same contiguous writable mapping. Unaligned, incomplete,
+overflowing and reserved operands remain unhandled without changing memory or
+registers. Frame/link registers are accessed through their actual Darwin
+fields rather than indexing beyond `__x[29]`; zero-register operands never use
+SP. Existing 64-bit SWP Mono capture and the separate CAS path are preserved.
+PC advancement and write tracking remain in the existing successful-store path.
+
+`check-mach-lse-alias.py` compiles the production arithmetic, atomic and alias
+adapter functions. It covers the reported opcode, all widths/operations/order
+flags, overflow/sign boundaries, all source/destination registers, alias-span
+refusal and unchanged state on refusal. Four native threads perform 80,000
+increments and verify both the final counter and returned-prior-value sum.
+ASan/UBSan, TSan, the complete 76-check suite and fresh native/app gates are
+pending. This does not implement exclusive reservations (`STLXR`) or pre-index
+integer `STP`, prove all three reported runtimes work, or solve peer-thread
+quiescence. Device exception delivery and game acceptance remain required.
+
 ## Fixed-image owner publication
 
 The readiness owner check also depended on metadata that two callbacks accessed

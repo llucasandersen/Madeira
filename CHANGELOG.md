@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Handle scalar LSE atomic writes through complete writable aliases in the Mach exception path, including the reported HotSpot `LDADDAL` opcode. Preserve atomic ordering, zero/FP/LR register semantics, unchanged refusal and Mono SWP capture; add actual-source operation/bounds/concurrency sanitizer fixtures. Full 76-check/native/app gates and device acceptance are pending.
+
 - Verify all 75 distinct host checks and real Valve archives at `0546f2d`, fresh native exit diagnostics at `5ed9a2e`, and the complete source-stamped `0546f2d` IPA. Record current upstream compatibility-report/source comparisons. Subsequent image-owner publication gates, device acceptance and final USB delivery remain pending.
 
 - Synchronize fixed-image owner/death publication with image commit and retirement using the existing leaf mutex. Refuse takeover of a bound occupant and snapshot diagnostics before unlocking; extend actual ownership/concurrency sanitizer fixtures. Fresh native/full gates remain pending.
