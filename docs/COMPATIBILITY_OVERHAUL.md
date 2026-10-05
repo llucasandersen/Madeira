@@ -217,6 +217,24 @@ parsing before reaching the new install checks. The fixture is corrected in
 `399ef52`; its missing-manifest test now checks the specific validation error,
 and host run 37250041732 is pending. No failed run is recorded as a pass.
 
+Run 37250041732 subsequently passed the new dependency install, exact-depot,
+owner-record, missing-manifest and existing corruption/resume checks, but its
+uninstall assertion still expected the entire library to become empty. The new
+independent installer app should remain installed after game removal. The
+assertion now verifies removal of the game/same-folder owner and preservation
+of the separate installer app and folder. This corrects the fixture expectation;
+it does not suppress a production uninstall failure.
+
+The memory overlay also assumed a fixed 4096 MB ceiling. It now reads
+`jit_available_memory()` (iOS `os_proc_available_memory`) at the existing sample
+cadence and shows measured headroom beside physical footprint. Warning colors
+use that measured value; the app no longer paints a healthy increased-memory
+session red merely because footprint exceeds 4 GB. This is reporting, not
+resource reclamation or a Ravenfield survival claim. The supplied run's pool
+warmer reports roughly 288 MB head and 160 MB tail usage inside its 896 MB pool;
+pool capacity, live translated code and jetsam-charged footprint are distinct
+measurements. Adaptive pool sizing still needs implementation and validation.
+
 The earlier supplied game log also creates a native Madeira D3D12 device,
 despite importing OPENGL32 through the absent-GL stub. Importing that DLL alone
 does not identify the active rendering backend. The log retains dispatcher

@@ -995,7 +995,10 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
     }
     if phase == "uninstall" {
         SteamInstallFiles.delete(appID: 9000, folderName: "Fixture Game", steamApps: steamApps)
-        require(MadeiraDock.games(drive: drive).isEmpty, "an uninstalled game is no longer found (its shared owner record went with it)")
+        let remaining = MadeiraDock.games(drive: drive)
+        require(!remaining.contains { $0.id == 9000 || $0.id == 9100 }, "an uninstalled game and its same-folder shared owner are no longer found")
+        require(remaining.contains { $0.id == 9200 } && FileManager.default.fileExists(atPath: steamApps.appendingPathComponent("common/Installer Store").path),
+                "uninstalling the game preserves separately installed shared runtime content")
         require(!FileManager.default.fileExists(atPath: steamApps.appendingPathComponent("common/Fixture Game").path), "its folder is gone")
         require(FileManager.default.fileExists(atPath: steamApps.appendingPathComponent("common").path) , "the common folder stays")
     }
