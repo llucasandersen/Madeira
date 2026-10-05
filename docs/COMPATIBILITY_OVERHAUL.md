@@ -153,6 +153,41 @@ still require device tests.
 
 ## Verification still required
 
+### Teardown relaunch content wait, October 4 device evidence
+
+The new user-provided USB log supersedes the earlier generic success report
+for repeat-launch acceptance: online authentication and entitlement succeeded,
+but Valve refused launch with error 17 and retried three times without creating
+the game. The current Dock content wait permits six hours of retries. Its
+message is not proof that a download is making progress. This failure occurs
+before renderer selection; changing the graphics backend cannot explain it.
+
+Valve's retrieved product metadata declares shared installer depot 228989
+from owner app 228980 with `sharedinstall=1`. Madeira intentionally excludes
+such depots from a game's main folder and size calculation, but did not have
+a native preparation step to install them into their owner's common folder.
+The missing preparation is established by source; the exact dependency behind
+this particular error 17 still needs Steam's content log/install records,
+which were not included in the USB export.
+
+The launch path now resolves the consumer's exact declared shared installer
+depots, pauses any active native download before reusing its downloader, and
+downloads/verifies each dependency into the owner's own folder before closing
+the native connection and transferring the account to Dock. Owner install
+records merge previously installed depots and are written only after verified
+completion. Metadata bounds, required manifest checks, Steam depot keys,
+manifest authorization, checksums, journals and original launch authorization
+remain in effect. No Microsoft runtime binaries are added to the repository
+or public IPA; dependency content is obtained by the user's Steam session.
+
+The production Steam library harness now checks exact dependency selection,
+owner-directory installation and its resulting record. Host run 37249543427
+at Madeira `596560f` is pending. Native build and device repeat-launch proof
+are still required. Existing game-folder/shared-content tests remain enabled.
+The previous census host run 37249027374 failed only its obsolete static
+call-count assertion after adding the second frame feed; the assertion now
+counts both feeds, with its behavioral and sanitizer checks retained.
+
 Clean runner builds also exposed several reproducibility defects, documented
 with exact runs in [BUILDING.md](BUILDING.md): an unsupported optional native
 telemetry field, omitted FEX inline headers, missing generated DXMT AIR
