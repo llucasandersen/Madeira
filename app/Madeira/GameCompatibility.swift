@@ -11,7 +11,7 @@ import FoundationXML
 /// its documented settings, rather than supplying guessed command-line flags.
 struct GameCompatibilityProfile: Equatable {
     enum Renderer: String { case d3d11, d3d12 }
-    enum SettingsAdapter { case teardownRegistry }
+    enum SettingsAdapter { case teardownRegistry, rdr2System }
     let appID: Int
     let revision: Int
     let preferredRenderer: Renderer
@@ -25,17 +25,87 @@ struct GameCompatibilityProfile: Equatable {
     // Teardown 2.1.0: supplied options.xml and a real D3D12 device trace.
     // No profile is needed for PEAK's ordinary D3D11 launch path.
     private static let builtins = [Self(appID: 1167630, revision: 1,
-        preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry)]
+        preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
+        Self(appID: 1174180, revision: 1, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
     func prepare(options: URL) throws -> Bool {
         switch settingsAdapter {
         case .teardownRegistry: return try TeardownRendererSettings.prepare(file: options)
+        case .rdr2System: return try RDR2RendererSettings.prepare(file: options)
         }
     }
 
     func settingsFile(userFolder: URL) -> URL {
         switch settingsAdapter {
         case .teardownRegistry: return userFolder.appendingPathComponent("AppData/Local/Teardown/options.xml")
+        case .rdr2System: return userFolder.appendingPathComponent("Documents/Rockstar Games/Red Dead Redemption 2/Settings/system.xml")
+        }
+    }
+}
+
+/// Rockstar documents this API value and settings path. Preserve the game's
+/// generated schema, all graphics choices and saves; never invent a version.
+enum RDR2RendererSettings {
+    enum Failure: Error, LocalizedError {
+        case unsupported, unsafePath, changed
+        var errorDescription: String? {
+            switch self {
+            case .unsupported: return "RDR2 renderer settings have an unsupported format. The original file was preserved."
+            case .unsafePath: return "RDR2 renderer settings resolve outside their folder. The original file was preserved."
+            case .changed: return "RDR2 settings changed while preparing the renderer. Try starting again."
+            }
+        }
+    }
+    private final class Schema: NSObject, XMLParserDelegate {
+        var path: [String] = [], values: [String] = []
+        var text = "", valid = true
+        func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?,
+                    qualifiedName: String?, attributes: [String: String]) {
+            path.append(name)
+            if path.count == 1 && name != "rage__fwuiSystemSettingsCollection" { valid = false }
+            if name == "API" {
+                if path != ["rage__fwuiSystemSettingsCollection", "advancedGraphics", "API"] || !attributes.isEmpty { valid = false }
+                text = ""
+            }
+        }
+        func parser(_ parser: XMLParser, foundCharacters value: String) { if path.last == "API" { text += value } }
+        func parser(_ parser: XMLParser, didEndElement name: String, namespaceURI: String?, qualifiedName: String?) {
+            if name == "API" { values.append(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            path.removeLast()
+        }
+    }
+    static func selectingD3D12(_ data: Data) throws -> Data {
+        guard data.count <= 1_048_576, let text = String(data: data, encoding: .utf8),
+              !text.contains("<!"), !text.contains("&") else { throw Failure.unsupported }
+        let schema = Schema(), parser = XMLParser(data: data)
+        parser.delegate = schema; parser.shouldResolveExternalEntities = false
+        guard parser.parse(), schema.valid, schema.values.count == 1,
+              ["kSettingAPI_Vulkan", "kSettingAPI_DX12"].contains(schema.values[0]) else { throw Failure.unsupported }
+        let expression = try NSRegularExpression(pattern: #"(<API>\s*)kSettingAPI_(Vulkan|DX12)(\s*</API>)"#)
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard expression.numberOfMatches(in: text, range: range) == 1 else { throw Failure.unsupported }
+        return Data(expression.stringByReplacingMatches(in: text, range: range,
+            withTemplate: "$1kSettingAPI_DX12$3").utf8)
+    }
+    static func prepare(file: URL) throws -> Bool {
+        let fm = FileManager.default, parent = file.deletingLastPathComponent()
+        guard file.standardizedFileURL == file.resolvingSymlinksInPath().standardizedFileURL,
+              parent.standardizedFileURL == parent.resolvingSymlinksInPath().standardizedFileURL else { throw Failure.unsafePath }
+        guard fm.fileExists(atPath: file.path) else { return false }
+        let original = try Data(contentsOf: file), updated = try selectingD3D12(original)
+        guard original != updated else { return false }
+        let backup = parent.appendingPathComponent("system.xml.madeira-renderer-backup")
+        guard backup.standardizedFileURL == backup.resolvingSymlinksInPath().standardizedFileURL else { throw Failure.unsafePath }
+        if !fm.fileExists(atPath: backup.path) { try original.write(to: backup, options: .withoutOverwriting) }
+        guard try Data(contentsOf: file) == original else { throw Failure.changed }
+        try updated.write(to: file, options: .atomic)
+        return true
+    }
+    static func isGame(executable: URL) -> Bool {
+        guard executable.lastPathComponent.lowercased() == "rdr2.exe" else { return false }
+        let folder = executable.deletingLastPathComponent(), fm = FileManager.default
+        return ["common_0.rpf", "shaders_x64.rpf", "bink2w64.dll"].allSatisfy {
+            fm.fileExists(atPath: folder.appendingPathComponent($0).path)
         }
     }
 }

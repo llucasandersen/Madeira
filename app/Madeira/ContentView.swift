@@ -2446,7 +2446,18 @@ struct ContentView: View {
 
     /// The rest of Play, with JIT on: checks the entry's launch profile and starts it.
     private func startLibraryEntry(_ entry: LibraryEntry) {
-        do { if entry.desktop != true { _ = try LibraryModel.executable(entry.launchRelativePath) }; try entry.validate() }
+        do {
+            if entry.desktop != true { _ = try LibraryModel.executable(entry.launchRelativePath) }
+            try entry.validate()
+            if entry.usesLaunchOptions, entry.automaticCompatibility != false,
+               let executable = LibraryEntry.hostURL(ofWindowsPath: entry.launchWindowsPath),
+               RDR2RendererSettings.isGame(executable: executable),
+               let user = SteamCloudPaths.userFolder(drive: LibraryModel.drive) {
+                let file = user.url.appendingPathComponent("Documents/Rockstar Games/Red Dead Redemption 2/Settings/system.xml")
+                let changed = try RDR2RendererSettings.prepare(file: file)
+                logStore.log("[compatibility-profile] RDR2 renderer=d3d12 settings=\(changed ? "updated" : "unchanged-or-not-generated")")
+            }
+        }
         catch {
             library.error = error.localizedDescription
             logStore.log("[launch-preflight] profile validation failed: \(error.localizedDescription)", level: .error)

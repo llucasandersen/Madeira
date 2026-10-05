@@ -68,7 +68,29 @@ try original.write(to: target)
 try fm.createSymbolicLink(at: file, withDestinationURL: target)
 do { _ = try policy.prepare(options: file); preconditionFailure() } catch { }
 check(try! Data(contentsOf: target) == original)
-print("PASS: actual profile adapter; exact two-value edits; Unicode/CRLF/unknown-setting preservation; backups; repeat launches; unknown/malformed XML; symlink refusal; generic and disabled profiles")
+let rdr = "<rage__fwuiSystemSettingsCollection><version value=\"37\"/><advancedGraphics><API>kSettingAPI_Vulkan</API><asyncComputeEnabled value=\"true\"/></advancedGraphics><audio><volume value=\"7\"/></audio></rage__fwuiSystemSettingsCollection>"
+let rdrSelected = rdr.replacingOccurrences(of: "kSettingAPI_Vulkan", with: "kSettingAPI_DX12")
+check(try! RDR2RendererSettings.selectingD3D12(Data(rdr.utf8)) == Data(rdrSelected.utf8))
+check(try! RDR2RendererSettings.selectingD3D12(Data(rdrSelected.utf8)) == Data(rdrSelected.utf8))
+check(GameCompatibilityProfile.resolve(appID: 1174180)?.settingsAdapter == .rdr2System)
+for invalid in [rdr.replacingOccurrences(of: "</advancedGraphics>", with: "<API>kSettingAPI_DX12</API></advancedGraphics>"),
+                rdr.replacingOccurrences(of: "advancedGraphics", with: "other"),
+                rdr.replacingOccurrences(of: "kSettingAPI_Vulkan", with: "unknown"),
+                "<!DOCTYPE x>" + rdr] {
+    do { _ = try RDR2RendererSettings.selectingD3D12(Data(invalid.utf8)); preconditionFailure() } catch { }
+}
+let rdrFile = directory.appendingPathComponent("system.xml")
+check(try! RDR2RendererSettings.prepare(file: rdrFile) == false)
+try Data(rdr.utf8).write(to: rdrFile)
+check(try! RDR2RendererSettings.prepare(file: rdrFile))
+check(try! Data(contentsOf: directory.appendingPathComponent("system.xml.madeira-renderer-backup")) == Data(rdr.utf8))
+check(try! RDR2RendererSettings.prepare(file: rdrFile) == false)
+let rdrExe = directory.appendingPathComponent("RDR2.exe")
+check(!RDR2RendererSettings.isGame(executable: rdrExe))
+for name in ["common_0.rpf", "shaders_x64.rpf", "bink2w64.dll"] { try Data().write(to: directory.appendingPathComponent(name)) }
+check(RDR2RendererSettings.isGame(executable: rdrExe))
+check(!RDR2RendererSettings.isGame(executable: directory.appendingPathComponent("other.exe")))
+print("PASS: Teardown and RDR2 actual profile adapters; exact edits, backups, preservation, malformed XML, symlink refusal, direct executable identity, generic and disabled profiles")
 '''
 content = (root / 'app/Madeira/ContentView.swift').read_text(encoding='utf-8')
 start = content[content.index('private func startDock('):]
