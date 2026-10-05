@@ -9,6 +9,18 @@ package passed ZIP, identity, runtime and graphics provenance checks, SHA-256
 This locally retained diagnostic has no new device acceptance results and
 does not replace the delivered USB update 2 or constitute the final release.
 
+At `4666116`, all 69 distinct host checks passed in run 37255530422. The
+downloaded Linux/macOS inventories matched every repository check without
+omissions or duplicates. This includes the actual Wine machine gate, coherent
+fresh-install runtime pins, AMD64 header guard, launch-stage deadlines and
+loader rejection parsing. Its IPA run 37255532583 passed Xcode/Metal/package
+gates; local ZIP, identity, runtime and graphics provenance verification passed
+for `Madeira-diagnostic-4666116.ipa` (87,305,193 bytes), SHA-256
+`d206888d0da7b6f8915c38fe3491634bc3ab3faf5cb439677995a1f652a2174f`.
+That local diagnostic predates automatic existing-runtime upgrades and the
+real-archive CI gate introduced at `4acba7a`. It supplies no new device result
+and has not replaced USB update 2. The later upgrade requires its own gates.
+
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
