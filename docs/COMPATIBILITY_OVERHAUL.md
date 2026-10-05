@@ -116,9 +116,21 @@ in the upstream allocation path.
 The new host test compiles production configuration and pressure decisions
 under both guest-width defaults, with sanitizer checks for pressure/recovery,
 explicit off values, unavailable queries, zero/negative thresholds and size/
-mip restrictions. Full host and graphics source builds are pending. The new
-graphics DLL must be built, verified and staged before an IPA can contain
-this policy; the delivered diagnostic retains the prior graphics binaries.
+mip restrictions. All 63 distinct host checks passed in run 37248256151 at
+Madeira `f8b0e2b`, including both guest-width memory-policy builds under
+sanitizers. The downloaded Linux/macOS inventories matched every host check,
+with no missing or duplicate results. The first run, 37248222424, failed on
+an incorrect test fixture: halving 4097 produces the aligned dimension 2048.
+The corrected fixture uses 2050, whose halved dimension 1025 is unaligned.
+This was a test correction, not a production behavior change.
+
+Graphics source run 37248224379 passed with the new DXMT pin `7e2396b`.
+Its downloaded artifact passed source-pin, SHA-256 and PE metadata checks.
+The diagnostic workflow now verifies and stages the four primary DXMT DLLs,
+preserves Wine D3D9, and checks their hashes in the built app provenance.
+IPA run 37248837994 at Madeira `c214f95` has been dispatched with that
+graphics artifact; packaging is pending. The delivered USB diagnostic
+retains the prior graphics binaries.
 Ravenfield's repeated map-load acceptance and regressions on other games
 still require device tests.
 
