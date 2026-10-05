@@ -31,8 +31,11 @@ The expanded fixture first failed at `91a7a92` in targeted workflow
 the predicate correction, targeted workflow 37274755701 passed at `889c6be`.
 Terminal ARM job 111649237226 has two scalar-decoder PASS records and two
 native paired-store PASS records, covering ASan/UBSan and TSan, with no
-sanitizer diagnostics. Full 78-check workflow 37274755529 and fresh native/app
-workflow 37274760178 are still running. The earlier `91a7a92` native workflow
+sanitizer diagnostics. Full 78-check workflow 37274755529 passed at `889c6be`,
+including real Valve archives. Downloaded inventories match all 78 tests with
+zero raw/effective exits and no sanitizer diagnostics; the ARM log has both
+scalar and pair PASS records for both sanitizers. Fresh native/app workflow
+37274760178 is still running. The earlier `91a7a92` native workflow
 37274597234 was deliberately cancelled after this source correction superseded
 it; cancellation is not a compilation or package pass.
 These follow-up source changes are not in the delivered candidate-3 IPA.

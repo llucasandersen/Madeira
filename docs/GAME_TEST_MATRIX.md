@@ -3,14 +3,16 @@
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
 Latest completed host validation: all 78 checks and real Valve archives passed
-at `3e94179` (37272555190). Downloaded inventories match that full test tree,
+at `889c6be` (37274755529). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,
 callback delivery, exact selected-game/host generation correlation and stale
 file-tail delivery, synchronized image-owner publication and scalar Mach LSE
 alias atomics and native ARM paired stores, alongside the existing sanitizer
-fixtures and the runner's recovering-sanitizer integration. Every raw and
+fixtures, explicit Mach FP/LR/SP scalar writeback/pre-index cases and the
+runner's recovering-sanitizer integration. Every raw and
 effective exit is zero, with no sanitizer diagnostics. Fresh native compilation
-passed at `343028f` (job 111639327861 in 37271515195).
+passed at `343028f` (job 111639327861 in 37271515195); the subsequent scalar
+register/pre-index change still needs fresh native/app workflow 37274760178.
 
 Latest completed app validation: workflow 37272620144 passed at `3e94179`,
 including app job 111642667843 and strict macOS codesign verification. It reuses

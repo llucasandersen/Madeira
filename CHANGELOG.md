@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Verify all 78 host checks and real Valve archives at `889c6be` in 37274755529, including explicit Mach scalar register/pre-index regressions. Downloaded inventories have zero raw/effective exits and no sanitizer diagnostics; fresh native/app packaging remains pending.
+
 - Verify expanded actual ARM scalar/pair fixtures under ASan/UBSan and TSan at `889c6be` in 37274755701. The earlier scalar pre-index regression correctly failed at `91a7a92`; full host/native/app gates and updated packaging remain pending.
 
 - Correct FP/LR store sources and FP/LR/SP indexed base writeback in older Mach alias-store paths. Use explicit Darwin register fields and unsigned address arithmetic; extend the real ARM fixture with actual scalar decoder branches and boundary cases. New native/full gates are pending; candidate 3 predates this follow-up.
