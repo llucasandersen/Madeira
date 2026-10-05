@@ -19,6 +19,8 @@ initial = source[source.index('size_t server_init_process(void)'):source.index('
 assert 'ios_session_peb = ios_jit_current_peb();' in initial
 child = source[source.index('size_t server_init_process_child('):]
 assert 'if (!ios_register_proc_socket(' in child and 'close( child_fd_socket );' in child
+assert child.index('if (ret) server_protocol_error( "init_first_thread (child)') < child.index('ios_bind_proc_pid( pid );')
+assert teardown.index('close( owned_fd );') < teardown.index('ios_log_process_exit( entry, status );')
 assert '-include "$BUILD_DIR/shims/wine_ios_exit.h"' in (root / 'build/ntdll-unix/build.sh').read_text()
 thread_source = (root / 'build/ntdll-unix/thread_ios.c').read_text()
 worker = thread_source[thread_source.index('static void start_thread( TEB *teb )'):]
@@ -34,7 +36,9 @@ code = r'''
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 typedef int BOOL;
@@ -49,7 +53,19 @@ void *ios_jit_current_peb(void) { return owner; }
 static int fail_alloc;
 static void *probe_calloc(size_t n, size_t size) { return fail_alloc ? NULL : calloc(n, size); }
 static atomic_uint reclaims, retires, cache_releases, subfloor_releases, wow_releases, ready, exits, notes;
+static atomic_uint exit_records;
+static char last_exit_record[256];
+static int capture_exit(int fd, const char *format, ...) {
+    assert(fd == 2);
+    va_list args; va_start(args, format);
+    int size = vsnprintf(last_exit_record, sizeof(last_exit_record), format, args);
+    va_end(args);
+    assert(size > 0 && (unsigned)size < sizeof(last_exit_record));
+    atomic_fetch_add(&exit_records, 1); return size;
+}
+#define dprintf capture_exit
 atomic_uint parent_exits;
+atomic_uint lifetime_callbacks;
 static void wine_log_write(const char *format, ...) { (void)format; }
 static void ios_fdt_reg(int fd, int kind, void *peb) { assert(fd >= 0 && kind == FDT_MASTER && peb); }
 static void ios_fdt_note_close(int fd, const char *reason, void *peb) {
@@ -128,10 +144,16 @@ int main(void) {
     assert(ios_current_fd_socket() == -1); close(child_fd); parent_alive();
     assert(!ios_register_proc_socket(NULL, fd_socket) && !ios_register_proc_socket(owner, -1));
     child_fd = dup(fd_socket); assert(ios_register_proc_socket(owner, child_fd));
+    ios_bind_proc_pid(0xab);
+    unsigned long long original_generation = ios_process_generation_for_pid(0xab);
+    assert(original_generation && !ios_process_generation_for_pid(0) && !ios_process_generation_for_pid(0xcd));
     BOOL *old_flag = ios_process_exiting_ptr(); *old_flag = TRUE;
     pthread_t peers[8]; unsigned before = reclaims;
     for (unsigned i = 0; i < 8; i++) assert(pthread_create(&peers[i], NULL, exit_peer, owner) == 0);
     for (unsigned i = 0; i < 8; i++) pthread_join(peers[i], NULL);
+    assert(exit_records == 1 && strstr(last_exit_record, "pid=000000ab") &&
+           strstr(last_exit_record, "status_kind=unix status=00000000\n"));
+    assert(ios_process_generation_for_pid(0xab) == original_generation); /* fast exit before parent creation log */
     assert(reclaims == before + 1 && retires == reclaims && cache_releases == reclaims &&
            subfloor_releases == reclaims && wow_releases == reclaims && ready == reclaims && notes == reclaims);
     closed(child_fd); parent_alive(); assert(ios_current_fd_socket() == -1 && ios_process_exiting_ptr() == old_flag);
@@ -144,7 +166,11 @@ int main(void) {
     /* Latest registration at a reused PEB address wins; prior flag pointers stay valid. */
     child_fd = dup(fd_socket); assert(ios_register_proc_socket(owner, child_fd));
     assert(ios_current_fd_socket() == child_fd && ios_process_exiting_ptr() != old_flag && *old_flag == TRUE);
+    ios_bind_proc_pid(0xab);
+    assert(ios_process_generation_for_pid(0xab) > original_generation);
+    ios_note_process_exit_status(0xc0000005);
     process_exit_wrapper(0);
+    assert(exit_records == 2 && strstr(last_exit_record, "status_kind=windows status=c0000005\n"));
     /* An old peer has captured the retired generation. Register a successor
      * at exactly the same PEB address on a different native thread. */
     BOOL *retired_flag = ios_process_exiting_ptr();
@@ -184,6 +210,7 @@ int main(void) {
     owner = NULL; ios_thread_proc_socket = NULL;
     assert(ios_current_fd_socket() == fd_socket); /* initial/foreign bootstrap */
     owner = ios_session_peb; process_exit_wrapper(0); assert(parent_exits == 1); closed(fd_socket);
+    assert(lifetime_callbacks == exit_records);
     close(pipefd[1]);
     puts("PASS: >64 child owners, stable per-thread generation after PEB reuse, retired identity, allocation failure, duplicate/concurrent teardown and parent isolation");
 }
@@ -197,6 +224,8 @@ with tempfile.TemporaryDirectory(prefix='madeira-socket-owners-') as directory:
     (path / 'hook.c').write_text('''#include <assert.h>
 #include <stdatomic.h>
 extern atomic_uint parent_exits;
+extern atomic_uint lifetime_callbacks;
+void wine_ui_log(const char *message) { assert(message && message[0] == '['); atomic_fetch_add(&lifetime_callbacks, 1); }
 void wine_launched_process_did_exit(int status) { assert(status == 0); atomic_fetch_add(&parent_exits, 1); }
 ''', encoding='utf-8')
     for sanitizer in ['address,undefined', 'thread']:

@@ -1842,6 +1842,10 @@ void abort_process( int status )
     pthread_sigmask( SIG_BLOCK, &server_block_set, NULL );
     ERR( "abort_process: status=0x%x — tearing down this pseudo-process only (ml937; was _exit, which killed the app)\n",
          (unsigned int)status );
+    {
+        extern void ios_note_process_exit_status( unsigned status );
+        ios_note_process_exit_status( (unsigned)status );
+    }
     process_exit_wrapper( get_unix_exit_code( status ));
     /* noreturn */
 #endif
@@ -1882,6 +1886,10 @@ void exit_process( int status )
 {
 #ifdef WINE_IOS
     ERR("exit_process: raw_status=0x%x unix_code=%d\n", (unsigned)status, get_unix_exit_code(status));
+    {
+        extern void ios_note_process_exit_status( unsigned status );
+        ios_note_process_exit_status( (unsigned)status );
+    }
 #endif
     pthread_sigmask( SIG_BLOCK, &server_block_set, NULL );
     process_exit_wrapper( get_unix_exit_code( status ));

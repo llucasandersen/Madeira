@@ -2,6 +2,44 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Native game and Steam-host exit diagnostics
+
+The launch screen previously observed successful executable creation and
+Steam's game-running flag, but did not correlate native child teardown with
+the selected executable. The initial-process exit hook describes Wine's
+explorer process, not Dock's embedded Steam client: the client DLL executes
+inside `dockhost.exe`. An unrelated reporter or launcher exit must not be
+classified as that host crashing.
+
+`server_ios.c` now assigns each stable child record a monotonic birth generation
+and binds its Windows PID after the successful first-thread server handshake.
+`process_ios.c` includes that generation in the existing successful-creation
+record. Claimed teardown publishes a matching exit record after closing the
+child's master socket. `thread_ios.c` preserves the calling thread's original
+Windows status before Unix-code conversion; other teardown paths explicitly
+report a Unix status. Generation metadata survives fast exits and PEB reuse.
+These rare records also use the existing UI callback outside registry locks,
+so observing an exit does not require continuous gameplay log-file scanning.
+
+`DockStartScreen.swift` correlates only the exact selected image and Dock host
+image, using PID plus generation. Its bounded early-exit cache handles exits
+that precede the parent's creation acknowledgement. Resolved exits survive
+cache eviction and duplicate callback/file records. Native game exits outrank
+stale windows. A host reporting a recognized Windows fault status has an
+explicit crash stage; other nonzero exits remain host failures with their
+actual status. A completed Dock report remains distinct from a crash. Lifetime
+status is updated even after the startup window hold has ended. Legacy creation
+records remain usable but cannot establish a generation-matched exit.
+
+Actual C registry/teardown and encoder fixtures cover full status preservation,
+single publication across duplicate/concurrent teardown, fast exits, PID/PEB
+reuse and callback delivery. Compiled production Swift fixtures cover early
+exit ordering, unrelated helpers, stale generations, duplicate records, bounded
+cache eviction, legacy records, malformed input and terminal stage priority.
+Fresh native/app and complete host gates for this change are pending. This
+does not prove peer-thread quiescence, diagnose a Mach-task jetsam termination,
+or establish physical gameplay acceptance.
+
 ## Automatic renderer profiles: supplied Teardown registry
 
 ### Thread-stable child socket ownership

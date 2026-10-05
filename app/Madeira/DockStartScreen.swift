@@ -249,9 +249,10 @@ struct SteamExecutableCreation: Equatable {
     let module: String
     let pid: UInt32
     let tid: UInt32
+    let generation: UInt64?
 
     private static let record = try! NSRegularExpression(pattern:
-        #"^\[process-created\] pid=([0-9a-fA-F]{8}) tid=([0-9a-fA-F]{8}) status=00000000 image_utf16=([0-9a-fA-F]{4,2048})$"#)
+        #"^\[process-created\] pid=([0-9a-fA-F]{8}) tid=([0-9a-fA-F]{8}) status=00000000 (?:generation=([0-9a-fA-F]{16}) )?image_utf16=([0-9a-fA-F]{4,2048})$"#)
 
     static func parse(_ line: String, expectedImage: String) -> Self? {
         guard line.utf8.count <= 4096 else { return nil }
@@ -262,7 +263,8 @@ struct SteamExecutableCreation: Equatable {
         func part(_ n: Int) -> String { String(line[Range(match.range(at: n), in: line)!]) }
         guard let pid = UInt32(part(1), radix: 16), pid != 0,
               let tid = UInt32(part(2), radix: 16), tid != 0 else { return nil }
-        let hex = Array(part(3).utf8)
+        let generation = match.range(at: 3).location == NSNotFound ? nil : UInt64(part(3), radix: 16)
+        let hex = Array(part(4).utf8)
         guard hex.count % 4 == 0 else { return nil }
         var units: [UInt16] = []
         for offset in stride(from: 0, to: hex.count, by: 4) {
@@ -285,10 +287,82 @@ struct SteamExecutableCreation: Equatable {
         guard let actual = identity(image), let expected = identity(expectedImage), actual.utf16.elementsEqual(expected.utf16),
               let module = image.replacingOccurrences(of: "/", with: "\\").split(separator: "\\").last.map(String.init),
               module.utf8.count <= 128 else { return nil }
-        return Self(module: module, pid: pid, tid: tid)
+        return Self(module: module, pid: pid, tid: tid, generation: generation == 0 ? nil : generation)
     }
 
     var text: String { "Selected executable created: \(module) (PID 0x\(String(pid, radix: 16)))." }
+}
+
+/// Native child teardown evidence. Unix exit codes are never interpreted as
+/// Windows exception codes; PID and birth generation must both match.
+struct SteamProcessExit: Equatable {
+    let pid: UInt32
+    let generation: UInt64
+    let windowsStatus: Bool
+    let status: UInt32
+
+    private static let record = try! NSRegularExpression(pattern:
+        #"^\[process-exited\] pid=([0-9a-fA-F]{8}) generation=([0-9a-fA-F]{16}) status_kind=(windows|unix) status=([0-9a-fA-F]{8})$"#)
+
+    static func parse(_ line: String) -> Self? {
+        guard line.utf8.count <= 256 else { return nil }
+        var line = line
+        if line.hasSuffix("\r\n") || line.hasSuffix("\r") || line.hasSuffix("\n") { line.removeLast() }
+        guard !line.contains("\r"), !line.contains("\n"),
+              let match = record.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else { return nil }
+        func part(_ n: Int) -> String { String(line[Range(match.range(at: n), in: line)!]) }
+        guard let pid = UInt32(part(1), radix: 16), pid != 0,
+              let generation = UInt64(part(2), radix: 16), generation != 0,
+              let status = UInt32(part(4), radix: 16) else { return nil }
+        return Self(pid: pid, generation: generation, windowsStatus: part(3) == "windows", status: status)
+    }
+
+    var reportsFault: Bool {
+        windowsStatus && [UInt32(0xc0000005), 0xc000001d, 0xc0000094, 0xc0000095,
+                          0xc0000096, 0xc00000fd, 0xc0000409].contains(status)
+    }
+    func matches(_ creation: SteamExecutableCreation?) -> Bool {
+        creation?.pid == pid && creation?.generation == generation
+    }
+    var statusText: String {
+        "\(windowsStatus ? "Windows" : "Unix") status 0x\(String(format: "%08x", status))"
+    }
+}
+
+/// Tracks only the exact selected image and Dock's actual host image. Steam's
+/// client DLL runs inside dockhost.exe; unrelated helper exits are not host exits.
+struct SteamLaunchLifetime {
+    private(set) var gameCreation: SteamExecutableCreation?
+    private(set) var hostCreation: SteamExecutableCreation?
+    private(set) var gameExit: SteamProcessExit?
+    private(set) var hostExit: SteamProcessExit?
+    private var exits: [SteamProcessExit] = []
+    let expectedGame: String?
+    let expectedHost: String
+
+    init(expectedGame: String?, expectedHost: String) {
+        self.expectedGame = expectedGame; self.expectedHost = expectedHost
+    }
+
+    mutating func consume(_ line: String) {
+        if line.hasPrefix("[process-created]") {
+            if let expectedGame, let creation = SteamExecutableCreation.parse(line, expectedImage: expectedGame), creation != gameCreation {
+                gameCreation = creation
+                gameExit = exits.last { $0.matches(creation) }
+            }
+            if let creation = SteamExecutableCreation.parse(line, expectedImage: expectedHost), creation != hostCreation {
+                hostCreation = creation
+                hostExit = exits.last { $0.matches(creation) }
+            }
+        } else if let exit = SteamProcessExit.parse(line), !exits.contains(exit) {
+            // An immediately exiting child can publish before its parent's
+            // successful creation acknowledgement. Keep a bounded recent cache.
+            exits.append(exit)
+            if exit.matches(gameCreation) { gameExit = exit }
+            if exit.matches(hostCreation) { hostExit = exit }
+            if exits.count > 256 { exits.removeFirst(exits.count - 256) }
+        }
+    }
 }
 
 /// Recoverable inactivity warnings based on evidence, not on retry counters.
@@ -296,7 +370,7 @@ struct SteamExecutableCreation: Equatable {
 struct SteamLaunchProgress {
     enum Stage: String {
         case starting, signingIn, authenticated, authorized, content, configuration
-        case requested, executableCreated, programObserved, rendered, exited, hostEnded
+        case requested, executableCreated, programObserved, rendered, exited, hostEnded, hostFailed, steamCrashed
 
         var timeout: Double? {
             switch self {
@@ -304,7 +378,7 @@ struct SteamLaunchProgress {
             case .signingIn, .authenticated: return 120
             case .authorized, .configuration, .requested, .executableCreated, .programObserved: return 180
             case .content: return 600
-            case .rendered, .exited, .hostEnded: return nil
+            case .rendered, .exited, .hostEnded, .hostFailed, .steamCrashed: return nil
             }
         }
     }
@@ -317,11 +391,14 @@ struct SteamLaunchProgress {
     }
 
     mutating func step(_ fields: [String: String], programObserved: Bool, rendered: Bool,
-                       now: Double, executableCreated: Bool = false) -> Bool {
+                       now: Double, executableCreated: Bool = false,
+                       gameExit: SteamProcessExit? = nil, hostExit: SteamProcessExit? = nil) -> Bool {
         guard now.isFinite, now >= lastTime else { return false }
         lastTime = now
         let next: Stage
         if fields["probe-result"] != nil { next = .hostEnded }
+        else if let hostExit { next = hostExit.reportsFault ? .steamCrashed : hostExit.status == 0 ? .hostEnded : .hostFailed }
+        else if gameExit != nil { next = .exited }
         else if fields["launch-game-ended"] == "1" { next = .exited }
         else if rendered { next = .rendered }
         else if programObserved { next = .programObserved }
@@ -351,7 +428,7 @@ struct SteamLaunchProgress {
         case .authenticated: reason = "Steam signed in, but has not confirmed the game's license."
         case .signingIn: reason = "Steam has not confirmed sign-in."
         case .starting: reason = "Steam startup has not advanced."
-        case .rendered, .exited, .hostEnded: return nil
+        case .rendered, .exited, .hostEnded, .hostFailed, .steamCrashed: return nil
         }
         return reason + " This stage has taken \(Int(now - since)) seconds. Show desktop to check for a prompt, or export the diagnostic log."
     }
@@ -499,6 +576,22 @@ final class DockStartScreen: ObservableObject {
                 }
             }
         }
+        let lifetime = LogStore.shared.launchLifetime
+        let creation = lifetime?.gameCreation
+        let fields = (report ?? MainActor.assumeIsolated { MadeiraDock.pollReport() }).fields
+        let endedStatus: String?
+        if let exit = lifetime?.hostExit, fields["probe-result"] == nil {
+            endedStatus = "Steam host \(exit.reportsFault ? "reported a crash" : "exited"): \(exit.statusText)."
+        } else if let exit = lifetime?.gameExit, let creation {
+            endedStatus = "Selected executable exited: \(creation.module), \(exit.statusText)."
+        } else { endedStatus = nil }
+        if lifetime?.gameExit != nil || lifetime?.hostExit != nil {
+            if progress.step(fields, programObserved: false, rendered: false, now: elapsed,
+                             gameExit: lifetime?.gameExit, hostExit: lifetime?.hostExit) {
+                LogStore.shared.log("[steam-launch-stage] stage=\(progress.stage.rawValue) t=\(Int(elapsed))s")
+            }
+            if executableStatus != endedStatus { executableStatus = endedStatus }
+        }
         guard var hold else { return }
         if !hostStarted {
             hostStarted = DockStartStatus.hostStarted((report ?? MainActor.assumeIsolated { MadeiraDock.pollReport() }).fields)
@@ -509,20 +602,24 @@ final class DockStartScreen: ObservableObject {
         if !hostStarted { for window in windows where window.visible { early.insert(window.hwnd) } }
         let installerReveal = MadeiraConfig.flag("MADEIRA_DOCK_INSTALLER_REVEAL")   // 0: a one-time installer's dialog never reveals the desktop by itself
         let decision = SteamLaunchScene.decide(windows, rendered: rendered, places: places, early: early, installerReveal: installerReveal)
-        let fields = (report ?? MainActor.assumeIsolated { MadeiraDock.pollReport() }).fields
         // The census proves that a program owns a window. A launcher may be that
         // program; do not treat Steam's running bit as proof of game creation.
         let programObserved = hostStarted && windows.contains {
             !early.contains($0.hwnd) && SteamLaunchScene.owner($0.image, places: places) == .other
         }
-        let creation = LogStore.shared.launchCreation
         if progress.step(fields, programObserved: programObserved, rendered: decision.scene == .game, now: elapsed,
-                         executableCreated: hostStarted && creation != nil) {
+                         executableCreated: hostStarted && creation != nil,
+                         gameExit: lifetime?.gameExit, hostExit: lifetime?.hostExit) {
             LogStore.shared.log("[steam-launch-stage] stage=\(progress.stage.rawValue) t=\(Int(elapsed))s")
         }
         let warning = hostStarted ? progress.warning(now: elapsed) : nil
         if progressWarning != warning { progressWarning = warning }
-        let status = progress.stage == .executableCreated ? creation.map { $0.text + " Waiting for a game or launcher window." } : nil
+        let status: String?
+        if let endedStatus {
+            status = endedStatus
+        } else {
+            status = progress.stage == .executableCreated ? creation.map { $0.text + " Waiting for a game or launcher window." } : nil
+        }
         if executableStatus != status { executableStatus = status }
         if decision.scene != hold.scene, sceneLines < 24 {
             sceneLines += 1

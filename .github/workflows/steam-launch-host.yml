@@ -25,5 +25,9 @@ jobs:
         run: python3 tests/host/check-fixed-image-owner-ready.py
       - name: Child socket generation ownership
         run: python3 tests/host/check-process-socket-ownership.py
+      - name: Successful process creation records
+        run: python3 tests/host/check-process-created-record.py
+      - name: Launch lifetime and display state
+        run: python3 tests/host/check-dock-start-screen.py
       - name: Parse downloader source
         run: swiftc -frontend -parse app/Madeira/SwiftSteam/Content/DepotDownloader.swift

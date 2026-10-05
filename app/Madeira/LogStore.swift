@@ -27,17 +27,21 @@ final class LogStore: ObservableObject {
     private var displaySuppressed = false
     private var launchDiagnosticsActive = false
     private var latestLaunchRejection: SteamLoaderRejection?
-    private var expectedLaunchImage: String?
-    private var latestLaunchCreation: SteamExecutableCreation?
+    private var trackedLaunchLifetime: SteamLaunchLifetime?
 
     var launchCreation: SteamExecutableCreation? {
         stateLock.lock(); defer { stateLock.unlock() }
-        return latestLaunchCreation
+        return trackedLaunchLifetime?.gameCreation
+    }
+
+    var launchLifetime: SteamLaunchLifetime? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return trackedLaunchLifetime
     }
 
     func trackLaunchExecutable(_ image: String?) {
         stateLock.lock(); defer { stateLock.unlock() }
-        expectedLaunchImage = image; latestLaunchCreation = nil
+        trackedLaunchLifetime = image.map { SteamLaunchLifetime(expectedGame: $0, expectedHost: MadeiraDock.executable) }
     }
 
     var launchRejection: SteamLoaderRejection? {
@@ -212,11 +216,9 @@ final class LogStore: ObservableObject {
         if (raw.contains("[pe-image]") || raw.contains("[dll-missing]")), let rejection = SteamLoaderRejection.parse(raw) {
             stateLock.lock(); latestLaunchRejection = rejection; stateLock.unlock()
         }
-        if raw.hasPrefix("[process-created]") {
+        if raw.hasPrefix("[process-created]") || raw.hasPrefix("[process-exited]") {
             stateLock.lock()
-            if let expectedLaunchImage, let creation = SteamExecutableCreation.parse(raw, expectedImage: expectedLaunchImage) {
-                latestLaunchCreation = creation
-            }
+            trackedLaunchLifetime?.consume(raw)
             stateLock.unlock()
         }
         stateLock.lock(); let suppressed = displaySuppressed; stateLock.unlock()

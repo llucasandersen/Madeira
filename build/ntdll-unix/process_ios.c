@@ -1056,8 +1056,11 @@ static void madeira_steam_session_log( const UNICODE_STRING *image )
  * process evidence. This is a private diagnostic path, never a command line. */
 static void ios_log_process_created( const UNICODE_STRING *image, unsigned pid, unsigned tid )
 {
+    extern unsigned long long ios_process_generation_for_pid( unsigned pid );
+    extern void wine_ui_log( const char *message ) __attribute__((weak));
     static const char hex[] = "0123456789abcdef";
     char encoded[512 * 4 + 1];
+    char record[2304];
     unsigned i, length;
 
     if (!image || !image->Buffer || !pid || !tid || image->Length % sizeof(WCHAR)) return;
@@ -1072,7 +1075,10 @@ static void ios_log_process_created( const UNICODE_STRING *image, unsigned pid, 
         encoded[i * 4 + 3] = hex[c & 15];
     }
     encoded[length * 4] = 0;
-    dprintf( 2, "[process-created] pid=%08x tid=%08x status=00000000 image_utf16=%s\n", pid, tid, encoded );
+    snprintf( record, sizeof(record), "[process-created] pid=%08x tid=%08x status=00000000 generation=%016llx image_utf16=%s",
+             pid, tid, ios_process_generation_for_pid( pid ), encoded );
+    dprintf( 2, "%s\n", record );
+    if (wine_ui_log) wine_ui_log( record );
 }
 
 /* Optional helper containment applies to an executable basename, never to a

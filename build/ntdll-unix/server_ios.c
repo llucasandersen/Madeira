@@ -185,6 +185,8 @@ static struct ios_proc_socket
     int fd;         /* this pseudo-process's master socket to wineserver */
     BOOL exiting;   /* per-process process_exiting flag */
     BOOL teardown_started;
+    unsigned pid;
+    unsigned long long generation;
     struct ios_proc_socket *next;
 } *ios_proc_sockets[IOS_PROC_SOCKET_BUCKETS];
 /* A live native thread retains its original process record even if a later
@@ -192,6 +194,9 @@ static struct ios_proc_socket
  * registration; Wine workers bind before their first server request. */
 static _Thread_local struct ios_proc_socket *ios_thread_proc_socket;
 static pthread_mutex_t ios_proc_socket_lock = PTHREAD_MUTEX_INITIALIZER;
+static unsigned long long ios_proc_generation;
+static _Thread_local BOOL ios_exit_status_known;
+static _Thread_local unsigned ios_exit_status;
 static void *ios_session_peb;
 static BOOL ios_unknown_process_exiting = TRUE;
 
@@ -246,6 +251,59 @@ void *ios_capture_proc_socket_thread(void)
 void ios_adopt_proc_socket_thread(void *record)
 {
     ios_thread_proc_socket = record;
+}
+
+/* The successful server handshake assigns a Windows PID to this birth record.
+ * Records survive teardown, so even a child that exits before its parent's
+ * creation acknowledgement retains a correlatable identity. */
+static void ios_bind_proc_pid( unsigned pid )
+{
+    struct ios_proc_socket *entry = ios_current_proc_socket();
+    if (!entry || !pid) return;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    if (!entry->pid) entry->pid = pid;
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+}
+
+unsigned long long ios_process_generation_for_pid( unsigned pid )
+{
+    struct ios_proc_socket *entry;
+    unsigned bucket;
+    unsigned long long generation = 0;
+    if (!pid) return 0;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    for (bucket = 0; bucket < IOS_PROC_SOCKET_BUCKETS; bucket++)
+        for (entry = ios_proc_sockets[bucket]; entry; entry = entry->next)
+            if (entry->pid == pid && entry->generation > generation) generation = entry->generation;
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+    return generation;
+}
+
+/* Preserve the caller's Windows code before get_unix_exit_code truncates it.
+ * Thread local storage ensures the thread that claims teardown reports its
+ * own status rather than a racing peer's. Direct Unix teardown stays explicit. */
+void ios_note_process_exit_status( unsigned status )
+{
+    ios_exit_status = status;
+    ios_exit_status_known = TRUE;
+}
+
+static void ios_log_process_exit( struct ios_proc_socket *entry, int unix_status )
+{
+    extern void wine_ui_log( const char *message ) __attribute__((weak));
+    char record[160];
+    unsigned pid;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    pid = entry->pid;
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+    if (!pid) return;
+    snprintf( record, sizeof(record), "[process-exited] pid=%08x generation=%016llx status_kind=%s status=%08x",
+             pid, entry->generation, ios_exit_status_known ? "windows" : "unix",
+             ios_exit_status_known ? ios_exit_status : (unsigned)unix_status );
+    dprintf( 2, "%s\n", record );
+    /* Rare lifecycle events remain visible when high-volume file tailing is
+     * paused during gameplay. No registry lock is held across the UI callback. */
+    if (wine_ui_log) wine_ui_log( record );
 }
 
 static BOOL ios_session_socket_owner(void)
@@ -397,10 +455,15 @@ static BOOL ios_register_proc_socket(void *peb_id, int fd)
     entry->peb = peb_id;
     entry->fd = fd;
     pthread_mutex_lock( &ios_proc_socket_lock );
+    entry->generation = ++ios_proc_generation;
     entry->next = ios_proc_sockets[bucket];
     ios_proc_sockets[bucket] = entry;
     pthread_mutex_unlock( &ios_proc_socket_lock );
-    if (peb_id == ios_jit_current_peb()) ios_thread_proc_socket = entry;
+    if (peb_id == ios_jit_current_peb())
+    {
+        ios_thread_proc_socket = entry;
+        ios_exit_status_known = FALSE;
+    }
     return TRUE;
 }
 #endif
@@ -3701,6 +3764,7 @@ void process_exit_wrapper( int status )
             ios_fdt_note_close( owned_fd, "exit-master", dead_peb );
             close( owned_fd );
         }
+        ios_log_process_exit( entry, status );
         /* ml571: drop this pseudo-process's fd cache and close what it held.
          * Must happen on the SAME identity used to key it, and before the JIT
          * reclaim below reuses anything. */
@@ -4498,6 +4562,7 @@ size_t server_init_process_child( int child_fd_socket )
     if (ret) server_protocol_error( "init_first_thread (child) failed: %x\n", ret );
 
     set_thread_id( NtCurrentTeb(), pid, tid );
+    ios_bind_proc_pid( pid );
 
     return info_size;
 }

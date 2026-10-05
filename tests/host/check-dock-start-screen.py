@@ -92,7 +92,7 @@ require(capture.index('SteamLoaderRejection.parse(raw)') < capture.index('if sup
         'LogStore.shared.setLaunchDiagnosticsActive(true)' in screen and
         'LogStore.shared.setLaunchDiagnosticsActive(false)' in screen,
         'startup diagnostic capture survives hidden live log and stops with the launch hold')
-require(capture.index('SteamExecutableCreation.parse(raw') < capture.index('if suppressed { return }') and
+require(capture.index('trackedLaunchLifetime?.consume(raw)') < capture.index('if suppressed { return }') and
         'LogStore.shared.trackLaunchExecutable(game == nil ? nil : MadeiraDock.launchImage)' in screen and
         'executableCreated: hostStarted && creation != nil' in screen and
         'expectedImage: launchImage' in content and 'if let created = dockStart.executableStatus' in library,
@@ -281,6 +281,51 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
         func createdRecord(_ image: String) -> String {
             "[process-created] pid=000000ab tid=000000cd status=00000000 image_utf16=" + image.utf16.map { String(format: "%04x", $0) }.joined()
         }
+        func birth(_ image: String, pid: UInt32, generation: UInt64) -> String {
+            "[process-created] pid=\(String(format: "%08x", pid)) tid=000000cd status=00000000 generation=\(String(format: "%016llx", generation)) image_utf16=" + image.utf16.map { String(format: "%04x", $0) }.joined()
+        }
+        func death(_ pid: UInt32, _ generation: UInt64, _ code: UInt32 = 0, windows: Bool = true) -> String {
+            "[process-exited] pid=\(String(format: "%08x", pid)) generation=\(String(format: "%016llx", generation)) status_kind=\(windows ? "windows" : "unix") status=\(String(format: "%08x", code))"
+        }
+        let hostImage = #"C:\windows\system32\dockhost.exe"#
+        var lifetime = SteamLaunchLifetime(expectedGame: selectedImage, expectedHost: hostImage)
+        lifetime.consume(death(0xab, 1, 0xc0000005)) // immediate child exit precedes parent creation acknowledgement
+        require(lifetime.gameExit == nil && lifetime.hostExit == nil, "unmatched exits do not imply game or Steam failure")
+        lifetime.consume(birth(selectedImage, pid: 0xab, generation: 1))
+        require(lifetime.gameExit?.status == 0xc0000005 && lifetime.gameCreation?.generation == 1, "correlate early exit by exact PID and birth generation")
+        lifetime.consume(birth(selectedImage, pid: 0xab, generation: 2))
+        require(lifetime.gameExit == nil, "recycled PID never inherits prior generation exit")
+        lifetime.consume(death(0xab, 1, 0xc0000005))
+        require(lifetime.gameExit == nil, "late old-generation exit does not terminate new game")
+        lifetime.consume(birth(#"C:\windows\system32\steamerrorreporter64.exe"#, pid: 0xac, generation: 3))
+        lifetime.consume(death(0xac, 3, 0xc0000005))
+        require(lifetime.hostExit == nil, "reporter failure is not Steam host failure")
+        lifetime.consume(birth(hostImage, pid: 0xad, generation: 4))
+        lifetime.consume(death(0xad, 4, 0xc0000005))
+        require(lifetime.hostExit?.reportsFault == true && lifetime.hostExit?.statusText == "Windows status 0xc0000005", "actual embedded Steam host fault retains full status")
+        var failedHost = SteamLaunchProgress()
+        require(failedHost.step([:], programObserved: true, rendered: true, now: 1, hostExit: lifetime.hostExit) && failedHost.stage == .steamCrashed, "native host fault outranks stale rendered window")
+        require(failedHost.warning(now: 10000) == nil, "crashed host has no running-stage timeout")
+        let unixFailure = SteamProcessExit.parse(death(0xad, 4, 0xc0000005, windows: false))!
+        require(!unixFailure.reportsFault, "Unix exit code is not a Windows exception")
+        require(failedHost.step([:], programObserved: false, rendered: false, now: 2, hostExit: unixFailure) && failedHost.stage == .hostFailed, "nonfault host error stays explicit without inventing a crash")
+        let clean = SteamProcessExit.parse(death(0xab, 2))!
+        require(failedHost.step([:], programObserved: true, rendered: true, now: 3, gameExit: clean) && failedHost.stage == .exited, "native selected executable exit outranks stale window")
+        lifetime.consume(death(0xab, 2))
+        for n in 10...280 { lifetime.consume(death(UInt32(n), UInt64(n))) }
+        lifetime.consume(birth(selectedImage, pid: 0xab, generation: 2))
+        lifetime.consume(birth(hostImage, pid: 0xad, generation: 4))
+        require(lifetime.gameExit == clean && lifetime.hostExit?.reportsFault == true, "resolved exits survive bounded early-exit cache eviction")
+        for suffix in ["", "\n", "\r", "\r\n"] {
+            require(SteamProcessExit.parse(death(0xab, 2) + suffix) == clean, "native exit line-ending forms")
+        }
+        for invalid in [death(0, 1), death(1, 0), death(1, 1) + " extra", "prefix " + death(1, 1),
+                        death(1, 1) + "\n" + death(1, 1), death(1, 1).replacingOccurrences(of: "windows", with: "unknown")] {
+            require(SteamProcessExit.parse(invalid) == nil, "reject malformed or uncorrelatable exit record")
+        }
+        var legacy = SteamLaunchLifetime(expectedGame: selectedImage, expectedHost: hostImage)
+        legacy.consume(createdRecord(selectedImage)); legacy.consume(death(0xab, 1))
+        require(legacy.gameCreation != nil && legacy.gameExit == nil, "legacy creation still works without guessing an exit generation")
         let created = SteamExecutableCreation.parse(createdRecord(#"\??\C:\Games\Fixture\Game.exe"#), expectedImage: selectedImage)
         require(created?.pid == 0xab && created?.tid == 0xcd && created?.module == "Game.exe", "server creation matches the complete selected image")
         require(created?.text.contains("Fixture") == false && created?.text.contains("0xab") == true, "creation UI retains basename/PID without private path")

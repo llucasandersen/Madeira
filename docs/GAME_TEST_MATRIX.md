@@ -5,16 +5,19 @@ Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extende
 Latest completed host validation: all 75 checks and real Valve archives passed
 at `b9c3219` (37264682803). Downloaded inventories match the full test tree.
 This includes creator-captured worker/socket generation fixtures under
-ASan/UBSan and TSan. Fresh native/app workflow 37264684593 is still live.
+ASan/UBSan and TSan. Fresh native/app workflow 37264684593 passed.
 
-Latest completed app validation: workflow 37264002056 passed at `9a9156c`,
-using freshly compiled `4f954eb` runtime job 111614932259. Its app/native/test
-source is identical to the completed 75-check `7d57beb` baseline. Local package
-identity/runtime/graphics/source-stamp checks passed, SHA-256
-`5041916ad583bc23ad936c440e6dfa9b14364e153cb834438ff7da4ea2a04209`.
-This diagnostic predates later thread/socket changes and has no new physical
+Latest completed app validation: workflow 37264684593 passed at `b9c3219`,
+with fresh native runtime job 111618875388 and app job 111621179503.
+Local ZIP/CRC/identity/runtime/graphics/source-stamp checks passed, SHA-256
+`c99dd565f4c37bf7ade3eb827dc2b432803ca388fe0e4846256f734e31f98d90`.
+This diagnostic includes creator-captured worker ownership and has no new physical
 acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
 repeated map loads and final delivery remain unverified.
+
+New native selected-game/embedded-Steam-host exit correlation and status
+preservation require fresh host/native/app gates. No new device result or
+final USB delivery is inferred from this diagnostic build.
 
 Earlier completed source validation: all 73 distinct checks and real Valve
 archives passed at `e0835ca` (37261593279). Fresh native socket changes compiled

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Correlate native selected-game and embedded Steam-host exits by Windows PID and immutable child birth generation. Preserve raw Windows status before Unix conversion, distinguish reported host faults from other exits, and deliver rare lifecycle events while gameplay file tailing is paused. Add actual C and production Swift regressions; fresh host/native/app gates are pending.
+- Verify the fresh `b9c3219` native/app IPA in workflow 37264684593 and its local source-stamp, runtime, graphics, identity and checksum gates. Its 75-check host gate passed; physical acceptance and final delivery remain pending.
+
 - Complete all 75 host checks and real Valve archive checks at `b9c3219`, including delayed worker capture and stable socket generation. Verify the source-stamped `9a9156c` app package against its provenance and 75-check source-equivalent baseline. New native/app gates and physical acceptance remain pending.
 - Capture a worker's original socket record in its creator before pthread scheduling, then adopt it in the native startup wrapper. Preserve existing thread-creation cleanup and test delayed startup across PEB reuse plus allocation/pthread failures; fresh native/full gates are pending.
 - Retain each native Wine thread's original child socket record across PEB address reuse. Bind new workers before server initialization and explicitly bind child boot registration; old peers retain their retired descriptor/exit flag and cannot tear down a successor. Extend actual-descriptor generation/sanitizer coverage; new native/full gates and complete resource quiescence remain pending.

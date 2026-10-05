@@ -39,6 +39,7 @@ static int capture(int fd, const char *format, ...) {
     writes++; return n;
 }
 #define dprintf capture
+unsigned long long ios_process_generation_for_pid(unsigned pid) { return pid == 0xab ? 0x123456789abcdef0ULL : 0; }
 '''
 code += encoder
 code += r'''
@@ -69,7 +70,7 @@ int main(void) {
     UNICODE_STRING image = { sizeof(path), sizeof(path), path };
     ios_log_process_created(&image, 0xab, 0xcd);
     assert(writes == 1);
-    assert(!strcmp(record, "[process-created] pid=000000ab tid=000000cd status=00000000 image_utf16=0043003a005c0067002e006500780065\n"));
+    assert(!strcmp(record, "[process-created] pid=000000ab tid=000000cd status=00000000 generation=123456789abcdef0 image_utf16=0043003a005c0067002e006500780065\n"));
     WCHAR special[] = {'"', '\n', 0xe9, 0xd83d, 0xde80};
     image.Buffer = special; image.Length = sizeof(special);
     ios_log_process_created(&image, 1, 2);
