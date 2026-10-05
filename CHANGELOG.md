@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pin the coherent supported Valve AMD64 Steam runtime with SDL3 and FFmpeg dependencies. Add automatic verified January-runtime upgrades before Dock launch, old-file backups, complete publication preflight, atomic file writes and interrupted-upgrade recovery. Preserve unknown files and game/account data. Add filesystem regression coverage and actual Valve archive validation to CI; new gates and device acceptance are pending.
+
 - Verify all 68 host checks and the Xcode/Metal/IPA gates at `a5669ae`, including process CPU/resume profiling, JIT policy, report lifecycle integration, ring reclamation and callback diagnostics. Downloaded package identity/runtime/graphics hashes passed. Device acceptance and the final release remain pending; USB update 2 is preserved.
 
 - Report measured process CPU time/average cores per depot and whole install, and separate on-disk resume check/SHA-1 timing and bytes. Extend the benchmark reader with whole-install summaries and incomplete-trial exclusion; preserve downloader integrity and scheduling. Host/app gates and device measurements are pending.

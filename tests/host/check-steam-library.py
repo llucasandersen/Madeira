@@ -179,6 +179,9 @@ watch = block(dock_view, 'func watchReport()')
 require(watch.index('MadeiraDock.cleanup()') < watch.index('SteamOwnedLibrary.shared.dockEnded()'),
         "the connection may come back only when the Dock host's report or session is over")
 owned_model = sources['SteamOwnedLibrary.swift']
+required = block(owned_model, 'func prepareRequiredDockContent(appID: Int, steamApps: URL) async throws')
+require(required.index('await running?.value') < required.index('SteamRuntimeInstaller.shared.prepareIfNeeded') < required.index('fetcher.fetchRequiredSharedInstalls'),
+        'the runtime upgrade runs after downloads pause and before shared-content preparation and Dock handoff')
 prepare = block(owned_model, 'func prepareDock() async')
 require(prepare.index('sessionChanged(active: true)') < prepare.index('await running?.value') < prepare.index('await gate.holdForDock()'),
         'prepareDock pauses downloads, waits for the running one, then waits for the connection to close')

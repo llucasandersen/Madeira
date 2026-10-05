@@ -919,6 +919,9 @@ final class SteamOwnedLibrary: ObservableObject {
         if let current = active { resumeAfterSession.insert(current.id) }
         running?.cancel()
         await running?.value
+        try await SteamRuntimeInstaller.shared.prepareIfNeeded(prefix: MadeiraDock.prefix) { progress in
+            await MainActor.run { MadeiraDockModel.shared.status = progress }
+        }
         let dependencies = try await fetcher.fetchRequiredSharedInstalls(appID: UInt32(appID))
         for dependency in dependencies {
             try Task.checkCancellation()

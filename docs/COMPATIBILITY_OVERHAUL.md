@@ -260,10 +260,37 @@ Before publication the installer checks the AMD64/PE32+ headers of steam.exe,
 steamclient64, SDL3, video64 and all six imported FFmpeg DLLs. A synthetic header
 test rejects x86, inconsistent optional headers, malformed offsets and truncation.
 New host/Xcode gates and real-package extraction validation are pending.
-Safely upgrading existing verified installs remains implementation work.
-The original installer refuses an existing steam.exe, so changing fresh-install
-pins alone would not repair the user's prefix. Existing games, unknown user
-files, authentication and Valve's exact private adapter checks must be preserved.
+The original installer refused an existing steam.exe, so changing fresh-install
+pins alone would not repair the user's prefix. The new publication path checks
+all destinations before writing registry or runtime files. Identical current
+files are kept; absent files are created; replacement is allowed only when the
+existing hash matches the overlapping file in the three verified January
+packages. The 51 old-file hashes are metadata, not redistributed binaries.
+Unknown files cause a conflict before publication. Every replacement is backed
+up under the prefix's `.madeira-steam-runtime-backup/jan2026` directory before
+any runtime change. Backups are checked on retry. Files are published atomically,
+with steam.exe last; a mixture left by interruption can resume because old and
+new verified bytes are both recognized. Each write rechecks quiescence, target
+path and the previously inspected bytes, refusing concurrent edits.
+
+`prepareRequiredDockContent` invokes `prepareIfNeeded` after pausing downloads
+and before fetching shared content or handing sign-in to Dock. The ten critical
+file hashes determine whether preparation can be skipped; a complete correct
+runtime is not downloaded again. Games, saves, account folders and unrelated
+files are outside the publication plan. Authentication and Valve's exact private
+adapter checks are unchanged. This automatic existing-install upgrade still
+requires new host/Xcode and device validation. Mixed publication is recoverable,
+not a claim of a filesystem-wide atomic transaction. A newer or modified unknown
+Steam install is deliberately preserved and reported as a conflict.
+
+The production publisher's filesystem fixture covers complete preflight,
+unknown-file preservation, verified backups, interruption after one replacement,
+resumed publication, repeat invocation, unrelated saves/account files and a
+concurrent edit before commit. CI additionally downloads all six exact old/new
+Valve packages, verifies sizes and archive hashes, checks replacement and critical
+metadata against their contents, and runs the real production Swift ZIP reader
+and AMD64 header gate against the three current archives. The packages remain
+ignored runner data; CI uploads diagnostic text, not Valve binaries.
 Downloaded Valve binaries remain ignored and are not redistributed in the IPA.
 
 The [public Portal 2 report](https://github.com/willfaust/Madeira/issues/192) records repeated `SDL3.dll` loads returning `0xC000007B`, followed by Steam's `Failed to load "SDL3.dll"` assertion and a crash reporter launch attempt. This establishes the order of failure; it does not identify which PE loader check returned the status. The same status is part of the reported PEAK failure, so this loader path is the first device regression target.
