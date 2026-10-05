@@ -4716,6 +4716,7 @@ static void exec_indirect(struct mad_exec *e, const struct mad_cmd *c) {
     struct WMTBufferInfo bi = {0};
     struct wmtcmd_blit_copy_from_buffer_to_buffer copy = {0};
     obj_handle_t readback, enc, completed;
+    struct mad_vis_batch *visibility;
     UINT count = c->u.ind.count, k, j;
     UINT64 bytes = (UINT64)count * c->u.ind.stride;
     unsigned char *records;
@@ -4746,7 +4747,12 @@ static void exec_indirect(struct mad_exec *e, const struct mad_cmd *c) {
     exec_end(e); completed = e->cb;
     /* flush can retire older batches; hold the buffer across that operation. */
     NSObject_retain(completed);
+    /* A query may surround ExecuteIndirect. Keep its slot history and active
+     * state across this internal split; publish at the list's real fence.
+     * Every earlier chunk is already complete when the final buffer retires. */
+    visibility = e->q->vis; e->q->vis = NULL;
     mad_queue_flush(e->q);
+    e->q->vis = visibility;
     MTLCommandBuffer_waitUntilCompleted(completed);
     if (MTLCommandBuffer_status(completed) == WMTCommandBufferStatusError) count = 0;
     NSObject_release(completed);

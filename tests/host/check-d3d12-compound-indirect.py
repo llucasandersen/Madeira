@@ -50,7 +50,8 @@ struct mad_cmd { enum mad_ck kind; union {
  struct { UINT x,y,z; } dispatch;
  } u; };
 struct mad_device { obj_handle_t mtl_device, mtl_queue; };
-struct mad_queue { struct mad_device *device; obj_handle_t open_cb; UINT64 batches; };
+struct mad_vis_batch { int active; };
+struct mad_queue { struct mad_device *device; obj_handle_t open_cb; UINT64 batches; struct mad_vis_batch *vis; };
 struct mad_list { UINT64 ring_batch; };
 struct mad_exec { struct mad_queue *q; struct mad_list *l; obj_handle_t cb;
  UINT skipped, nroot; int fence_needed, f6_sync_needed, f6_list_start;
@@ -75,7 +76,7 @@ static obj_handle_t exec_begin_blit(struct mad_exec *e) { return e->cb; }
 static void MTLBlitCommandEncoder_encodeCommands(obj_handle_t e, const struct wmtcmd_base *p) {
  assert(e); copies[ncopies++]=*(const struct wmtcmd_blit_copy_from_buffer_to_buffer *)p; }
 static void exec_end(struct mad_exec *e) { (void)e; }
-static void mad_queue_flush(struct mad_queue *q) { q->open_cb=NULL; q->batches++; }
+static void mad_queue_flush(struct mad_queue *q) { assert(!q->vis); q->open_cb=NULL; q->batches++; }
 static void MTLCommandBuffer_waitUntilCompleted(obj_handle_t cb) {
  assert(cb); waits++; for(UINT i=0;i<ncopies;i++) { struct wmtcmd_blit_copy_from_buffer_to_buffer *c=&copies[i];
  assert(c->src_offset+c->copy_length<=c->src->size); assert(c->dst_offset+c->copy_length<=c->dst->size);
@@ -94,7 +95,8 @@ static struct mad_cmd *mad_list_push(struct mad_list *l, enum mad_ck kind) { (vo
 #define d3d12_log(...) ((void)0)
 ''' + function('static UINT mad_indirect_size(', '\n#define MADEIRA_D3D12_BUILD') + function('static void exec_indirect(', '\nstatic void mad_exec_list') + function('static void STDMETHODCALLTYPE list_ExecuteIndirect(', '\nstatic void STDMETHODCALLTYPE list_CopyBufferRegion') + r'''
 int main(void) {
- struct mad_device dev={0}; struct mad_queue q={.device=&dev}; struct mad_list l={0};
+ struct mad_vis_batch visibility={1};
+ struct mad_device dev={0}; struct mad_queue q={.device=&dev,.vis=&visibility}; struct mad_list l={0};
  q.open_cb=buffer_new(0); struct mad_exec e={.q=&q,.l=&l,.cb=q.open_cb};
  struct mad_resource args={buffer_new(96),96}, cnt={buffer_new(8),8};
  struct mad_cmdsig sig={.desc={2,32},.args={{.Type=6,.ConstantBufferView={2}},{.Type=0}}};
@@ -107,6 +109,7 @@ int main(void) {
  assert(waits==1 && draws==2 && seen_root[0]==100 && seen_root[1]==101);
  assert(seen_vertices[0]==10 && seen_vertices[1]==11 && e.root[2]==0 && e.root[9]==0);
  assert(q.batches==1 && l.ring_batch==2 && e.cb==q.open_cb);
+ assert(q.vis==&visibility && q.vis->active==1); /* occlusion query survives internal commit */
  actual=0; memcpy(cnt.buffer->mem+4,&actual,4); e.root[2]=777; exec_indirect(&e,&recorded);
  assert(draws==2 && e.root[2]==0 && waits==2);
  actual=99; memcpy(cnt.buffer->mem+4,&actual,4); exec_indirect(&e,&recorded); assert(draws==5);
