@@ -569,6 +569,11 @@ struct SteamGamesSection: View {
     private func cell(_ item: SteamGamesRules.Item, list: Bool, dense: Bool) -> some View {
         Button { select(item) } label: { SteamGameCell(item: item, list: list, dense: dense) }
             .libraryCardButtonStyle(grid: !list)
+            .contextMenu {
+                if libraryEnabled, item.owned != nil {
+                    Button("Download options") { selected = SteamGameSelection(id: item.id) }
+                }
+            }
     }
 
     /// An installed game (by Madeira's download or by Steam's client) opens its

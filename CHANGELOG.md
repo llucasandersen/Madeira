@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Expose Download options from an owned game's library-card context menu so the native control is reachable for installed games as well as uninstalled ones. Full host/app verification remains pending.
+
 - Cancel native control measurements directly on app background entry, before download-only grace handling. The measurement must not depend on an active install for cancellation; updated host/app gates are pending.
 
 - Disable custom-executable manifest cache publication during native control measurements after an earlier install. Preserve the install default and extend the actual owned-library harness with cache/record preservation and refused-key checks; updated gates are pending.

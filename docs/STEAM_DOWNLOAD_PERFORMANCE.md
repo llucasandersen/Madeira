@@ -3,7 +3,9 @@
 ## Phone native control measurement
 
 The source adds **Download speed measurement** to a Steam game's download
-sheet. With Steam signed in and no game/download running, **Measure native
+sheet. Long-press an owned game's library card and choose **Download options**
+to reach it even when that game is already installed. With Steam signed in and
+no game/download running, **Measure native
 download speed** obtains a depot key and manifest through the existing owned
 content path and makes three direct URLSession control trials against one CDN
 host. A suitable sample contains 16–64 MiB of distinct encrypted chunks, at
