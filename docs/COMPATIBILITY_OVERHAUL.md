@@ -2,6 +2,29 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Callback dispatcher diagnostic ownership
+
+In the supplied Teardown game log, callback thread 00ac has PEB 0x11bdf4000
+and dispatcher 0xfb6155750. The same log registers that PEB with a private
+ntdll at 0xfb6100000 before these callbacks. The thread is using its child's
+dispatcher, yet the diagnostic labels it `SESSION THREAD, CHILD DISPATCHER
+(BUG)`. Source inspection establishes the labeling error: it compares the
+thread PEB against the mutable global `peb`, which child startup changes.
+The preceding child-start records show that global drifting between children.
+Equality with that global does not establish session-thread identity.
+
+`signal_arm64_ios.c` now checks the selected dispatcher against the existing
+ntdll registry keyed by the calling thread's own TEB PEB. Correct child
+callbacks no longer produce the false session-corruption label; actual
+parent/child/sibling ownership mismatches still produce an explicit warning,
+with the expected dispatcher address logged. The dispatch path itself is
+unchanged. This fixes diagnostic correctness and does not claim to fix an
+unproven corruption path. `check-callback-owner-diagnostic.py` compiles the
+production registry lookup and expected-dispatcher helper with ASan/UBSan,
+reproducing the mutable-global false positive and checking real mismatches,
+same-architecture children and session fallback. Host/native build and new
+device evidence are pending. Delivered update 2 predates this correction.
+
 ## Completed upload cache reclamation under memory pressure
 
 The supplied Ravenfield run reaches physical footprint 6141 MB; its resource

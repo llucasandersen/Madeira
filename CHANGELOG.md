@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Correct the callback dispatcher diagnostic to compare the selected dispatcher with the calling thread's registered ntdll. The supplied Teardown warning classified a child as a session thread using a mutable global PEB. Preserve real mismatch detection and the existing dispatch path; sanitizer/native gates are pending.
 - Add measured-headroom reclamation of completed DXMT upload/copy/argument ring buffers and refresh the initializer's completion fence before idle reclamation. Preserve unfinished GPU resources, the newest working block and normal healthy-memory lifetime. Sanitizer and source-build verification are pending; this is absent from delivered update 2.
 - Build compatibility update 2 at `e6e9b23`: all 64 host checks and Xcode/package signing gates passed. Add verified required Steam shared-installer preparation, paused-download resume, primary-window repair, adaptive downloader/CDN selection, source-built DXMT mip pressure policy and measured memory headroom. Device acceptance and adaptive JIT/general resource reclamation remain incomplete.
 - Publish the verified first diagnostic IPA as `v0.1.3-compat-diagnostic.1` and copy it with its checksum, provenance and instructions to the requested USB. Preserve the original Madeira app/helper IDs and use build 100 for an in-place update with the same signing identity. Phone installation and gameplay remain pending.

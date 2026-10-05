@@ -7974,6 +7974,17 @@ __ASM_GLOBAL_FUNC( user_mode_abort_thread,
                    "bl " __ASM_NAME("abort_thread") )
 
 
+/* The global `peb` is temporarily changed during child startup. It cannot
+ * classify the calling thread as a session thread. Compare against that
+ * thread's registered ntdll instead, so a legitimate child's own dispatcher
+ * is not reported as session corruption. */
+static void *ios_callback_dispatcher_for_peb( void *peb_id )
+{
+    extern const struct ios_ntdll_funcs *ios_ntdll_funcs_for_peb( void *peb_id );
+    const struct ios_ntdll_funcs *funcs = ios_ntdll_funcs_for_peb( peb_id );
+    return funcs ? funcs->KiUserCallbackDispatcher : (void *)pKiUserCallbackDispatcher;
+}
+
 /***********************************************************************
  *           KeUserModeCallback
  */
@@ -7994,24 +8005,21 @@ NTSTATUS KeUserModeCallback( ULONG id, const void *args, ULONG len, void **ret_p
     stack->pc   = frame->pc;
     memcpy( stack->args_data, args, len );
     {
-        /* Thing B (#16) diag: which dispatcher does this thread's callback
-         * resolve to? A SESSION-peb thread resolving to a child's EC
-         * dispatcher is the wedge precursor (explorer executing the child
-         * EC ntdll's exit thunks → blr x16=1). Log the first few callbacks
-         * per boot for context plus EVERY session-thread/child-dispatcher
-         * cross-resolution (should never happen). */
-        extern PEB *peb;
+        /* Check the selected entry against this thread's owner registry,
+         * without relying on the mutable session `peb` global. Preserve the
+         * existing dispatch path and report actual ownership mismatches. */
         void *disp = IOS_PFUNC(KiUserCallbackDispatcher);
-        int cross = (disp != pKiUserCallbackDispatcher) && (NtCurrentTeb()->Peb == peb);
+        void *expected = ios_callback_dispatcher_for_peb( NtCurrentTeb()->Peb );
+        int cross = disp != expected;
         static volatile int kcb_logged = 0;
         if ((kcb_logged < 5 || cross) && kcb_logged < 40)
         {
             __sync_add_and_fetch(&kcb_logged, 1);
-            dprintf(2, "[kcb] tid=%04x teb=%p peb=%p id=%u disp=%p session_disp=%p%s\n",
+            dprintf(2, "[kcb] tid=%04x teb=%p peb=%p id=%u disp=%p session_disp=%p expected_disp=%p%s\n",
                     (unsigned)(ULONG_PTR)NtCurrentTeb()->ClientId.UniqueThread,
                     (void *)NtCurrentTeb(), (void *)NtCurrentTeb()->Peb, id,
-                    disp, pKiUserCallbackDispatcher,
-                    cross ? "  <-- SESSION THREAD, CHILD DISPATCHER (BUG)" : "");
+                    disp, pKiUserCallbackDispatcher, expected,
+                    cross ? "  <-- CALLBACK DISPATCHER OWNER MISMATCH" : "");
         }
         return call_user_mode_callback( sp, ret_ptr, ret_len, disp, NtCurrentTeb() );
     }
