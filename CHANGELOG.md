@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Build compatibility update 2 at `e6e9b23`: all 64 host checks and Xcode/package signing gates passed. Add verified required Steam shared-installer preparation, paused-download resume, primary-window repair, adaptive downloader/CDN selection, source-built DXMT mip pressure policy and measured memory headroom. Device acceptance and adaptive JIT/general resource reclamation remain incomplete.
 - Publish the verified first diagnostic IPA as `v0.1.3-compat-diagnostic.1` and copy it with its checksum, provenance and instructions to the requested USB. Preserve the original Madeira app/helper IDs and use build 100 for an in-place update with the same signing identity. Phone installation and gameplay remain pending.
 - Guard FEX's optional rpmalloc snapshot diagnostic with the allocator build option. Native Apple builds disable rpmalloc; guest builds retain the diagnostic. Native linking, both guest builds and all 59 host checks passed.
 - Retain FEX's generated inline configuration headers in CI artifacts and generate DXMT's three AIR helper headers before standalone iOS compilation. The corrected FEX artifact and native DXMT compile passed; complete IPA packaging is pending.
