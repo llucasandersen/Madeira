@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Implement compound D3D12 indirect draws/dispatches with per-record bindings, GPU count handling, bounds checks, binding reset and occlusion continuity. Build and bundle actual Wine XAudio2.9 for Teardown's missing audio dependency. Prepare RDR2 DX12 startup and existing settings without copying its 128GB USB folder. All 81 host checks, graphics/native/app/package and verified USB candidate-8 gates pass; phone gameplay and full final acceptance remain pending.
+
 - Attempt a 12GB FEX-only reservation before the constrained 8GB fallback. Candidate 6's phone log shows the 8GB arena filling during Steam worker startup, `c0000017` terminating the new worker and a Steam startup-event/lock wait blocking game IPC. Preserve the existing arena cap, native ownership and smaller fallbacks. All 80 host checks passed at fcf847a (fixture corrections only), and fresh native/app/package gates passed at 8ed43f9. USB candidate 7 is verified; sustained device gameplay and complete final acceptance remain pending.
 
 - Repair late DLL alias delivery when another pseudo-process registers its emulator. Preserve private copies and sub-floor ownership, bound registrations and serialize borrowed callbacks with retirement. All 79 host checks passed at dd2f973 (corrected fixture only); fresh native/app/package gates passed at 7257ae1. USB test candidate 6 is verified. Candidate 5's phone log confirms content ready and D3D12 creation followed by startup faults; the main-thread producer and new gameplay/relaunch acceptance remain pending.

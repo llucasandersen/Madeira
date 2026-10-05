@@ -2,6 +2,25 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+October 5 candidate-7 follow-up: the source stamp is `8ed43f9` and the 12GB
+arena is installed. The user reaches gameplay but reports invisible voxels,
+terrain and tools, with no audio. The log identifies skipped compound indirect
+draw signatures and missing `xaudio2_9.dll`. Candidate 8 implements their
+renderer/audio paths and adds RDR2 startup/settings preparation. Corrected
+graphics source build 37388280813 and native job 112024366813 passed;
+all 81 final host checks passed in 37389190309 at `2eb39bc` (two fixture-only
+assertion fixes after app source `88b8218`). App/package job 112028007240
+passed in 37388596153, including strict macOS codesign. Local and USB package
+verification passed for candidate 8 at `E:\Madeira-Compatibility-Update-8`:
+`Madeira-diagnostic-88b8218.ipa`, 87,605,635 bytes, SHA-256
+`18a6fb47b267e653a8289f8a4bfd87c3349c0efe25a33fdfbc3c21630c94a140`.
+The actual package includes the new rendering/audio components and 12GB marker.
+Physical acceptance remains pending.
+The [candidate-8 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.8)
+has the exact app source tag; all six uploaded asset sizes and digests match USB.
+RDR2 has not been run on the phone. Its complete E: folder is 128,156,672,448
+bytes, while the latest phone log reports 60GB free. No large game copy was made.
+
 October 5 candidate-6 phone follow-up: the source stamp is `7257ae1`.
 D3D12 presents frames, then gameplay freezes. The 8GB FEX-only arena
 `[0xb30000000,0xd30000000)` is exhausted; worker 0230 fails emulator
@@ -152,7 +171,8 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
-| Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | Candidate 6 presents D3D12 frames, then exhausts its 8GB emulator arena during Steam worker startup; failed worker 0230 leaves Steam IPC waiting | Candidate-7 capacity repair passes all 80 host checks and native/app/USB gates; sustained gameplay and relaunch pending |
+| Teardown, app 1167630 | Automatic D3D12 selection; visible voxels/terrain/tools, audio, level, ten minutes, close and relaunch | Candidate 7 receives the 12GB arena and reaches gameplay, but geometry is missing and audio is silent; compound indirect draws are skipped and XAudio2.9 is missing | Candidate-8 rendering/audio repair passes all 81 host checks and graphics/native/app/USB gates; physical visual/audio/ten-minute/relaunch run pending |
+| RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | No phone run or generated settings; static direct dependencies are present; whole 128GB folder inspected on E: with no bulk copy | Initial DX12 argument/settings preparation is packaged; renderer/activation/gameplay unverified; latest logged 60GB free is insufficient for import |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Supplied session log reaches physical footprint 6141 MB; no three-match survival result on the updated package | Memory pressure confirmed; updated device acceptance pending |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
 | Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |
@@ -162,22 +182,23 @@ Host tests and a source build are separate gates. They do not stand in for the d
 
 ## Original-scope completion audit, October 5, 2026
 
-This audit retains all eleven original requirements. Candidate 6 is a tested
+This audit retains all eleven original requirements, plus RDR2. Candidate 8 is a tested
 build for collecting missing evidence; it does not establish completion.
 
 | Original requirement | Current authoritative evidence | Remaining gate |
 | --- | --- | --- |
 | 1. PEAK and Valve runtime | Coherent Valve runtime upgrade, actual PE machine/dependency fixtures, real archive checks, native/app builds and user report of earlier gameplay | Exact updated-package log; Steam survival, executable creation, single-player, audio/input, authentication, networking where supported and repeated launches |
-| 2. Teardown renderer/content/children | Candidate 6 confirms initial D3D12 rendering after the alias repair; the supplied freeze sequence identifies emulator-arena exhaustion and a Steam worker-startup/IPC wait | Verify the larger arena, menu, level, ten minutes and relaunch on the updated package; native peer-thread resource lifetime remains under audit |
+| 2. Teardown renderer/content/children | Candidate 7 receives the larger arena and reaches gameplay; new logs identify compound indirect draw omission and missing XAudio2.9 | Verify visible world/tools, sound, ten minutes and relaunch after the new fixes; native peer-thread resource lifetime remains under audit |
 | 3. Ravenfield memory | Consumed learned JIT budgeting, measured footprint/headroom and source-built completed-resource ring trimming; host fixtures and graphics/app build | Three consecutive matches, scene changes, safe measured memory headroom and performance on the target phone |
 | 4. Bomber Crew windows | Compiled owner-thread primary-window repair, startup grace and actual-source sanitizer fixtures preserving dialogs and later minimization | Real Steam start, visible game window, switching, fullscreen/windowed transitions and relaunch |
 | 5. Steam downloads | Production adaptive concurrency, connection reuse/CDN selection, network/decode/write/hash/CPU/resume instrumentation, integrity fixtures and owned native-control measurement in candidate 5 | Measured same-CDN native-control comparison, roughly 70% median target when CPU is not limiting and actual device resume/update behavior |
 | 6. General compatibility profiles/review | Default generic path, user opt-out and consumed Teardown profile; documented upstream report/source comparison and generic native store fixes | Device validation of consumed policy; exclusive-store reservations and unrelated reported secondary-launcher failures remain separate unresolved findings |
 | 7. Steam robustness/UI | Coherent runtime dependencies, exact optional-helper gate, bounded launch stages and generation-correlated game/Steam-host creation/exit diagnostics, compiled Swift/native fixtures | Device proof that the client and optional-component/helper paths preserve launch; new logs must establish exact failure/stage attribution if a run fails |
 | 8. Target iPhone/address/JIT correctness | Preserved address-map architecture; package requests JIT/Memory+ and has no extended-VA entitlement; native ARM and iOS compilation | Re-signed installation and actual iPhone18,2/iOS 26.6.2 execution, StikDebug JIT, measured memory behavior and exception delivery |
-| 9. Regression/component gates | Exact 79-check Linux/Apple inventories at dd2f973, raw/effective exits zero, no sanitizer diagnostics; source-identical native repair freshly built and app/package gates passed at 7257ae1 | Representative previously working games, actual target-device regressions and any further changed subsystem gates |
+| 9. Regression/component gates | Exact 81-check Linux/Apple inventories at 2eb39bc, raw/effective exits zero, no sanitizer diagnostics; actual source renderer/native components and app/package/USB gates passed at 88b8218 | Representative previously working games, actual target-device regressions and any further changed subsystem gates |
 | 10. Fork/docs/build/IPA | Preserved fork/submodule histories, licenses, clean worktree, documented clean build, verified package with no private signing identity, exact-source GitHub prerelease and checksum-verified USB copy | Final acceptance report and final release after the remaining required results; diagnostic publication is not final acceptance |
 | 11. Definition of done | Source, host/component build, test package, prerelease and USB candidate gates have evidence | All game/device/benchmark results above and final release; overall completion is unproven |
+| Additional RDR2 request | Direct launch/settings preparation, static dependencies and full E: folder-size inspection; no bulk copy | Sufficient phone storage, actual API/activation/startup, story gameplay, audio/input and repeat launch |
 
 The October 5 USB crash export is stamped `7301473` on iPhone18,2/iOS 26.6.2.
 It verifies JIT/Memory+, required-content completion, Valve-client game creation

@@ -2,6 +2,77 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## October 5 Teardown missing geometry/audio and RDR2 preparation
+
+The latest private phone export has candidate-7 source stamp `8ed43f9` and
+the 12GB arena `[0xb30000000,0xe30000000)`. The user reaches gameplay with
+collision and functioning tools, but sees wires with missing terrain, voxels
+and tools, and hears no sound. This supersedes the freeze as the latest result;
+it does not establish sustained gameplay or final acceptance.
+
+The renderer records signatures with `(CBV, DRAW)`, `(CBV, DRAW_INDEXED)` and
+`(CBV, VBV, IBV, DRAW_INDEXED)` arguments, then logs that compound
+`ExecuteIndirect` signatures are skipped. Those calls never entered the draw
+counter, so the old periodic zero-skips summary was not a geometry pass.
+The PE renderer now copies each signature into its recorded command, validates
+stride/ranges without overflowing offsets, waits for GPU-generated arguments
+and count data, applies root/constants/VB/IB bindings for every actual record,
+and resets exactly the touched bindings afterwards. A single signature without
+a count buffer retains its Metal indirect path. Active occlusion queries retain
+their slot history through the internal command-buffer split. Compound/count
+fallbacks introduce GPU waits; phone frame time and sustained play remain
+required. No visible geometry result is inferred from compilation.
+
+The same game thread cannot load `xaudio2_9.dll` (`c0000135`). CI now builds
+the actual Wine 2.9 module with bundled FAudio and packages it in the ARM64EC
+farm; the bridge's existing per-launch farm synchronization supplies it to
+existing prefixes. The artifact exports `XAudio2Create`,
+`XAudio2CreateWithVersionInfo`, effects and X3DAudio functions and imports the
+existing Wine core/Media Foundation DLLs. Its SHA-256 is
+`276a909551e24702aa377d7096c599ce4f43220ee22bf2ba9f7d10a3064fd994`.
+Native job 112024366813 passed in 37387507281. Its obsolete app job was
+cancelled after the native artifact was uploaded; final app packaging reuses
+that successful, unchanged runtime component. The corrected PE renderer
+compiled in 37388280813 at `dbda9c5`. All 81 host checks passed at `4931c6e`
+and `8da91fc`, with downloaded inventories, raw/effective exits and sanitizer
+logs verified. The corrected renderer/occlusion run at `dbda9c5` also passed
+all 81 checks. Final host run 37389190309 passed all 81 at `2eb39bc`, with
+zero raw/effective exits, no sanitizer reports and complete downloaded
+inventories. `d7f880b`/`2eb39bc` update only two assertions for the renamed
+prepared launch variable; app source remains `88b8218`. Earlier runs
+37388498287/37388592910/37389049315 failed those assertions, not runtime
+compilation, and are not accepted as green gates.
+
+App/package job 112028007240 passed in 37388596153, including strict macOS
+codesign verification. The actual package contains the compound/count replay
+marker, source-verified rebuilt D3D12 modules, XAudio2.9 and retained 12GB arena
+marker. Local and USB source/identity/CRC/component/provenance/checksum checks
+passed for `Madeira-diagnostic-88b8218.ipa` (87,605,635 bytes), SHA-256
+`18a6fb47b267e653a8289f8a4bfd87c3349c0efe25a33fdfbc3c21630c94a140`.
+USB candidate 8 is at `E:\Madeira-Compatibility-Update-8`; physical
+visual/audio, sustained/relaunch and full-scope acceptance remain pending.
+The [candidate-8 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.8)
+targets exact app source `88b8218`. All six remote assets are uploaded and
+their sizes/server SHA-256 digests match the verified USB package and reports.
+
+RDR2 is inspected directly on E:, without copying its game archives. Its
+271-file folder totals 128,156,672,448 bytes. The AMD64 executable has
+relocations and local Oodle, AMD AGS and Bink dependencies; dynamic renderer,
+launcher/authentication, audio and gameplay paths remain untested. The user
+has not launched it in Madeira and has no generated `system.xml`. The direct
+launch candidate recognizes `RDR2.exe` with its game companions, adds `-dx12`
+only when no explicit renderer argument exists, and does not persist that
+added argument. Recognition of this startup choice requires device evidence.
+Existing settings receive only the documented API edit, with a backup;
+missing settings are not fabricated. Automatic-profile opt-out is honored.
+[Rockstar documents the settings path and DX12 API value](https://support.rockstargames.com/articles/2MQafAtBWiOUJrPDLx5I2U/err-gfx-init-error-when-launching-red-dead-redemption-2-on-pc).
+The latest phone log reports 60GB free, insufficient for this complete folder.
+No game files were modified or packaged. All direct imports are present in
+the existing Wine farm or game folder; this does not verify dynamic imports
+or activation. The private static report is on E:, not in the public package.
+RDR2 is an additional acceptance requirement; all eleven original requirements
+remain in the acceptance audit.
+
 ## October 5 Teardown freeze after initial rendering
 
 The subsequent private phone export has candidate-6 source stamp `7257ae1`.
