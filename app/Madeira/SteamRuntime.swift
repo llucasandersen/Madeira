@@ -20,16 +20,28 @@ enum SteamRuntimeFiles {
     }
     static let origin = "https://client-update.akamai.steamstatic.com/"
     static let packages = [
-        Package(file: "bins_win32.zip.23e34a6d4b10596a44561a5100dac5585d2517da", bytes: 59_544_006,
-                sha256: "8b712b2a3412a9066b7725f4e1c5cef9a7ca5b187b6585a5b92d25d09df0ba62"),
-        Package(file: "bins_win64_win32.zip.f29d67dc38a4be027f1734802697c668621a6da1", bytes: 10_509_550,
-                sha256: "345f6e4bdc19b27ae53bf752c21e2d894e0e899d94823222fb426e890d1226b5"),
-        Package(file: "steam_win32.zip.3e96965d109fc2d4cc14206b2fc4ec960a746ed3", bytes: 2_307_664,
-                sha256: "1369615c795b60de822876b4dc4042186cf58d0dc8f63ea1371167f667e16925")
+        Package(file: "bins_win64.zip.36f5d9202e79ab2aa3e3c5902e84bbd799d31fc0", bytes: 63_700_191,
+                sha256: "93f5b6bea0267fd85dc8cc823fdab5c5fb55d7f3a1deab0598acefef0e133bce"),
+        Package(file: "bins_codecs_win64.zip.9edc714e8a6f8c2881ac0cfdc2af382070e42c2e", bytes: 12_705_333,
+                sha256: "5a32e6966666f6246acd2c92b98f1eee52e717d9085fe901c8825df77da48ffb"),
+        Package(file: "steam_win64_steamrow.zip.6f024698857e81681cf673422a8c1a4d06e2be7f", bytes: 2_668_385,
+                sha256: "5dbc39918056cc8b7815daaa181eb3fa19a264b25dab33f3d1ad631b79ee3bb8")
     ]
-    static let clientSHA256 = "71b391fe9f3e2006cbc81a5c75eef3eb4186012deabfdb2c8b7e8d4850ecf640"
+    static let clientSHA256 = "caba4826aa3501039d095aee1843a6bfb270fb43a3ab4455b2d6733223579fee"
     static let relativeRoot = "Program Files (x86)/Steam"
     static let windowsRoot = "C:\\Program Files (x86)\\Steam"
+
+    /// Dock hosts Valve's AMD64 client. Reject a mixed root runtime before
+    /// publishing it; the x86 steamclient for 32-bit games remains valid.
+    static func isAMD64Image(_ data: Data) -> Bool {
+        guard data.count >= 64 else { return false }
+        func byte(_ offset: Int) -> Int { Int(data[data.startIndex + offset]) }
+        func word(_ offset: Int) -> Int { byte(offset) | byte(offset + 1) << 8 }
+        guard word(0) == 0x5a4d else { return false }
+        let pe = byte(60) | byte(61) << 8 | byte(62) << 16 | byte(63) << 24
+        guard pe >= 64, pe <= data.count - 26 else { return false }
+        return word(pe) == 0x4550 && word(pe + 2) == 0 && word(pe + 4) == 0x8664 && word(pe + 24) == 0x20b
+    }
 
     enum Failure: LocalizedError {
         case invalidPackage, conflict, activeSession, prefixMissing
@@ -248,6 +260,13 @@ actor SteamRuntimeInstaller {
         }
         guard Self.hash(try Data(contentsOf: stage.appendingPathComponent("steamclient64.dll"))) == SteamRuntimeFiles.clientSHA256,
               files.contains("steam.exe") else { throw SteamRuntimeFiles.Failure.invalidPackage }
+        for name in ["steam.exe", "steamclient64.dll", "SDL3.dll", "video64.dll",
+                     "libavcodec-62.dll", "libavfilter-11.dll", "libavformat-62.dll", "libavutil-60.dll",
+                     "libswresample-6.dll", "libswscale-9.dll"] {
+            guard SteamRuntimeFiles.isAMD64Image(try Data(contentsOf: stage.appendingPathComponent(name), options: .mappedIfSafe)) else {
+                throw SteamRuntimeFiles.Failure.invalidPackage
+            }
+        }
         try Task.checkCancellation()
         guard wine_process_is_running() == 0, wineserver_is_running() == 0 else { throw SteamRuntimeFiles.Failure.activeSession }
         await progress("Preparing the Windows environment…")

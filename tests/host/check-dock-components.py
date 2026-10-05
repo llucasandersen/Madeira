@@ -36,6 +36,23 @@ import Foundation
 let fm = FileManager.default
 let mode = CommandLine.arguments[1]
 if mode == "registry" {
+    var image = Data(repeating: 0, count: 128)
+    image[0] = 0x4d; image[1] = 0x5a; image[60] = 64
+    image[64] = 0x50; image[65] = 0x45
+    image[68] = 0x64; image[69] = 0x86
+    image[88] = 0x0b; image[89] = 0x02
+    assert(SteamRuntimeFiles.isAMD64Image(image))
+    var wrong = image; wrong[68] = 0x4c; wrong[69] = 0x01
+    assert(!SteamRuntimeFiles.isAMD64Image(wrong))
+    wrong = image; wrong[88] = 0x0b; wrong[89] = 0x01
+    assert(!SteamRuntimeFiles.isAMD64Image(wrong))
+    wrong = image; wrong[60] = 0xff; wrong[61] = 0xff
+    assert(!SteamRuntimeFiles.isAMD64Image(wrong))
+    wrong = image; wrong[0] = 0
+    assert(!SteamRuntimeFiles.isAMD64Image(wrong))
+    assert(!SteamRuntimeFiles.isAMD64Image(Data()))
+    assert(!SteamRuntimeFiles.isAMD64Image(image.prefix(90).dropFirst()))
+    print("PASS: AMD64 PE32+ runtime guard rejects x86, mixed headers, invalid offsets and truncation")
     let original = "WINE REGISTRY Version 2\n\n[Software\\\\Keep]\n\"Unrelated\"=\"preserved\"\n"
     for machine in [false, true] {
         let result = try SteamRuntimeFiles.registry(original, machine: machine)

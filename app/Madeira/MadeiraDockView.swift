@@ -151,7 +151,7 @@ struct MadeiraDockView: View {
                     } else if dock.preparing {
                         HStack(spacing: 12) { ProgressView(); Text(dock.progress).foregroundStyle(.secondary) }
                     } else {
-                        Button("Download Valve's client components (about 73 MB)") { dock.prepareClient() }
+                        Button("Download Valve's client components (about 79 MB)") { dock.prepareClient() }
                     }
                 } header: { Text("Steam client") } footer: {
                     Text("Downloaded from Valve's update servers and checked against pinned SHA-256 sums. Existing Steam files are kept.")

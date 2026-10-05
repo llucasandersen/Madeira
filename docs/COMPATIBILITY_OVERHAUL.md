@@ -254,8 +254,13 @@ its `steamclient64.dll` hash is the already supported September adapter's
 `caba4826aa3501039d095aee1843a6bfb270fb43a3ab4455b2d6733223579fee`.
 This provides a coherent official 64-bit runtime candidate, including media
 dependencies, without a third-party DLL replacement or weakened loader checks.
-The installer still uses the January packages: migrating its pinned runtime
-and safely upgrading existing verified installs remain implementation work.
+The fresh-install pins now select these coherent September 64-bit packages,
+including codec dependencies, using the already supported exact client adapter.
+Before publication the installer checks the AMD64/PE32+ headers of steam.exe,
+steamclient64, SDL3, video64 and all six imported FFmpeg DLLs. A synthetic header
+test rejects x86, inconsistent optional headers, malformed offsets and truncation.
+New host/Xcode gates and real-package extraction validation are pending.
+Safely upgrading existing verified installs remains implementation work.
 The original installer refuses an existing steam.exe, so changing fresh-install
 pins alone would not repair the user's prefix. Existing games, unknown user
 files, authentication and Valve's exact private adapter checks must be preserved.
