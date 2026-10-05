@@ -2,6 +2,31 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## October 5 Teardown startup crash
+
+The private device export identifies candidate 5 (`7301473`) on iPhone18,2,
+iOS 26.6.2. Required content 228980/228989 installs successfully and reports
+ready; Teardown is launched by Valve's client and creates its D3D12 device.
+The new failure is therefore after the earlier content/renderer preparation.
+
+The first fault is the sentry-http thread's late-loaded cryptnet.dll pool
+address. The native mapping table can reverse that address, but the game's
+FEX table cannot, and reports NOEXEC. The crash reporter registered another
+emulator beforehand. The native code had one global alias callback, replaced
+by every emulator registration. Change it to bounded process registrations:
+late mappings reach all eligible live emulators, private ntdll copies keep
+owner selection, sub-floor notifications respect ownership, and retirement
+waits for an in-flight callback before reclaiming its pool. No FEX source or
+PE/unix-call ABI changes are required. The existing actual-source host fixture
+now covers two live registrants, late DLLs, reporter exit, private-copy
+preservation, capacity/reuse and concurrent callback retirement.
+
+A separate main-thread fault reads an invalid pointer consisting of two small
+32-bit values; the log alone does not establish its producer. The startup
+crash remains unaccepted until the new runtime is built and the phone reaches
+playable gameplay and survives a close/relaunch. This registration fix does
+not prove full pseudo-process thread quiescence or all game compatibility.
+
 ## Native download control measurement
 
 The existing benchmark reporter accepts measured control JSON but cannot run
