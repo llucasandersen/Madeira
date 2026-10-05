@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Verify all 76 host checks and real Valve archives at `5d10bb3`, including actual Mach LSE operation/alias/concurrency fixtures under both sanitizers, and fresh native iOS compilation. App packaging and physical acceptance remain pending.
+
 - Verify all 75 host checks, real Valve archives, fresh native runtime and complete `7ab72cb` IPA, including synchronized image ownership. Local source-stamp, runtime, graphics, identity and checksum checks passed. Subsequent Mach LSE gates, physical acceptance and final delivery remain pending.
 
 - Handle scalar LSE atomic writes through complete writable aliases in the Mach exception path, including the reported HotSpot `LDADDAL` opcode. Preserve atomic ordering, zero/FP/LR register semantics, unchanged refusal and Mono SWP capture; add actual-source operation/bounds/concurrency sanitizer fixtures. Full 76-check/native/app gates and device acceptance are pending.

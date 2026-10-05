@@ -2,13 +2,13 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
-Latest completed host validation: all 75 checks and real Valve archives passed
-at `7ab72cb` (37267758234). Downloaded inventories match that full test tree,
+Latest completed host validation: all 76 checks and real Valve archives passed
+at `5d10bb3` (37269300382). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,
 callback delivery, exact selected-game/host generation correlation and stale
-file-tail delivery and synchronized image-owner publication, alongside the
-existing sanitizer fixtures. Fresh native compilation passed at `7ab72cb`
-(job 111628066637 in 37267760872).
+file-tail delivery, synchronized image-owner publication and scalar Mach LSE
+alias atomics, alongside the existing sanitizer fixtures. Fresh native
+compilation passed at `5d10bb3` (job 111632689095 in 37269302622).
 
 Latest completed app validation: workflow 37267760872 passed at `7ab72cb`,
 including fresh native runtime and app job 111629856282.
@@ -20,8 +20,8 @@ acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
 repeated map loads and final delivery remain unverified.
 
 The later Mach LSE alias change at `5d10bb3` passed its targeted ASan/UBSan and
-TSan checks (37269300151). Its complete 76-check suite and fresh native/app
-gates remain in progress (37269300382 and 37269302622). No new device result
+TSan checks (37269300151), full 76-check suite and fresh native compilation.
+Its app/package gates remain in progress (37269302622). No new device result
 or final USB delivery is inferred from these builds.
 
 Earlier completed source validation: all 73 distinct checks and real Valve

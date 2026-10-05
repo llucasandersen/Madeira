@@ -34,8 +34,11 @@ adapter functions. It covers the reported opcode, all widths/operations/order
 flags, overflow/sign boundaries, all source/destination registers, alias-span
 refusal and unchanged state on refusal. Four native threads perform 80,000
 increments and verify both the final counter and returned-prior-value sum.
-ASan/UBSan, TSan, the complete 76-check suite and fresh native/app gates are
-pending. This does not implement exclusive reservations (`STLXR`) or pre-index
+Both ASan/UBSan and TSan passed in the targeted workflow (37269300151) and
+complete host workflow (37269300382) at `5d10bb3`. Downloaded inventories match
+all 76 distinct checks, with no omissions or duplicates; the real Valve archive
+gate passed too. Fresh native iOS job 111632689095 passed in 37269302622.
+App/package gates are still live. This does not implement exclusive reservations (`STLXR`) or pre-index
 integer `STP`, prove all three reported runtimes work, or solve peer-thread
 quiescence. Device exception delivery and game acceptance remain required.
 
