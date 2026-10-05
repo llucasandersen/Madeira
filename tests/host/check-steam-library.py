@@ -927,7 +927,7 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
             "\"branches\" { \"public\" { \"buildid\" \"7\" } } } }"]
     let fetcher = SteamLibraryFetcher(session: session)
     guard let app = try await fetcher.fetchInstallInfo(appID: 9000) else { require(false, "app info"); return }
-    session.appInfo[9300] = "\"appinfo\" { \"config\" { \"installdir\" \"Consumer\" } \"depots\" { \"9003\" { \"sharedinstall\" \"1\" \"depotfromapp\" \"9200\" \"config\" { \"oslist\" \"windows\" } } } }"
+    session.appInfo[9300] = "\"appinfo\" { \"common\" { \"name\" \"Consumer\" \"type\" \"Game\" } \"config\" { \"installdir\" \"Consumer\" } \"depots\" { \"9003\" { \"sharedinstall\" \"1\" \"depotfromapp\" \"9200\" \"config\" { \"oslist\" \"windows\" } } } }"
     session.appInfo[9200] = "\"appinfo\" { \"common\" { \"name\" \"Installer Owner\" \"type\" \"Tool\" } \"config\" { \"installdir\" \"Installer Store\" } \"depots\" { \"9003\" { \"manifests\" { \"public\" { \"gid\" \"\(gidShared)\" } } } \"9999\" { \"manifests\" { \"public\" { \"gid\" \"999\" } } } \"branches\" { \"public\" { \"buildid\" \"7\" } } } }"
     let installers = try await fetcher.fetchRequiredSharedInstalls(appID: 9300)
     require(installers.count == 1 && installers[0].appID == 9200 && installers[0].installDir == "Installer Store",
@@ -936,12 +936,14 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
     let noInstallers = try await fetcher.fetchRequiredSharedInstalls(appID: 9000)
     require(noInstallers.isEmpty, "games without shared installers have no extra content")
     let goodOwner = session.appInfo[9200]
-    session.appInfo[9200] = "\"appinfo\" { \"config\" { \"installdir\" \"Installer Store\" } \"depots\" { \"9003\" { } } }"
+    session.appInfo[9200] = "\"appinfo\" { \"common\" { \"name\" \"Installer Owner\" \"type\" \"Tool\" } \"config\" { \"installdir\" \"Installer Store\" } \"depots\" { \"9003\" { } } }"
     do {
         _ = try await fetcher.fetchRequiredSharedInstalls(appID: 9300)
         require(false, "missing required installer manifest must fail")
     } catch {
-        require(true, "missing required installer manifest fails before recording readiness")
+        if case SteamFileError.invalid(let reason) = error {
+            require(reason.contains("manifest"), "missing required installer manifest fails before recording readiness")
+        } else { require(false, "unexpected installer metadata failure") }
     }
     session.appInfo[9200] = goodOwner
     require(app.depots.first { $0.depotID == 9003 }?.publicManifestID == UInt64(gidShared), "the shared depot got its manifest from the owning app")
