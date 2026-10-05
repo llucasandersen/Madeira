@@ -2,13 +2,31 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
-Latest completed host validation: all 79 checks and real Valve archives passed
+Latest startup-crash candidate: `7257ae1`, with per-process late-alias
+registrations. Full 79-check host workflow 37319437329 passed at `dd2f973`;
+downloaded inventories and sanitizer logs are clean. `dd2f973` changes only
+the fixture extraction from the runtime/app source at `7257ae1`. Initial
+37318424980 failed that extraction and is not accepted as a full pass.
+Fresh native job 111791000983 and app job 111796486469 passed in 37318428523,
+including strict codesign. Local and USB package/source/identity/provenance
+checks passed; the app binary contains the callback-retirement marker.
+
+Candidate 6 is delivered at
+`E:\Madeira-Compatibility-Update-6\Madeira-diagnostic-7257ae1.ipa`,
+87,414,514 bytes, SHA-256
+`a297b30dac9b6c899396548ab7d6c61baea1aa8e8472a91586a896f5f8a4cfe4`.
+The [candidate 6 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.6)
+is for crash retesting. Candidate 5's actual phone log confirms content ready
+and D3D12 device creation but startup access violations. The main-thread fault
+producer and candidate-6 gameplay/relaunch remain unverified.
+
+Previous completed host validation: all 79 checks and real Valve archives passed
 at `7301473` in 37279302920. Downloaded inventories match every distinct check,
 with zero raw/effective exits and no sanitizer diagnostics. This includes the
 actual native control transfers, cache/record preservation and refused depot
 keys, alongside all earlier native/loader/window/memory/download regressions.
 
-Latest completed app validation: workflow 37279305970 and app job 111663398759
+Previous completed app validation: workflow 37279305970 and app job 111663398759
 passed at `7301473`, including strict macOS codesign verification. The package
 reuses the unchanged native runtime verified at `889c6be` in 37274760178.
 Local and USB ZIP/CRC/identity/runtime/graphics/source-stamp/checksum checks
@@ -29,8 +47,9 @@ entry and exposes the controls for installed owned games. Full host 37279302920
 and app 37279305970 passed for that source. The app reuses the unchanged
 verified native runtime from 37274760178. The superseded intermediate app runs
 37278775828 and 37279072888 were requested to cancel after real source changes;
-cancellation is not an app-build pass. USB candidate 5 is the latest
-verified delivered package below, with no new phone results.
+cancellation is not an app-build pass. USB candidate 5 was the previous
+verified delivered package; the new phone crash export and candidate 6 supersede
+its pending Teardown test request.
 
 The cache-preservation follow-up at `e0f8dda` passed all 79 checks and real Valve
 archives in 37278773557. Downloaded inventories match that source with zero
@@ -108,7 +127,7 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
-| Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | User reports one successful run, then an indefinite content wait; USB log confirms authenticated/entitled launch refusal 17 and repeated retries | Relaunch failure confirmed; shared-installer preparation under test |
+| Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | October 5 candidate-5 log confirms required content ready, normal Valve-client game creation and D3D12 device creation; startup then faults in late cryptnet alias dispatch and separately on the main thread | Startup crash confirmed; per-emulator alias fix under build/test |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Supplied session log reaches physical footprint 6141 MB; no three-match survival result on the updated package | Memory pressure confirmed; updated device acceptance pending |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
 | Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |
@@ -118,28 +137,28 @@ Host tests and a source build are separate gates. They do not stand in for the d
 
 ## Original-scope completion audit, October 5, 2026
 
-This audit retains all eleven original requirements. Candidate 5 is a tested
+This audit retains all eleven original requirements. Candidate 6 is a tested
 build for collecting missing evidence; it does not establish completion.
 
 | Original requirement | Current authoritative evidence | Remaining gate |
 | --- | --- | --- |
-| 1. PEAK and Valve runtime | Coherent Valve runtime upgrade, actual PE machine/dependency fixtures, real archive checks, native/app builds and user report of earlier gameplay | Exact candidate-5 log; Steam survival, executable creation, single-player, audio/input, authentication, networking where supported and repeated launches |
-| 2. Teardown renderer/content/children | Consumed renderer profile based on supplied registry, ownership/manifest-validated shared content preparation, child/socket/lifetime fixtures and compiled runtime | Normal Steam launch, confirmed D3D12 rendering, ten minutes and relaunch on candidate 5; native peer-thread resource lifetime remains under audit |
+| 1. PEAK and Valve runtime | Coherent Valve runtime upgrade, actual PE machine/dependency fixtures, real archive checks, native/app builds and user report of earlier gameplay | Exact updated-package log; Steam survival, executable creation, single-player, audio/input, authentication, networking where supported and repeated launches |
+| 2. Teardown renderer/content/children | Candidate-5 phone log confirms owned required content ready, normal Steam launch and D3D12 device creation; startup crash is now confirmed, with per-emulator alias repair in source | Resolve startup crash, then menu, level, ten minutes and relaunch on the updated package; native peer-thread resource lifetime remains under audit |
 | 3. Ravenfield memory | Consumed learned JIT budgeting, measured footprint/headroom and source-built completed-resource ring trimming; host fixtures and graphics/app build | Three consecutive matches, scene changes, safe measured memory headroom and performance on the target phone |
 | 4. Bomber Crew windows | Compiled owner-thread primary-window repair, startup grace and actual-source sanitizer fixtures preserving dialogs and later minimization | Real Steam start, visible game window, switching, fullscreen/windowed transitions and relaunch |
 | 5. Steam downloads | Production adaptive concurrency, connection reuse/CDN selection, network/decode/write/hash/CPU/resume instrumentation, integrity fixtures and owned native-control measurement in candidate 5 | Measured same-CDN native-control comparison, roughly 70% median target when CPU is not limiting and actual device resume/update behavior |
 | 6. General compatibility profiles/review | Default generic path, user opt-out and consumed Teardown profile; documented upstream report/source comparison and generic native store fixes | Device validation of consumed policy; exclusive-store reservations and unrelated reported secondary-launcher failures remain separate unresolved findings |
 | 7. Steam robustness/UI | Coherent runtime dependencies, exact optional-helper gate, bounded launch stages and generation-correlated game/Steam-host creation/exit diagnostics, compiled Swift/native fixtures | Device proof that the client and optional-component/helper paths preserve launch; new logs must establish exact failure/stage attribution if a run fails |
 | 8. Target iPhone/address/JIT correctness | Preserved address-map architecture; package requests JIT/Memory+ and has no extended-VA entitlement; native ARM and iOS compilation | Re-signed installation and actual iPhone18,2/iOS 26.6.2 execution, StikDebug JIT, measured memory behavior and exception delivery |
-| 9. Regression/component gates | Exact 79-check Linux/Apple inventories at 7301473, raw/effective exits zero, no sanitizer diagnostics; unchanged verified native/graphics components and complete app build passed | Representative previously working games, actual target-device regressions and any further changed subsystem gates |
+| 9. Regression/component gates | Exact 79-check Linux/Apple inventories at dd2f973, raw/effective exits zero, no sanitizer diagnostics; source-identical native repair freshly built and app/package gates passed at 7257ae1 | Representative previously working games, actual target-device regressions and any further changed subsystem gates |
 | 10. Fork/docs/build/IPA | Preserved fork/submodule histories, licenses, clean worktree, documented clean build, verified package with no private signing identity, exact-source GitHub prerelease and checksum-verified USB copy | Final acceptance report and final release after the remaining required results; diagnostic publication is not final acceptance |
 | 11. Definition of done | Source, host/component build, test package, prerelease and USB candidate gates have evidence | All game/device/benchmark results above and final release; overall completion is unproven |
 
-The latest USB logs remain the October 4 export and contain no candidate-5
-source stamp or acceptance run. No USB-connected iPhone is available; the
-device inventory only lists a Bluetooth iPhone. The candidate-5 Teardown log
-and native-control JSON request is pending. New physical results must be tied to the exact
-package source/checksum before changing any pending acceptance status.
+The October 5 USB crash export is stamped `7301473` on iPhone18,2/iOS 26.6.2.
+It verifies JIT/Memory+, required-content completion, Valve-client game creation
+and D3D12 device creation, followed by startup access violations. It is failure
+evidence, not gameplay acceptance. The native-control JSON and other physical
+gates remain pending. New results must be tied to the exact source/checksum.
 
 ## Historical component build verification
 

@@ -21,6 +21,19 @@ PE/unix-call ABI changes are required. The existing actual-source host fixture
 now covers two live registrants, late DLLs, reporter exit, private-copy
 preservation, capacity/reuse and concurrent callback retirement.
 
+Full host workflow 37319437329 passed all 79 checks and real Valve archives
+at `dd2f973`; downloaded inventories have zero raw/effective exits and no
+sanitizer diagnostics. The corrected alias fixture compiled the production
+functions under ASan/UBSan and passed late-registration, private-copy, retirement
+and bounds checks. Initial 37318424980 failed only because the fixture extracted
+a forward declaration as a definition; that failure is preserved and corrected.
+`dd2f973` changes only this extraction from runtime source `7257ae1`. Fresh native
+iOS job 111791000983 and app job 111796486469 in 37318428523 passed at `7257ae1`,
+including strict codesign. Local and USB candidate-6 checks passed for the
+87,414,514-byte IPA, SHA-256
+`a297b30dac9b6c899396548ab7d6c61baea1aa8e8472a91586a896f5f8a4cfe4`.
+The packaged app binary contains the new callback-retirement marker.
+
 A separate main-thread fault reads an invalid pointer consisting of two small
 32-bit values; the log alone does not establish its producer. The startup
 crash remains unaccepted until the new runtime is built and the phone reaches
