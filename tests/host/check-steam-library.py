@@ -150,6 +150,9 @@ require(len(permitted) == 1 and re.findall(r'<string>([^<]*)</string>', permitte
         "Info.plist permits only the bundle's own .download.* (background downloads) and .pairing.* (JIT pairing) tasks")
 require('UIBackgroundModes' not in info, 'Info.plist asks for no background mode')
 background = sources['SteamDownloadBackground.swift']
+background_entry = background.split('UIApplication.didEnterBackgroundNotification', 1)[1].split('UIApplication.didBecomeActiveNotification', 1)[0]
+require('cancelNativeControl()' in background_entry and background_entry.index('cancelNativeControl()') < background_entry.index('beginGrace()'),
+        'native control cancellation is unconditional on background entry, before download-only grace handling')
 require('hasSuffix(".download.*")' in background and '+ "queue"' in background and 'BGContinuedProcessingTaskRequest(identifier: identifier' in background,
         'the continued-processing task uses the permitted identifier, made concrete')
 require('SteamSignIn.flag("MADEIRA_BACKGROUND_DOWNLOADS", default: true)' in background and

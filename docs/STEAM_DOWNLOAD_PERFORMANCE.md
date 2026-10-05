@@ -46,6 +46,12 @@ the fixture, and verifies depot-key refusal. These follow-up source/full/app
 gates remain pending; the earlier targeted transfer proof alone does not cover
 this cache behavior.
 
+Background entry now cancels the control directly before the install-only grace
+handler. The grace handler requires an active/queued download and would not
+otherwise run for an isolated control measurement. The owned-library gate
+checks this observer wiring; updated app compilation and a physical background
+cancellation check remain required.
+
 ## Process CPU, resume checks and whole-install intervals
 
 The downloader now samples `getrusage(RUSAGE_SELF)` user plus system CPU time
