@@ -46,6 +46,25 @@ def verify(ipa, provenance, checksum, commit):
             data = archive.read(prefix + 'arm64ec-windows/' + filename)
             require(hashlib.sha256(data).hexdigest() == report[key], filename + ' provenance mismatch')
             require(marker in data, filename + ' diagnostic marker missing')
+        graphics = report.get('source_built_dxmt')
+        if graphics is not None:
+            require(set(graphics['staged_sha256']) == {'d3d10core.dll', 'd3d11.dll', 'dxgi.dll', 'winemetal.dll'},
+                    'unexpected source-built graphics inventory')
+            pins = {}
+            for line in report['submodules']:
+                # The provenance writer strips outer whitespace from git output,
+                # so only its first initialized entry may lose the leading space.
+                match = re.fullmatch(r' ?([0-9a-f]{40}) ([^ ]+)(?: .*?)?', line)
+                require(match is not None, 'uninitialized or changed package component pin')
+                pins[match[2]] = match[1]
+            require(all(pins.get(name) == commit for name, commit in graphics['component_pins'].items()),
+                    'graphics source pins differ from package pins')
+            for filename, expected in graphics['staged_sha256'].items():
+                data = archive.read(prefix + 'arm64ec-windows/' + filename)
+                require(hashlib.sha256(data).hexdigest() == expected, filename + ' graphics provenance mismatch')
+            wine_d3d9 = archive.read(prefix + 'arm64ec-windows/d3d9.dll')
+            require(hashlib.sha256(wine_d3d9).hexdigest() == graphics['preserved_wine_d3d9_sha256'],
+                    'Wine D3D9 was replaced during graphics staging')
     return {'ipa': ipa.name, 'sha256': digest, 'madeira_commit': commit,
             'bundle_identifier': info['CFBundleIdentifier'],
             'version': info['CFBundleShortVersionString'], 'build_number': info['CFBundleVersion'],

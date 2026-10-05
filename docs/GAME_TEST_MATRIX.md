@@ -46,8 +46,13 @@ The user then clarified that Teardown ran once but subsequent launches remain
 at the required-content message. The supplied October 4 log shows successful
 online authentication, requested-app entitlement/listing, launch refusal 17
 and three retries without a game process. No successful renderer evidence is
-present in this failing run. Steam content logs and install manifests are
-absent from the USB export, so the exact dependency refusal remains unproven.
+present in this failing run. The later USB log transfer supplied Steam's
+content log: it explicitly names required app 228980 as not ready, and records
+the dependency from depot 228989 to Teardown. Its earlier game log records a
+Madeira D3D12 device being created. This establishes the dependency behind the
+relaunch refusal and earlier backend initialization, not a ten-minute/relaunch
+pass. Ravenfield's supplied run reaches physical footprint `fpMB=6141`; no
+three-match survival result is established.
 
 ## Host regression evidence
 

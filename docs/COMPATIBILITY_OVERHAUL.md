@@ -188,9 +188,11 @@ Valve's retrieved product metadata declares shared installer depot 228989
 from owner app 228980 with `sharedinstall=1`. Madeira intentionally excludes
 such depots from a game's main folder and size calculation, but did not have
 a native preparation step to install them into their owner's common folder.
-The missing preparation is established by source; the exact dependency behind
-this particular error 17 still needs Steam's content log/install records,
-which were not included in the USB export.
+The later USB transfer supplies Steam's content log. It explicitly records
+`required app 228980 not ready` on every relaunch attempt and adds depot 228989
+as the dependency connecting that owner to this game. This confirms the exact
+required-content blocker; the newly implemented preparation still requires
+successful build, host and device verification.
 
 The launch path now resolves the consumer's exact declared shared installer
 depots, pauses any active native download before reusing its downloader, and
@@ -209,6 +211,29 @@ are still required. Existing game-folder/shared-content tests remain enabled.
 The previous census host run 37249027374 failed only its obsolete static
 call-count assertion after adding the second frame feed; the assertion now
 counts both feeds, with its behavioral and sanitizer checks retained.
+The first dependency host run then exposed an incomplete synthetic PICS
+fixture: its consumer lacked the required `common` block and failed metadata
+parsing before reaching the new install checks. The fixture is corrected in
+`399ef52`; its missing-manifest test now checks the specific validation error,
+and host run 37250041732 is pending. No failed run is recorded as a pass.
+
+The earlier supplied game log also creates a native Madeira D3D12 device,
+despite importing OPENGL32 through the absent-GL stub. Importing that DLL alone
+does not identify the active rendering backend. The log retains dispatcher
+warnings that need owner/session identity analysis. Ravenfield's supplied run
+reaches physical footprint 6141 MB, while its texture census reports requested
+capacity rather than residency (Metal currentAllocatedSize is separately
+1689 MB at the last census). Those numbers must not be equated; the footprint
+confirms memory pressure, not its complete allocation breakdown.
+
+The first IPA containing the source-built DXMT memory policy passed Xcode,
+packaging and macOS codesign gates in run 37248837994. Local ZIP, identity,
+SHA-256, runtime and graphics source-pin/hash checks passed for
+`Madeira-diagnostic-c214f95.ipa`, SHA-256
+`8b667c5e9fe3f84898f640a4abb83fb55abed5540859862d29f5643d81eb32ee`.
+It preserves Wine D3D9. This local diagnostic predates dependency preparation
+and window normalization, is not the final IPA, and was not copied over the
+delivered USB diagnostic.
 
 Clean runner builds also exposed several reproducibility defects, documented
 with exact runs in [BUILDING.md](BUILDING.md): an unsupported optional native
