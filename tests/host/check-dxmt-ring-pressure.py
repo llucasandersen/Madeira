@@ -32,10 +32,11 @@ code = r'''
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <thread>
 #include <utility>
 #define WARN(...) do {} while (0)
-struct Logger { template<typename... T> static void info(T...) {} };
+struct Logger { static void info(const std::string &) {} };
 struct madeira_ctl_args { int op; uint64_t ptr = 0, len = 0; int ret = 0; };
 static int queries = 0;
 static bool available = true;

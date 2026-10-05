@@ -62,6 +62,12 @@ entire memory problem. Adaptive JIT sizing, broader resource reclamation and
 three consecutive physical-device map loads remain required. Before/after
 footprint and performance measurements are pending.
 
+The initial graphics compile in run 37251751879 rejected the new transition
+log: `Logger::info` accepts one formatted string, not variadic arguments.
+The call now constructs that string, and the host stub uses the actual
+single-string signature so this compile defect cannot be hidden by its stub.
+The failed build remains failed; corrected source/host gates must pass.
+
 ## Baseline checkout and build constraints
 
 - Source baseline: `willfaust/Madeira` `main` at `bbbf8d0e20fd8b75f433f4a8d2a8eaf8d5571120`, with its pinned Madeira FEX, Wine, DXMT and Dock forks. The fork preserves upstream history and attribution.
