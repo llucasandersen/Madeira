@@ -2,7 +2,7 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
-## Latest native and host gates: 959e37c
+## Latest verified app and host gates: 08c3862
 
 The corrected parser and child-spawn cleanup subsequently passed all 71
 distinct host checks at `08c3862` in
@@ -93,6 +93,15 @@ are omitted rather than truncated into ambiguous identities. There are no
 command-line arguments or credentials in this record; the private path itself
 is diagnostic data, and encoding is not anonymization. Private device logs
 remain excluded from the repository.
+
+Review of the publication gate also found that the existing code ignored the
+wait status and server query status before reading the reply. These statuses
+are now checked: a failed wait exits through cleanup, and a failed server
+query preserves its NTSTATUS without reading poisoned success/exit fields.
+The actual reply-handling block is exercised with successful creation, failed
+child initialization and a failed query whose reply misleadingly says success.
+This closes the error path rather than letting it produce false creation
+evidence. New native/host verification is required for these checks too.
 
 `check-process-created-record.py` compiles the actual formatter with ASan/UBSan
 and covers Unicode/surrogates, line injection, maximum length, nonterminated

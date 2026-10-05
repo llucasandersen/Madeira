@@ -17,6 +17,9 @@ assert creation.count('ios_log_process_created(') == 1
 assert creation.index('/* wait for the new process info to be ready */') < creation.index('if (!success)') < creation.index('ios_log_process_created(')
 assert 'goto done;' in creation[creation.index('if (!success)'):creation.index('ios_log_process_created(')]
 assert creation.index('ios_log_process_created(') < creation.index('/* update output attributes */')
+assert 'if ((status = NtWaitForSingleObject( process_info, FALSE, NULL ))) goto done;' in creation
+reply_block = creation[creation.index('SERVER_START_REQ( get_new_process_info )'):]
+reply_block = reply_block[reply_block.index('\n    {'):reply_block.index('\n    SERVER_END_REQ;')]
 code = r'''
 #include <assert.h>
 #include <stdint.h>
@@ -39,7 +42,29 @@ static int capture(int fd, const char *format, ...) {
 '''
 code += encoder
 code += r'''
+struct mock_request { unsigned info; };
+struct mock_reply { int success; unsigned exit_code; };
+static unsigned call_status;
+static unsigned wine_server_obj_handle(int handle) { assert(handle == 7); return 7; }
+static unsigned wine_server_call(struct mock_request *req) { assert(req->info == 7); return call_status; }
+static void check_reply(unsigned error, int child_success, unsigned exit_code, int expected_success, unsigned expected_status) {
+    unsigned status = 0;
+    int success = 0, process_info = 7;
+    struct mock_request request = {0}, *req = &request;
+    struct mock_reply result = { child_success, exit_code }, *reply = &result;
+    call_status = error;
+'''
+code += reply_block
+code += r'''
+    assert(success == expected_success && status == expected_status);
+}
+'''
+code += r'''
 int main(void) {
+    check_reply(0, 1, 0, 1, 0);
+    check_reply(0, 0, 0xc0000017, 0, 0xc0000017);
+    /* Poisoned success fields must not defeat a failed server query. */
+    check_reply(0xc0000008, 1, 0, 0, 0xc0000008);
     WCHAR path[] = {'C', ':', 0x005c, 'g', '.', 'e', 'x', 'e'};
     UNICODE_STRING image = { sizeof(path), sizeof(path), path };
     ios_log_process_created(&image, 0xab, 0xcd);

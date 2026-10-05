@@ -1766,13 +1766,15 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
 
     /* wait for the new process info to be ready */
 
-    NtWaitForSingleObject( process_info, FALSE, NULL );
+    if ((status = NtWaitForSingleObject( process_info, FALSE, NULL ))) goto done;
     SERVER_START_REQ( get_new_process_info )
     {
         req->info = wine_server_obj_handle( process_info );
-        wine_server_call( req );
-        success = reply->success;
-        status = reply->exit_code;
+        if (!(status = wine_server_call( req )))
+        {
+            success = reply->success;
+            status = reply->exit_code;
+        }
     }
     SERVER_END_REQ;
 
