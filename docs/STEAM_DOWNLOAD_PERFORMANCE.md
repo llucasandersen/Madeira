@@ -35,8 +35,11 @@ partial install must not masquerade as a successful throughput benchmark.
 OS counter and validates old/new, unavailable and malformed benchmark records.
 The existing production depot harness checks measured update reuse and the
 full-install/CPU records while retaining its HTTP request, byte-integrity,
-corruption, resume and ownership assertions. Full host/app gates are pending.
-No new device/native-control throughput result is claimed.
+corruption, resume and ownership assertions. All 68 host checks passed at
+`a5669ae` in run 37253512089, including the real OS CPU sampler, benchmark
+parser and production depot integrity/resume harness. Xcode/IPA run
+37253514108 also passed. No new device/native-control throughput result is
+claimed; average process cores do not establish download-only CPU cost.
 
 ## Baseline and measurement
 

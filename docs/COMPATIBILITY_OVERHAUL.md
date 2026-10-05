@@ -2,6 +2,29 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Latest verified build: a5669ae
+
+[Host run 37253512089](https://github.com/llucasandersen/Madeira/actions/runs/37253512089)
+passed all 68 distinct repository checks. Both downloaded Linux/macOS result
+inventories matched every current `check-*.py`, without omissions or duplicates,
+and all exit codes were zero. This includes the actual process CPU sampler,
+resume/update integrity harness, learned JIT model/native frontier, completed
+upload-ring reclamation, callback owner diagnostic and numeric launch lifecycle
+report fields. Earlier pending host statements below describe their original
+implementation points and are superseded by this run.
+
+[IPA run 37253514108](https://github.com/llucasandersen/Madeira/actions/runs/37253514108)
+passed native Metal compilation, Xcode linking, packaging and macOS codesign
+gates using verified source component artifacts. The native runtime came from
+successful job 111583454146 in run 37252716282. Local ZIP CRC, app/helper identity,
+runtime markers, component source pins and bundled graphics hashes passed for
+`Madeira-diagnostic-a5669ae.ipa` (87,274,803 bytes), SHA-256
+`c02e208064f6d41ad3014cad7146600df6d6449893f00aa9b158ff97676a8288`.
+This diagnostic remains local; USB update 2 is preserved. These build results
+do not establish device memory survival, renderer selection, launch timeout
+behavior or the download control target. The whole goal and final release
+remain unfinished.
+
 ## Learned per-game JIT pool sizing
 
 The supplied Ravenfield run uses an 896 MB pool while its last pool-warmer

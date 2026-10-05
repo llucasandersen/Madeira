@@ -2,6 +2,13 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+Latest source validation: all 68 distinct host checks passed at `a5669ae`
+(run 37253512089); its Xcode/IPA build passed (run 37253514108). The downloaded
+package passed ZIP, identity, runtime and graphics provenance checks, SHA-256
+`c02e208064f6d41ad3014cad7146600df6d6449893f00aa9b158ff97676a8288`.
+This locally retained diagnostic has no new device acceptance results and
+does not replace the delivered USB update 2 or constitute the final release.
+
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
