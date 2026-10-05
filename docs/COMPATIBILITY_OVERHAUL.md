@@ -91,6 +91,35 @@ claimed by this source audit.
 
 ## Verification still required
 
+## D3D11 memory headroom policy for 64-bit guests
+
+The pinned DXMT already had an automatic large-BC-texture mip policy, but its
+default was `kMadeira32BitModule`. Thus a normal 64-bit guest never reached
+the measured pressure decision without an explicit setting. The existing
+comment describes a scene load increasing footprint from 4.35 GB toward
+6.1 GB, but no new device trace has matched that event to this fork's
+Ravenfield run. Pointer width is not a useful reason to omit pressure
+protection in Madeira's single iOS process.
+
+The preserved-history DXMT fork now enables this existing policy for both
+guest widths. It still uses measured headroom through MadeiraCtl op 7, not
+an assumed universal process limit. Healthy, unavailable, small, single-mip,
+unaligned and ineligible resources remain unchanged; explicit off settings
+retain precedence. Only new eligible large BC shader-resource textures under
+pressure lose one physical top mip. This can reduce image detail, does not
+evict existing textures and does not implement adaptive JIT sizing or general
+resource trimming. Existing logical descriptor/subresource handling remains
+in the upstream allocation path.
+
+The new host test compiles production configuration and pressure decisions
+under both guest-width defaults, with sanitizer checks for pressure/recovery,
+explicit off values, unavailable queries, zero/negative thresholds and size/
+mip restrictions. Full host and graphics source builds are pending. The new
+graphics DLL must be built, verified and staged before an IPA can contain
+this policy; the delivered diagnostic retains the prior graphics binaries.
+Ravenfield's repeated map-load acceptance and regressions on other games
+still require device tests.
+
 Clean runner builds also exposed several reproducibility defects, documented
 with exact runs in [BUILDING.md](BUILDING.md): an unsupported optional native
 telemetry field, omitted FEX inline headers, missing generated DXMT AIR
