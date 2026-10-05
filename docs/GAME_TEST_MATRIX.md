@@ -15,6 +15,18 @@ Host tests and a source build are separate gates. They do not stand in for the d
 
 ## Latest build verification
 
+At Madeira `9d2c6d3`, all 66 distinct host checks passed in
+[run 37252063633](https://github.com/llucasandersen/Madeira/actions/runs/37252063633).
+The downloaded inventories match all checks at that commit, including the
+production ring-pressure and callback-owner diagnostic sanitizer probes.
+The corrected graphics source build passed
+[run 37252061524](https://github.com/llucasandersen/Madeira/actions/runs/37252061524),
+with DXMT `b286373`. The callback diagnostic compiled in the native runtime
+job of run 37251963677. The later learned-JIT pool sizing and headroom refresh
+at `bb180ec` require their new 67-check run and native/app gates; those are
+pending. These changes are absent from the delivered USB update 2, and no
+new game/device acceptance pass is inferred.
+
 At Madeira `e6e9b2311b09a187e503dd69968b9f177f5de56c`, all 64 distinct host
 checks passed in [run 37250480384](https://github.com/llucasandersen/Madeira/actions/runs/37250480384).
 Downloaded Linux/macOS inventories match every repository `check-*.py`,

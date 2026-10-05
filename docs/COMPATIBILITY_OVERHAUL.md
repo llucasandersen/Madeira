@@ -72,7 +72,11 @@ unproven corruption path. `check-callback-owner-diagnostic.py` compiles the
 production registry lookup and expected-dispatcher helper with ASan/UBSan,
 reproducing the mutable-global false positive and checking real mismatches,
 same-architecture children and session fallback. Host/native build and new
-device evidence are pending. Delivered update 2 predates this correction.
+device evidence were pending when written. All 66 distinct host checks passed
+in run 37252063633 at `9d2c6d3`, including the production owner diagnostic
+ASan/UBSan check. The native runtime also compiled successfully in run
+37251963677, job 111581274860, at `44dd53b`. New device evidence remains
+pending. Delivered update 2 predates this correction.
 
 ## Completed upload cache reclamation under memory pressure
 
@@ -103,6 +107,14 @@ suballocation reference lifetime, oversized reuse accounting and ordinary
 expiry. Full host and graphics source builds are required before packaging;
 their results are pending for this change. This Windows host has no C++
 compiler. The already delivered update 2 does not include this change.
+
+The corrected source subsequently passed all 66 host checks in run
+37252063633; the downloaded inventories were matched against every check at
+`9d2c6d3`, without duplicates/missing checks and with every exit code zero.
+The ring-pressure ASan/UBSan probe passed. The graphics/D3D12 source build
+passed run 37252061524 with DXMT `b286373`, correcting the initial logger
+compile failure below. These gates do not validate the later learned-JIT
+changes or physical-device memory/performance results.
 
 The tradeoff is more buffer allocation churn when measured headroom is low;
 the retained reserve limits that churn and healthy sessions retain their
