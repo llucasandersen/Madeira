@@ -34,6 +34,10 @@ def verify(ipa, provenance, checksum, commit):
             require(not name.lower().endswith(('.p12', '.mobileprovision')), 'unexpected signing material')
         require(archive.testzip() is None, 'ZIP CRC failure')
         info = plistlib.loads(archive.read(prefix + 'Info.plist'))
+        if 'build_stamp' in report:
+            require(info.get('MadeiraSourceCommit') == commit, 'packaged source stamp mismatch')
+            require(info.get('MadeiraBuild') == report['build_stamp'] and
+                    report['build_stamp'].endswith('source=' + commit), 'packaged build label mismatch')
         helper = plistlib.loads(archive.read(prefix + 'PlugIns/MadeiraJITHelper.appex/Info.plist'))
         require(info['CFBundleIdentifier'] == 'com.willfaust.madeora', 'upstream app identity changed')
         require(helper['CFBundleIdentifier'] == info['CFBundleIdentifier'] + '.JITHelper', 'helper identity mismatch')

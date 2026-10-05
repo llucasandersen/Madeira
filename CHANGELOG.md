@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Stamp each packaged diagnostic's exact source commit into the existing build label before signing, and verify it against provenance during packaging/release checks. Phone logs can distinguish diagnostics that share the preserved app/helper version 100.
 - Bind fixed-base executable readiness to the retired image's owner and generation. Prevent unrelated child cleanup from publishing another image's address for reuse before its translation cleanup. Snapshot readiness log fields under the mutex; add actual-retirement sanitizer/concurrent-owner fixtures. Fresh native/75-check/app gates and complete thread quiescence remain pending.
 - Add a consumed, versioned compatibility profile catalog and per-library-entry opt-out. Teardown's adapter selects D3D12 through its supplied registry schema, preserves other settings byte for byte, backs up original settings and refuses unknown or ambiguous formats. Generic games retain their ordinary path; new 74-check/app gates and device renderer selection are pending.
 - Verify all 73 host checks and the real Valve archive gate at `e0835ca`, fresh native socket-ownership compilation at `4503b36`, and the complete `e0835ca` IPA. Local package identity, runtime, source pins and checksums passed. Generation/quiescence, physical acceptance and final delivery remain pending.

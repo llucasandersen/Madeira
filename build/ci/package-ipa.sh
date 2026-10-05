@@ -25,6 +25,20 @@ xcodebuild -project "$R/app/Madeira.xcodeproj" -scheme Madeira \
     CURRENT_PROJECT_VERSION=100 build 2>&1 | tee "$OUT/xcodebuild.log"
 APP="$R/build/xcode-derived/Build/Products/Debug-iphoneos/Madeira.app"
 test -f "$APP/Madeira"
+# BuildStamp already displays/logs MadeiraBuild. Stamp the packaged app before
+# signing so device logs identify the exact source instead of every diagnostic
+# appearing as the same v0.1.3 (100). This contains no signing/account data.
+python3 - "$R" "$APP" <<'PY'
+from pathlib import Path
+import plistlib, subprocess, sys
+r, app = map(Path, sys.argv[1:])
+commit = subprocess.check_output(['git', '-C', str(r), 'rev-parse', 'HEAD'], text=True).strip()
+path = app / 'Info.plist'
+info = plistlib.loads(path.read_bytes())
+info['MadeiraSourceCommit'] = commit
+info['MadeiraBuild'] = f"v{info['CFBundleShortVersionString']} ({info['CFBundleVersion']}) source={commit}"
+path.write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
+PY
 # Sign embedded code from the inside out with an ad-hoc identity. This keeps
 # the requested JIT/Memory+ entitlements readable to the user's re-signing tool.
 while IFS= read -r lib; do codesign --force --sign - --timestamp=none "$lib"; done < <(find "$APP" -type f -name '*.dylib')
@@ -53,6 +67,7 @@ def sha(path):
 report = {
     'purpose': 'diagnostic device test; gameplay acceptance pending',
     'madeira_commit': git('rev-parse', 'HEAD'),
+    'build_stamp': info['MadeiraBuild'],
     'submodules': git('submodule', 'status', '--recursive').splitlines(),
     'configuration': 'Debug',
     'bundle_identifier': info['CFBundleIdentifier'],
@@ -68,6 +83,8 @@ report = {
     'microsoft_runtime_binaries_included': False,
     'unchanged_PE_components': 'tracked upstream binaries; complete clean PE rebuild pending',
 }
+assert info['MadeiraSourceCommit'] == report['madeira_commit'], 'packaged build source stamp mismatch'
+assert info['MadeiraBuild'].endswith('source=' + report['madeira_commit']), 'packaged build label mismatch'
 staging = out / 'dxmt-staging.json'
 if staging.exists():
     graphics = json.loads(staging.read_text())

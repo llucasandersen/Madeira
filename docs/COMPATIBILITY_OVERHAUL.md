@@ -66,6 +66,26 @@ launch behavior. An OpenGL DLL import alone is not an active-backend verdict.
 
 ## Latest completed app and host gates: e0835ca
 
+Subsequent renderer gates at `131baa1` and `6469e76` compiled the iOS app,
+but their new XML fixture failed: an incomplete XML document was accepted by
+the host parser without the expected parse() failure. `7d57beb` requires an
+error-free completed document, an empty element stack and the known schema.
+Fast push gate 37263604877 at `7f875e1` passed the actual renderer/file tests
+and both ASan/UBSan and TSan fixed-image-owner fixtures. The full 75-check gate
+37263575853 and fresh native/app gates remain pending. The older `6469e76`
+IPA passed local package checks (SHA-256
+`5111610fbd6f486d3d22188f40d1d343c7c8d4508352e364ab8c5e1ebffbe037`),
+but is withheld because it predates those corrections.
+
+The supplied device logs identify the app only as `v0.1.3 (100)`; that is
+insufficient to attribute a game run to an exact diagnostic source build.
+Packaging now writes the full source commit to `MadeiraSourceCommit` and the
+existing `MadeiraBuild` label before ad-hoc signing. The existing startup log
+and build label read that value without exposing account or signing data.
+The packaging assertion and release verifier match both fields to the
+provenance commit. Earlier unstamped diagnostics remain verifiable with their
+original provenance. App/helper identities and build 100 are preserved.
+
 All 73 distinct host checks passed in run 37261593279, including the real
 socket registry/exit saturation fixture under ASan/UBSan and TSan and the real
 Valve archive gate. Downloaded Linux and Apple inventories exactly match the
