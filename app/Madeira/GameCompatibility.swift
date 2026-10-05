@@ -58,6 +58,7 @@ enum TeardownRendererSettings {
     private final class Schema: NSObject, XMLParserDelegate {
         var path: [String] = []
         var valid = true
+        var ended = false
         var counts: [String: Int] = [:]
         var rendererNodes = 0
         func parser(_ parser: XMLParser, didStartElement name: String,
@@ -75,6 +76,8 @@ enum TeardownRendererSettings {
         }
         func parser(_ parser: XMLParser, didEndElement name: String,
                     namespaceURI: String?, qualifiedName: String?) { _ = path.popLast() }
+        func parserDidEndDocument(_ parser: XMLParser) { ended = true }
+        func parser(_ parser: XMLParser, parseErrorOccurred error: Error) { valid = false }
         func parser(_ parser: XMLParser, foundCharacters string: String) {
             if path.last == "gfxapi" || path.last == "d3d12support" {
                 valid = valid && string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -89,7 +92,8 @@ enum TeardownRendererSettings {
         let schema = Schema(), parser = XMLParser(data: data)
         parser.shouldResolveExternalEntities = false
         parser.delegate = schema
-        guard parser.parse(), schema.valid, schema.rendererNodes == 2,
+        guard parser.parse(), parser.parserError == nil, schema.valid, schema.ended,
+              schema.path.isEmpty, schema.rendererNodes == 2,
               ["registry", "registry/options", "registry/options/gfx",
                "registry/options/gfx/gfxapi", "registry/options/gfx/d3d12support"]
                 .allSatisfy({ schema.counts[$0] == 1 }) else { throw Failure.unsupported }

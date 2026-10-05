@@ -10,8 +10,8 @@ root = Path(__file__).resolve().parents[2]
 production = (root / 'app/Madeira/GameCompatibility.swift').read_text(encoding='utf-8')
 fixture = r'''
 func check(_ condition: @autoclosure () -> Bool) { precondition(condition()) }
-func rejects(_ text: String) {
-    do { _ = try TeardownRendererSettings.selectingD3D12(Data(text.utf8)); preconditionFailure("accepted invalid XML") }
+func rejects(_ text: String, line: UInt = #line) {
+    do { _ = try TeardownRendererSettings.selectingD3D12(Data(text.utf8)); preconditionFailure("accepted invalid XML fixture line \(line)") }
     catch { }
 }
 let source = """
