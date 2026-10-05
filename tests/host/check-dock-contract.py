@@ -36,6 +36,13 @@ installers = (app / 'DockInstallers.swift').read_text()
 # ------------------------------------------------------------------ static
 for name, text in [('MadeiraDock.swift', dock), ('MadeiraDockView.swift', view), ('SteamRuntime.swift', runtime),
                    ('DockInstallers.swift', installers)]:
+    if name == 'SteamRuntime.swift':
+        # Verified package metadata names files, but does not select launch
+        # behavior by program name. Exclude only these literal SHA dictionaries;
+        # CI cross-checks every entry against the actual pinned Valve archives.
+        metadata = r'static let (?:legacyFileSHA256|criticalFileSHA256): \[String: String\] = \[\n(?:        "[^"\n]+": "[0-9a-f]{64}",\n)+    \]'
+        require(len(re.findall(metadata, text)) == 2, 'runtime hash inventories contain literal SHA metadata only')
+        text = re.sub(metadata, '', text)
     literals = set(re.findall(r'"([^"\n]*?\.exe)\\?"', text)) | set(re.findall(r'\\"([^"\n]*?\.exe)\\"', text))
     names = {l.replace('/', '\\').split('\\')[-1].lower() for l in literals}
     # DockInstallers.swift checks the ".exe" suffix of install-script programs and whether the
