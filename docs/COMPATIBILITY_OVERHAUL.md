@@ -45,7 +45,11 @@ cross-architecture private-image path. The regression harness compiles the
 production copy block and failure macro with an injected failed allocation;
 it checks that no translation, dispatcher write or guest entry follows failure,
 and that successful EC/native children retain their initialization. Host and
-clean native-runtime builds are pending. This protects session integrity; it
+clean native-runtime builds are required. All 62 host checks passed in run
+37247596425 at `78f21d1`; downloaded inventories matched exactly, including
+the injected failure and successful EC/native paths under sanitizers. The
+clean native-runtime job 111568466791 in run 37247598276 passed; its app
+packaging is still running. This protects session integrity; it
 does not supply missing pool capacity or prove Teardown gameplay.
 
 ## Teardown renderer investigation
