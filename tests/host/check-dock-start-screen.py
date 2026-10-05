@@ -294,7 +294,10 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
         lifetime.consume(birth(selectedImage, pid: 0xab, generation: 1))
         require(lifetime.gameExit?.status == 0xc0000005 && lifetime.gameCreation?.generation == 1, "correlate early exit by exact PID and birth generation")
         lifetime.consume(birth(selectedImage, pid: 0xab, generation: 2))
+        lifetime.consume(birth(selectedImage, pid: 0xab, generation: 1)) // delayed file tail after newer direct callback
+        lifetime.consume(createdRecord(selectedImage))
         require(lifetime.gameExit == nil, "recycled PID never inherits prior generation exit")
+        require(lifetime.gameCreation?.generation == 2, "delayed old or legacy file records cannot replace current callback birth")
         lifetime.consume(death(0xab, 1, 0xc0000005))
         require(lifetime.gameExit == nil, "late old-generation exit does not terminate new game")
         lifetime.consume(birth(#"C:\windows\system32\steamerrorreporter64.exe"#, pid: 0xac, generation: 3))

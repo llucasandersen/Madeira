@@ -344,13 +344,19 @@ struct SteamLaunchLifetime {
         self.expectedGame = expectedGame; self.expectedHost = expectedHost
     }
 
+    private func newer(_ creation: SteamExecutableCreation, than current: SteamExecutableCreation?) -> Bool {
+        guard let current else { return true }
+        if let previous = current.generation { return (creation.generation ?? 0) > previous }
+        return creation != current
+    }
+
     mutating func consume(_ line: String) {
         if line.hasPrefix("[process-created]") {
-            if let expectedGame, let creation = SteamExecutableCreation.parse(line, expectedImage: expectedGame), creation != gameCreation {
+            if let expectedGame, let creation = SteamExecutableCreation.parse(line, expectedImage: expectedGame), newer(creation, than: gameCreation) {
                 gameCreation = creation
                 gameExit = exits.last { $0.matches(creation) }
             }
-            if let creation = SteamExecutableCreation.parse(line, expectedImage: expectedHost), creation != hostCreation {
+            if let creation = SteamExecutableCreation.parse(line, expectedImage: expectedHost), newer(creation, than: hostCreation) {
                 hostCreation = creation
                 hostExit = exits.last { $0.matches(creation) }
             }
