@@ -10,18 +10,20 @@ file-tail delivery, synchronized image-owner publication and scalar Mach LSE
 alias atomics, alongside the existing sanitizer fixtures. Fresh native
 compilation passed at `5d10bb3` (job 111632689095 in 37269302622).
 
-Latest completed app validation: workflow 37267760872 passed at `7ab72cb`,
-including fresh native runtime and app job 111629856282.
+Latest completed app validation: workflow 37269302622 passed at `5d10bb3`,
+including fresh native runtime and app job 111635040105.
 Local ZIP/CRC/identity/runtime/graphics/source-stamp checks passed, SHA-256
-`a4db9e2e85672c1d757090ebf09d360a5fa2e45e332b65af8b7b74cc731dd3bf`.
-The IPA is 87,373,700 bytes, includes native launch/exit correlation and image
-ownership synchronization, and has no new physical
+`fe6179f44f35385c547e6a3bbdd63adf8eb952e7399c7165b7bc247e5bc9c3c9`.
+The IPA is 87,373,902 bytes, includes native launch/exit correlation, image
+ownership synchronization and scalar Mach LSE alias atomics, and has no new physical
 acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
 repeated map loads and final delivery remain unverified.
 
 The later Mach LSE alias change at `5d10bb3` passed its targeted ASan/UBSan and
 TSan checks (37269300151), full 76-check suite and fresh native compilation.
-Its app/package gates remain in progress (37269302622). No new device result
+Its app/package gates passed (37269302622). The subsequent integer paired-store
+change at `343028f` has native ARM, full 77-check and fresh iOS gates pending.
+No new device result
 or final USB delivery is inferred from these builds.
 
 Earlier completed source validation: all 73 distinct checks and real Valve

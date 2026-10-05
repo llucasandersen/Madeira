@@ -28,7 +28,11 @@ page checks that a rejected span never writes its first half. Competing native
 STP writers and an LDP reader verify 100,000 pair writes. ASan/UBSan and TSan
 check the surrounding C; inline assembly itself is checked by hardware accesses
 and these explicit assertions. Native ARM host, full 77-check and fresh iOS
-build gates are pending. Device exception delivery, exclusive reservations,
+build gates are pending. The first targeted run (37271500504) exposed invalid
+intermediate pointer arithmetic in the test fixture despite its success exit;
+the fixture now uses a bounded offset and fatal sanitizer recovery settings.
+That initial result is not accepted as a sanitizer pass.
+Device exception delivery, exclusive reservations,
 peer-thread quiescence and physical acceptance remain unproven.
 
 ## Mach writable-alias LSE atomics
@@ -68,7 +72,10 @@ complete host workflow (37269300382) at `5d10bb3`. Downloaded inventories match
 all 76 distinct checks, with no omissions or duplicates; the real Valve archive
 gate passed too. Fresh native iOS job 111632689095 passed in 37269302622.
 App/package workflow 37269302622 also passed, including app job 111635040105;
-local artifact verification is pending. This scalar fix does not implement
+local ZIP/CRC, identity, runtime, graphics and source-stamp verification passed.
+The IPA is 87,373,902 bytes, SHA-256
+`fe6179f44f35385c547e6a3bbdd63adf8eb952e7399c7165b7bc247e5bc9c3c9`.
+It has not been copied to USB or physically accepted. This scalar fix does not implement
 exclusive reservations (`STLXR`), prove all three reported runtimes work, or solve peer-thread
 quiescence. Device exception delivery and game acceptance remain required.
 
@@ -151,7 +158,7 @@ observed failures, not that a proposed workaround or this fork fixes them.
 | --- | --- |
 | [SDL3/controller input, #192](https://github.com/willfaust/Madeira/issues/192) | The report confirms rendering while SDL3 is rejected; Steam Input causation is unconfirmed. The coherent Valve runtime repair addresses the demonstrated mixed-machine runtime, but controller/device acceptance remains required. The latest comment supplies no new diagnostic evidence. |
 | [Metal 4.1 rejected on iOS 26.6.2, #121](https://github.com/willfaust/Madeira/issues/121) | The inherited `build/dxmt-ios/build.sh` and pinned DXMT Meson sources explicitly select Metal 3.1 and an older AIR target. The source-built graphics package preserves this policy. A successful host/package build is not a device DX11 cube pass. |
-| [Unity/Mono/CoreCLR/HotSpot stores, #123](https://github.com/willfaust/Madeira/issues/123) | The report supplies concrete `STLXR`, pre-index `STP` and `LDADDAL` encodings. The new scalar LSE adapter addresses the missing atomic-add family; full native/device gates are pending. Exclusive reservation and pre-index integer-pair semantics still require separate analysis. Similar decoders elsewhere or the CAS fixture do not prove correct Mach delivery. |
+| [Unity/Mono/CoreCLR/HotSpot stores, #123](https://github.com/willfaust/Madeira/issues/123) | The report supplies concrete `STLXR`, pre-index `STP` and `LDADDAL` encodings. Scalar LSE passed host/native/app gates; the integer-pair adapter is implemented with corrected native ARM fixture gates pending. Exclusive reservation semantics still require separate analysis. Similar decoders elsewhere or the CAS fixture do not prove correct Mach delivery or physical compatibility. |
 | [Nonzero launch-option indices, #174](https://github.com/willfaust/Madeira/issues/174) | This fork's frontend selects validated Steam metadata and passes its launch ID; Dock parses and uses that ID for initial launch and retries. Completed host routing fixtures cover the contract. The reported game still needs a real device run. |
 | [Secondary launchers, #189](https://github.com/willfaust/Madeira/issues/189) | Required shared content is prepared through the native ownership/manifest-validated installer, including differing owner install folders. This addresses the demonstrated dependency class without inventing manifests. Missing AVI modules, bootstrapper descendant lifetime and the reported hard-error exit are separate findings, not proven fixed by content preparation or the new exit diagnostics. |
 | [Rockstar installer, #151](https://github.com/willfaust/Madeira/issues/151) | A missing `Msftedit.dll` is observed, but its role in the installer exit is not established. The game also skips required installers. It supplies no basis for bypassing setup or authentication; module packaging and installer behavior require their own reproduction. |

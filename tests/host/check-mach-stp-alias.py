@@ -72,7 +72,7 @@ int main(void) {
         uint32_t insn = instruction(width, mode, units, 9, 8, 10);
         assert(ios_mach_emulate_stp_alias(insn, far, host + far - guest, guest, extent, pool, &s));
         uint64_t first = 0, second = 0;
-        memcpy(&first, memory + address - guest, width); memcpy(&second, memory + address - guest + width, width);
+        memcpy(&first, memory + (address - guest), width); memcpy(&second, memory + (address - guest) + width, width);
         uint64_t mask = width == 8 ? UINT64_MAX : UINT32_MAX;
         assert(first == (s.__x[9] & mask) && second == (s.__x[8] & mask));
         assert(s.__x[10] == (mode == 1 || mode == 3 ? base + offset : base));
@@ -141,5 +141,5 @@ with tempfile.TemporaryDirectory(prefix='madeira-mach-stp-') as directory:
     for sanitizer in ['address,undefined', 'thread']:
         exe = path / sanitizer.replace(',', '-')
         subprocess.run([compiler, '-std=gnu11', '-O1', '-Wall', '-Wextra', '-Werror', '-pthread',
-                        '-fsanitize=' + sanitizer, str(path / 'probe.c'), '-o', str(exe)], check=True)
+                        '-fsanitize=' + sanitizer, '-fno-sanitize-recover=all', str(path / 'probe.c'), '-o', str(exe)], check=True)
         subprocess.run([str(exe)], check=True, timeout=60)
