@@ -2861,6 +2861,23 @@ size_t ios_jit_pool_size_global = 0;
 unsigned long long ios_last_footprint_mb = 0;   /* ml668: latest phys_footprint MB (decl above) */
 int ios_fast_footprint = 0;                    /* ml670: set when d3d11 loads */
 
+/* Conservative pool frontier, not committed/live code or physical footprint.
+ * UIKit/background telemetry must not enter Wine's virtual critical section.
+ * The head lock is independent of it; tail reservations are atomic. */
+void ios_jit_pool_usage( uint64_t *reserved, uint64_t *capacity )
+{
+    size_t head, tail, total;
+    pthread_mutex_lock( &ios_pool_lock );
+    head = jit_pool_offset;
+    tail = __sync_fetch_and_add( &ios_jit_tail_reserved, 0 );
+    total = __atomic_load_n( &ios_jit_pool_size_global, __ATOMIC_ACQUIRE );
+    pthread_mutex_unlock( &ios_pool_lock );
+    if (head > total) head = total;
+    if (tail > total - head) tail = total - head;
+    if (reserved) *reserved = (uint64_t)(head + tail);
+    if (capacity) *capacity = (uint64_t)total;
+}
+
 /* TEB restore trampoline in JIT pool.
  * iOS sigreturn does NOT restore x18 from the ucontext — it always zeroes
  * the platform register. So we can't fix x18 via signal handler return.
@@ -12221,7 +12238,7 @@ static inline int mprotect_exec( void *base, size_t size, int unix_prot )
                 /* Export for SIGBUS handler */
                 ios_jit_rx_base_global = jit_rx_base;
                 ios_jit_rw_base_global = jit_rw_base;
-                ios_jit_pool_size_global = jit_pool_size;
+                __atomic_store_n( &ios_jit_pool_size_global, jit_pool_size, __ATOMIC_RELEASE );
 
                 /* ml91 (task #35): dump the VA map ONCE here, unconditionally.
                  * The first cut only probed on jumbo-reserve failure, so a
@@ -12255,7 +12272,9 @@ static inline int mprotect_exec( void *base, size_t size, int unix_prot )
                     ios_jit_teb_trampoline = (char *)jit_rx_base + 8;
                     /* Page-align the offset so PE images stay page-aligned
                      * (mprotect requires page-aligned addresses). */
+                    pthread_mutex_lock( &ios_pool_lock );
                     jit_pool_offset = 0x4000;  /* one 16KB iOS page */
+                    pthread_mutex_unlock( &ios_pool_lock );
                     ERR("iOS JIT: TEB trampoline at %p (pool+8)\n", ios_jit_teb_trampoline);
                 }
 

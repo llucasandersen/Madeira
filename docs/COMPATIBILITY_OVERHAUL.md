@@ -2,6 +2,55 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Learned per-game JIT pool sizing
+
+The supplied Ravenfield run uses an 896 MB pool while its last pool-warmer
+sample reports roughly 288 MB image-head frontier and 160 MB reserved tail.
+Those are conservative allocator extents, not live translated code or resident
+footprint. Reducing capacity alone does not prove an equal footprint saving.
+Unused executable capacity is still a constraint worth budgeting, but an
+arbitrary smaller default risks exhausting the image head or causing FEX to
+rotate/recompile its code too often. StikDebug prepares the executable mapping
+before detaching; this implementation does not assume it can safely grow that
+mapping afterward.
+
+`AdaptiveJITRecord` in `MadeiraDock.swift` now chooses a pool from observations
+for the same Steam app/build. Unknown games/builds retain the standard pool.
+Two completed Dock sessions, each with at least three minutes after the first
+observed present and at least 300 presents, are required before shrinking.
+The highest observed head-plus-tail extent receives a 25% plus 128 MB margin,
+rounds upward to 64 MB, and never selects less than 512 MB or more than the
+standard capacity. For example, an observed 448 MB frontier chooses 704 MB.
+An observation within 64 MB of exhaustion blocks shrinking for that build.
+The record never forgets a larger previous peak. The existing explicit `pool`
+configuration and compact-Dock choice retain precedence; desktop/direct starts
+are unchanged. Missing/unknown Steam build IDs disable learning.
+
+The coordinator stores bounded, private numeric app/build records and an
+in-progress marker in an atomic Application Support file before requesting
+the chosen pool. A failed smaller-pool launch or an interrupted process blocks
+that smaller policy on the next launch, restoring the standard pool. Failure
+to write the marker keeps the standard pool. Sampling runs once per second
+on a background queue and does not depend on the overlay remaining visible.
+The native `ios_jit_pool_usage` helper in `virtual_ios.c` snapshots the head
+under its independent allocator mutex and the reserved tail atomically; it
+never enters Wine's virtual critical section or needs a Wine TEB. Counts are
+saturated to capacity to avoid overflow or misleading overlap totals.
+
+`check-adaptive-jit-budget.py` compiles the actual Swift model and native C
+snapshot. It checks confidence, rendering duration/frame thresholds, margins,
+minimum size, peak retention, interruption fallback, malformed/overflow values,
+encoding and head/tail saturation. Full host/native/app builds are pending for
+this change. Physical-device cache recovery and repeated-map memory/performance
+tests are still required. A completed Steam launch report does not establish
+every gameplay acceptance criterion. Later maps may exceed the learned margin;
+the fallback limits repeated failures but cannot prevent the first one.
+This is one part of adaptive memory budgeting, not proof that Ravenfield is
+fixed. The delivered update 2 predates the policy.
+
+The overlay's headroom value was also only read when its timers started.
+It now refreshes beside physical footprint on every 250 ms display tick.
+
 ## Callback dispatcher diagnostic ownership
 
 In the supplied Teardown game log, callback thread 00ac has PEB 0x11bdf4000

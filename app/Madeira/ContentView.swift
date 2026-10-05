@@ -2641,6 +2641,8 @@ struct ContentView: View {
                 poolSizeMB = mb
                 logStore.log("JIT pool overridden to \(mb)MB via madeira.cfg pool")
             }
+            poolSizeMB = AdaptiveJITBudget.shared.begin(defaultPool: poolSizeMB,
+                eligible: dockLaunch.dock && !dockLaunch.compact && MadeiraConfig.get("pool") == nil)
             // ml694: W^X A/B switch. Documents/madeira-wx.txt containing "0"
             // disables page demotion for the SAME binary, so the on/off
             // comparison needs one rebuild, not two. The previous gate read
@@ -3237,6 +3239,7 @@ struct ContentView: View {
             // start this session from its own desktop size, not a previous one.
             winios_display_mode_changed(Int32(width), Int32(height))
             MadeiraDock.requestLaunch(compactPool: compactPool)
+            AdaptiveJITBudget.shared.prepare(game)
             logStore.log("[madeira-dock] starting the host for app \(game.id); Valve's client authenticates and authorizes the launch")
             MadeiraDockModel.shared.watchReport()
             if inLibrary {

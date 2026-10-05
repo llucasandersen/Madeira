@@ -351,6 +351,7 @@ struct FPSOverlay: View {
             // ml606: piggybacks on the existing tick, so it costs one extra
             // task_info per 250ms and no additional SwiftUI invalidation.
             memMB = readFootprintMB()
+            headroomMB = Int(jit_available_memory() / (1024 * 1024))
         }
     }
 
