@@ -3,25 +3,25 @@
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
 Latest completed host validation: all 75 checks and real Valve archives passed
-at `0546f2d` (37267168433). Downloaded inventories match the full test tree,
+at `7ab72cb` (37267758234). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,
 callback delivery, exact selected-game/host generation correlation and stale
-file-tail delivery, alongside the existing sanitizer fixtures. Fresh native
-exit-diagnostic compilation passed at `5ed9a2e` (job 111625754782 in
-37266978621); `0546f2d` has identical native sources.
+file-tail delivery and synchronized image-owner publication, alongside the
+existing sanitizer fixtures. Fresh native compilation passed at `7ab72cb`
+(job 111628066637 in 37267760872).
 
-Latest completed app validation: workflow 37267171090 passed at `0546f2d`,
-using fresh native runtime job 111625754782 from `5ed9a2e` (37266978621).
-The native source trees are identical. App job 111626328581 passed.
+Latest completed app validation: workflow 37267760872 passed at `7ab72cb`,
+including fresh native runtime and app job 111629856282.
 Local ZIP/CRC/identity/runtime/graphics/source-stamp checks passed, SHA-256
-`17c55ec8c1e5e96b3a1335d4f54fb74592c9cbd6343657fb6865edf5264901cd`.
-The IPA is 87,374,288 bytes, includes native launch/exit correlation, and has no new physical
+`a4db9e2e85672c1d757090ebf09d360a5fa2e45e332b65af8b7b74cc731dd3bf`.
+The IPA is 87,373,700 bytes, includes native launch/exit correlation and image
+ownership synchronization, and has no new physical
 acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
 repeated map loads and final delivery remain unverified.
 
-The later fixed-image owner-publication change at `7ab72cb` passed its targeted
-sanitizer/Swift checks (37267758310); its complete host and fresh native/app
-gates remain in progress (37267758234 and 37267760872). No new device result
+The later Mach LSE alias change at `5d10bb3` passed its targeted ASan/UBSan and
+TSan checks (37269300151). Its complete 76-check suite and fresh native/app
+gates remain in progress (37269300382 and 37269302622). No new device result
 or final USB delivery is inferred from these builds.
 
 Earlier completed source validation: all 73 distinct checks and real Valve
