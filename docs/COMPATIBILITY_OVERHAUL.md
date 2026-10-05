@@ -34,8 +34,11 @@ the fixture now uses a bounded offset and fatal sanitizer recovery settings.
 That initial result is not accepted as a sanitizer pass. Corrected targeted
 workflow 37271658156 passed at `17776be`; its terminal ARM job 111639750713
 contains two native fixture PASS records and no sanitizer error/summary lines.
-Full corrected suite 37271658528 and fresh runtime/app workflow 37271515195
-(production-equivalent `343028f`) are still running.
+Full corrected suite 37271658528 passed all 77 distinct checks and the real
+Valve archive gate at `17776be`. Downloaded result inventories match the entire
+test tree without omissions, duplicates or nonzero exits; the ARM fixture logs
+contain both PASS records and no sanitizer errors. Fresh runtime/app workflow
+37271515195 (production-equivalent `343028f`) is still running.
 Device exception delivery, exclusive reservations,
 peer-thread quiescence and physical acceptance remain unproven.
 
@@ -162,7 +165,7 @@ observed failures, not that a proposed workaround or this fork fixes them.
 | --- | --- |
 | [SDL3/controller input, #192](https://github.com/willfaust/Madeira/issues/192) | The report confirms rendering while SDL3 is rejected; Steam Input causation is unconfirmed. The coherent Valve runtime repair addresses the demonstrated mixed-machine runtime, but controller/device acceptance remains required. The latest comment supplies no new diagnostic evidence. |
 | [Metal 4.1 rejected on iOS 26.6.2, #121](https://github.com/willfaust/Madeira/issues/121) | The inherited `build/dxmt-ios/build.sh` and pinned DXMT Meson sources explicitly select Metal 3.1 and an older AIR target. The source-built graphics package preserves this policy. A successful host/package build is not a device DX11 cube pass. |
-| [Unity/Mono/CoreCLR/HotSpot stores, #123](https://github.com/willfaust/Madeira/issues/123) | The report supplies concrete `STLXR`, pre-index `STP` and `LDADDAL` encodings. Scalar LSE passed host/native/app gates; the integer-pair adapter is implemented with corrected native ARM fixture gates pending. Exclusive reservation semantics still require separate analysis. Similar decoders elsewhere or the CAS fixture do not prove correct Mach delivery or physical compatibility. |
+| [Unity/Mono/CoreCLR/HotSpot stores, #123](https://github.com/willfaust/Madeira/issues/123) | The report supplies concrete `STLXR`, pre-index `STP` and `LDADDAL` encodings. Scalar LSE passed host/native/app gates; the integer-pair adapter passed corrected native ARM fixtures and the full 77-check suite. Fresh iOS gates and exclusive reservation semantics still require separate verification. Similar decoders elsewhere or the CAS fixture do not prove correct Mach delivery or physical compatibility. |
 | [Nonzero launch-option indices, #174](https://github.com/willfaust/Madeira/issues/174) | This fork's frontend selects validated Steam metadata and passes its launch ID; Dock parses and uses that ID for initial launch and retries. Completed host routing fixtures cover the contract. The reported game still needs a real device run. |
 | [Secondary launchers, #189](https://github.com/willfaust/Madeira/issues/189) | Required shared content is prepared through the native ownership/manifest-validated installer, including differing owner install folders. This addresses the demonstrated dependency class without inventing manifests. Missing AVI modules, bootstrapper descendant lifetime and the reported hard-error exit are separate findings, not proven fixed by content preparation or the new exit diagnostics. |
 | [Rockstar installer, #151](https://github.com/willfaust/Madeira/issues/151) | A missing `Msftedit.dll` is observed, but its role in the installer exit is not established. The game also skips required installers. It supplies no basis for bypassing setup or authentication; module packaging and installer behavior require their own reproduction. |

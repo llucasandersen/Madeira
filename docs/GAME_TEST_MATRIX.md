@@ -2,12 +2,12 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
-Latest completed host validation: all 76 checks and real Valve archives passed
-at `5d10bb3` (37269300382). Downloaded inventories match that full test tree,
+Latest completed host validation: all 77 checks and real Valve archives passed
+at `17776be` (37271658528). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,
 callback delivery, exact selected-game/host generation correlation and stale
 file-tail delivery, synchronized image-owner publication and scalar Mach LSE
-alias atomics, alongside the existing sanitizer fixtures. Fresh native
+alias atomics and native ARM paired stores, alongside the existing sanitizer fixtures. Fresh native
 compilation passed at `5d10bb3` (job 111632689095 in 37269302622).
 
 Latest completed app validation: workflow 37269302622 passed at `5d10bb3`,
@@ -25,7 +25,8 @@ Its app/package gates passed (37269302622). The subsequent integer paired-store
 change at `343028f` passed corrected native ARM ASan/UBSan and TSan fixtures
 at `17776be` (37271658156), with terminal logs checked for sanitizer errors.
 The initial fixture's recovering UBSan result is not accepted. Full 77-check
-suite 37271658528 and fresh iOS workflow 37271515195 remain pending; `17776be`
+suite 37271658528 passed with exact inventories and clean native ARM logs;
+fresh iOS workflow 37271515195 remains pending. `17776be`
 changes only tests/docs from the runtime/app sources built at `343028f`.
 No new device result
 or final USB delivery is inferred from these builds.
