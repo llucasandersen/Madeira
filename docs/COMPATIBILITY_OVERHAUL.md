@@ -136,10 +136,14 @@ passed in run 37244570613. The verified first diagnostic IPA is available in
 [diagnostic release 1](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.1)
 and on the requested USB stick. These are build corrections, with no game
 pass inferred from them. Following delivery, the user reported PEAK working
-and believed it fully playable, with much faster Steam downloads. The matrix
+and believed it fully playable, with much faster Steam downloads. The user
+subsequently reported Teardown working flawlessly. The matrix
 records this device report separately from build evidence. A successful phone
 log and exact installed build remain pending; the report does not identify
 the earlier SDL3 failure's root cause or establish every acceptance criterion.
+Teardown's successful report likewise does not identify its renderer or explain
+the earlier OpenGL/dispatcher symptoms. It is not evidence that later source
+changes, which are absent from the delivered IPA, fixed those symptoms.
 
 The clean diagnostic build exposed a source-build defect in the pinned Madeira
 FEX fork: `IosFfsBypassLog` and `IosCbEntryLog` were declared under

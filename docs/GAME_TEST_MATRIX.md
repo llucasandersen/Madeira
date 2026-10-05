@@ -5,7 +5,7 @@ Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extende
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; successful log and exact installed build pending | Gameplay success reported; detailed acceptance pending |
-| Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | Reported OpenGL stub and child dispatcher failures; no new device run | Not tested on this fork |
+| Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | User reports Teardown works flawlessly; successful log, renderer and exact installed build pending | Gameplay success reported; detailed acceptance pending |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Reported DXMT texture and JIT pool pressure; no footprint trace for this fork | Not tested on this fork |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
 | Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |
@@ -34,6 +34,13 @@ Audio, controls, single-player mode, repeat launches and networking were not
 confirmed individually. No diagnostic log, installed IPA checksum or measured
 throughput accompanied the report. It does not establish why the earlier SDL3
 failure cleared or whether the downloader meets the native-control target.
+
+The user subsequently reported: "teardown works flawlessly super good okay so
+teardown works now". This records reported successful Teardown gameplay.
+The renderer, installed IPA/game build, ten-minute run and close/relaunch were
+not confirmed individually, and no successful log accompanied the report.
+The earlier OpenGL and dispatcher symptoms are no longer the latest device
+result; their root cause and the reason they cleared remain unverified.
 
 ## Host regression evidence
 
