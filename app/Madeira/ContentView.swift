@@ -2446,6 +2446,7 @@ struct ContentView: View {
 
     /// The rest of Play, with JIT on: checks the entry's launch profile and starts it.
     private func startLibraryEntry(_ entry: LibraryEntry) {
+        var preparedEntry = entry
         do {
             if entry.desktop != true { _ = try LibraryModel.executable(entry.launchRelativePath) }
             try entry.validate()
@@ -2453,6 +2454,12 @@ struct ContentView: View {
                let executable = LibraryEntry.hostURL(ofWindowsPath: entry.launchWindowsPath),
                RDR2RendererSettings.isGame(executable: executable),
                let user = SteamCloudPaths.userFolder(drive: LibraryModel.drive) {
+                if preparedEntry.startsSteamGameDirectly {
+                    preparedEntry.steamProgramArguments = RDR2RendererSettings.initialArguments(entry.programArguments)
+                } else {
+                    preparedEntry.arguments = RDR2RendererSettings.initialArguments(entry.programArguments)
+                }
+                try preparedEntry.validate()
                 let file = user.url.appendingPathComponent("Documents/Rockstar Games/Red Dead Redemption 2/Settings/system.xml")
                 let changed = try RDR2RendererSettings.prepare(file: file)
                 logStore.log("[compatibility-profile] RDR2 renderer=d3d12 settings=\(changed ? "updated" : "unchanged-or-not-generated")")
@@ -2468,14 +2475,14 @@ struct ContentView: View {
         guard entry.launchWindowsPath.utf8.count < 1024, entry.launchArguments.utf8.count < 4096 else {
             library.error = "The executable path or launch arguments are too long."; return
         }
-        entry.configureLaunch()
+        preparedEntry.configureLaunch()
         // This run's log under the program's name too (Documents/logs). A Steam game started
         // through Madeira Dock above gets its own from ntdll, once Valve's client starts it.
         let program = entry.desktop == true ? "explorer.exe"
             : entry.launchWindowsPath.split(separator: "\\").last.map(String.init) ?? entry.launchWindowsPath
         LogStore.shared.startSessionLog(program: program)
         library.begin(entry)
-        runWineFullSequence(profile: entry)
+        runWineFullSequence(profile: preparedEntry)
     }
 
     /// Full sequence: allocate JIT pool, start wineserver, start Wine.

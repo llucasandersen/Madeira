@@ -69,6 +69,11 @@ try fm.createSymbolicLink(at: file, withDestinationURL: target)
 do { _ = try policy.prepare(options: file); preconditionFailure() } catch { }
 check(try! Data(contentsOf: target) == original)
 let rdr = "<rage__fwuiSystemSettingsCollection><version value=\"37\"/><advancedGraphics><API>kSettingAPI_Vulkan</API><asyncComputeEnabled value=\"true\"/></advancedGraphics><audio><volume value=\"7\"/></audio></rage__fwuiSystemSettingsCollection>"
+check(RDR2RendererSettings.initialArguments("") == "-dx12")
+check(RDR2RendererSettings.initialArguments("-windowed") == "-windowed -dx12")
+check(RDR2RendererSettings.initialArguments("-DX12") == "-DX12")
+check(RDR2RendererSettings.initialArguments("-vulkan") == "-vulkan")
+check(RDR2RendererSettings.initialArguments("\"-dx11\"") == "\"-dx11\"")
 let rdrSelected = rdr.replacingOccurrences(of: "kSettingAPI_Vulkan", with: "kSettingAPI_DX12")
 check(try! RDR2RendererSettings.selectingD3D12(Data(rdr.utf8)) == Data(rdrSelected.utf8))
 check(try! RDR2RendererSettings.selectingD3D12(Data(rdrSelected.utf8)) == Data(rdrSelected.utf8))

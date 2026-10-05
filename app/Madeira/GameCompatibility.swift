@@ -46,6 +46,17 @@ struct GameCompatibilityProfile: Equatable {
 /// Rockstar documents this API value and settings path. Preserve the game's
 /// generated schema, all graphics choices and saves; never invent a version.
 enum RDR2RendererSettings {
+    /// First-launch candidate: use the game's DX12 selection before it has
+    /// generated system.xml. An explicit renderer argument takes precedence.
+    /// Device recognition and gameplay remain acceptance gates.
+    static func initialArguments(_ existing: String) -> String {
+        let renderers = Set(["-dx9", "-dx10", "-dx11", "-dx12", "-vulkan"])
+        let tokens = existing.split(whereSeparator: { $0.isWhitespace }).map {
+            $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"")).lowercased()
+        }
+        guard !tokens.contains(where: renderers.contains) else { return existing }
+        return existing.isEmpty ? "-dx12" : existing + " -dx12"
+    }
     enum Failure: Error, LocalizedError {
         case unsupported, unsafePath, changed
         var errorDescription: String? {
