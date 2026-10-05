@@ -20,7 +20,13 @@ uses the same valid field selection. The ARM fixture now compiles the actual
 scalar decoder branches and exercises all 32 source/base encodings, widths,
 offset/unscaled/pre/post modes, signed offsets, source/base overlap and both
 signed-boundary and unsigned address wrap. Its existing native pair/guard-page
-tests remain. Targeted ARM, full 78-check and fresh native/app gates are pending.
+tests remain. This review also found that the old scalar predicate tested bit
+11 alone, rejecting pre-index mode `11` despite the branch's writeback code.
+The predicate now accepts unsigned/unscaled/post/pre forms while leaving the
+separate unprivileged mode `10` unhandled and unchanged. The fixture covers
+pre-index stores and unprivileged refusal for all four widths. See the
+[Arm instruction reference](https://documentation-service.arm.com/static/67e40f3398aa3c3b6eea6a85).
+Targeted ARM, full 78-check and fresh native/app gates are pending.
 These follow-up source changes are not in the delivered candidate-3 IPA.
 
 The first ARM fixture run exposed an additional CI flaw: a recovering UBSan

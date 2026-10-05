@@ -3503,7 +3503,7 @@ static void *ios_mach_exception_thread( void *arg )
                         emulated = 1;
                     }
                     /* STR (immediate, post/pre-index, 64-bit): 1111 1000 00 0imm9 0[10]1 Rn Rt */
-                    else if ((insn & 0xffe00000) == 0xf8000000 && (insn & 0x800) == 0)
+                    else if ((insn & 0xffe00000) == 0xf8000000 && (insn & 0xc00) != 0x800)
                     {
                         int rt = insn & 0x1f;
                         *(uint64_t *)rw_addr = IOS_STORE_SRC(rt);
@@ -3521,7 +3521,7 @@ static void *ios_mach_exception_thread( void *arg )
                         }
                     }
                     /* STR (immediate, post/pre-index, 32-bit): 1011 1000 00 0imm9 0[10]1 Rn Rt */
-                    else if ((insn & 0xffe00000) == 0xb8000000 && (insn & 0x800) == 0)
+                    else if ((insn & 0xffe00000) == 0xb8000000 && (insn & 0xc00) != 0x800)
                     {
                         int rt = insn & 0x1f;
                         *(uint32_t *)rw_addr = (uint32_t)IOS_STORE_SRC(rt);
@@ -3539,7 +3539,7 @@ static void *ios_mach_exception_thread( void *arg )
                      * Hits when iOS memcpy handles the trailing bytes after the
                      * 8-byte D-store loop completes (660 bytes = 82*8 + 4 bytes
                      * tail; the tail is byte-by-byte). */
-                    else if ((insn & 0xffe00000) == 0x38000000 && (insn & 0x800) == 0)
+                    else if ((insn & 0xffe00000) == 0x38000000 && (insn & 0xc00) != 0x800)
                     {
                         int rt = insn & 0x1f;
                         *(uint8_t *)rw_addr = (uint8_t)IOS_STORE_SRC(rt);
@@ -3554,7 +3554,7 @@ static void *ios_mach_exception_thread( void *arg )
                         }
                     }
                     /* STRH (immediate, post/pre-index, 16-bit): 0111 1000 00 0imm9 0[10]1 Rn Rt */
-                    else if ((insn & 0xffe00000) == 0x78000000 && (insn & 0x800) == 0)
+                    else if ((insn & 0xffe00000) == 0x78000000 && (insn & 0xc00) != 0x800)
                     {
                         int rt = insn & 0x1f;
                         *(uint16_t *)rw_addr = (uint16_t)IOS_STORE_SRC(rt);

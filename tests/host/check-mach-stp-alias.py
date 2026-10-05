@@ -111,6 +111,13 @@ int main(void) {
         for (unsigned i = width; i < 16; i++) assert(memory[i] == 0x5a);
     }
     puts("PASS: actual scalar alias store branches, all FP/LR/ZR sources and FP/LR/SP bases, signed offsets, overlap and unsigned writeback wrap");
+    for (unsigned lg = 0; lg < 4; lg++) {
+        arm_thread_state64_t captured = {0}; captured.__sp = guest;
+        memset(memory, 0x5a, 16);
+        assert(!scalar_store(0x38000800u | lg << 30 | 31 << 5 | 31, host, &captured));
+        for (unsigned i = 0; i < 16; i++) assert(memory[i] == 0x5a);
+        assert(captured.__sp == guest); // STTR is a separate unprivileged form.
+    }
     const int offsets[] = {-64, -1, 0, 1, 63};
     for (unsigned width = 4; width <= 8; width += 4) for (unsigned mode = 0; mode < 4; mode++)
     for (unsigned oi = 0; oi < 5; oi++) for (unsigned half = 0; half < 2; half++) for (int pool = 0; pool < 2; pool++) {
