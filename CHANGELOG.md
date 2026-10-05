@@ -1,5 +1,7 @@
 # Changelog
 
+- Verify fresh Wine/Dock/native dependency compilation at `889c6be` in job 111649257006 of workflow 37274760178. The app job is still running; this does not establish a new IPA or physical gameplay acceptance.
+
 ## Unreleased
 
 - Verify all 78 host checks and real Valve archives at `889c6be` in 37274755529, including explicit Mach scalar register/pre-index regressions. Downloaded inventories have zero raw/effective exits and no sanitizer diagnostics; fresh native/app packaging remains pending.

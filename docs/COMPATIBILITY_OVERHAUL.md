@@ -34,8 +34,10 @@ native paired-store PASS records, covering ASan/UBSan and TSan, with no
 sanitizer diagnostics. Full 78-check workflow 37274755529 passed at `889c6be`,
 including real Valve archives. Downloaded inventories match all 78 tests with
 zero raw/effective exits and no sanitizer diagnostics; the ARM log has both
-scalar and pair PASS records for both sanitizers. Fresh native/app workflow
-37274760178 is still running. The earlier `91a7a92` native workflow
+scalar and pair PASS records for both sanitizers. Fresh native job
+111649257006 in workflow 37274760178 passed at `889c6be`; app job
+111652524468 is still running, so updated packaging remains unverified.
+The earlier `91a7a92` native workflow
 37274597234 was deliberately cancelled after this source correction superseded
 it; cancellation is not a compilation or package pass.
 These follow-up source changes are not in the delivered candidate-3 IPA.

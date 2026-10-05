@@ -11,8 +11,9 @@ alias atomics and native ARM paired stores, alongside the existing sanitizer
 fixtures, explicit Mach FP/LR/SP scalar writeback/pre-index cases and the
 runner's recovering-sanitizer integration. Every raw and
 effective exit is zero, with no sanitizer diagnostics. Fresh native compilation
-passed at `343028f` (job 111639327861 in 37271515195); the subsequent scalar
-register/pre-index change still needs fresh native/app workflow 37274760178.
+at `889c6be` passed in job 111649257006 of workflow 37274760178, including the
+scalar register/pre-index follow-up. Its app job 111652524468 is still running;
+no updated package or device acceptance is inferred from native compilation.
 
 Latest completed app validation: workflow 37272620144 passed at `3e94179`,
 including app job 111642667843 and strict macOS codesign verification. It reuses
