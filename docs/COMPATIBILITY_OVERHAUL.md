@@ -2,6 +2,61 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## October 5 Teardown freeze after initial rendering
+
+The subsequent private phone export has candidate-6 source stamp `7257ae1`.
+Teardown creates its D3D12 device and presents initial frames. No startup
+NOEXEC/access violation appears in the inspected failure sequence; instead,
+the process remains alive around 4GB resident and stops producing frames.
+
+The decisive sequence is a host allocator failure, not a missing GPU signal:
+
+- The task ceiling is `0xfc0000000` (63GB). Wine reserves and publishes the
+  FEX-only arena `[0xb30000000,0xd30000000)` (8GB), and each emulator consumes
+  that exact range.
+- Steam's read worker 0194 creates write workers through 022c. Thread 0230
+  receives its Wine IPC channels and syscall trampoline, but its 16MB
+  emulator allocation cannot find any gap in the arena. The allocator reports
+  `STATUS_NO_MEMORY`; `arm64ec_thread_init` returns `c0000017` and the loader
+  terminates that thread before application code runs.
+- Creator 0194 waits on its worker-startup event 0x734, which was never set.
+  Its native return PC maps to `tier0_s64.dll+0x139c3`: the published Valve
+  binary's `CThread::Start` wait, with a 60-second timeout. Steam thread 0050
+  separately reports a critical-section timeout blocked by 0194.
+- The game thread 00b0 is then waiting on event 0x1c0. Its return PC maps to
+  `tier0_s64.dll+0x14246`, `CThreadSyncObject::Wait`; the event's last producer
+  is Steam thread 0050. These observations connect the failed worker startup
+  to the Steam IPC stall. They do not justify synthesizing event signals.
+
+The native reservation ladder now tries 12GB before the constrained 8GB step.
+Reservation is native `PROT_NONE`, registered FEX_ONLY before publication;
+ordinary guest allocations cannot consume it. The handover protocol, explicit
+`arena-mb` cap, hardware high band, smaller-map fallbacks and opt-out remain.
+This changes reserved address space, not the per-thread data sizes or initial
+resident memory. At the supplied map geometry, a reservation starting at
+`0xb30000000` ends at `0xe30000000`, leaving 6.25GB above it. Other devices can
+fall back if the larger reservation cannot be held. A larger arena is still
+finite; sustained gameplay, thread churn and other-title device acceptance
+remain required, particularly where an explicit smaller cap applies.
+
+`check-fex-arena-capacity.py` compiles the actual reservation function against
+a bounded Mach-map fixture. It checks the 63GB placement and publication,
+smaller reservation fallback, explicit 4GB cap, registration cleanup,
+smaller/hardware maps, opt-out and once-per-task behavior under ASan/UBSan.
+The fixture's capacity arithmetic is a workload model, not real FEX/gameplay.
+All 80 checks and real Valve archives passed at `fcf847a` in 37379694983;
+downloaded result inventories and sanitizer logs were verified. The earlier
+37378789850 run failed the new fixture's stub types, corrected by `fcf847a`
+without changing runtime source `8ed43f9`. Fresh native job 111994980332 passed
+in 37378793318, followed by successful app job 111999716612 and strict codesign.
+Local and USB package/source/provenance/checksum verification passed for
+`Madeira-diagnostic-8ed43f9.ipa` (87,414,539 bytes), SHA-256
+`a00c15268fb1a98e1fa65eda534b35eb417269a0c71690f7d2d24e4a7fadf83d`.
+The app binary contains the new reservation marker. USB candidate 7 is ready
+for the actual ten-minute/relaunch test; physical acceptance remains pending.
+Public prerelease `v0.1.3-compat-diagnostic.7` targets the exact runtime source;
+all five uploaded asset sizes and server SHA-256 digests match the USB package.
+
 ## October 5 Teardown startup crash
 
 The private device export identifies candidate 5 (`7301473`) on iPhone18,2,

@@ -8,10 +8,23 @@ D3D12 presents frames, then gameplay freezes. The 8GB FEX-only arena
 initialization with `c0000017`. Its creator 0194 holds a Steam lock while
 waiting for the worker's startup event, blocking Steam thread 0050 and the
 game's IPC reply. A new candidate first attempts a 12GB constrained arena,
-retaining the explicit cap and smaller fallback reservations. The actual
-reservation fixture and full native/app gates are pending. This is a
-capacity repair candidate; sustained phone gameplay and relaunch remain
-required before final acceptance. No private log is committed.
+retaining the explicit cap and smaller fallback reservations. All 80 host
+checks and real Valve archives passed in 37379694983 at `fcf847a`; downloaded
+inventories have zero raw/effective exits and no sanitizer diagnostics.
+`fcf847a` changes only the fixture's stub types from runtime source `8ed43f9`.
+The initial 37378789850 run failed that fixture compilation and is not accepted.
+Fresh native job 111994980332 and app job 111999716612 passed in 37378793318,
+including strict codesign. Local and USB package/source/identity/provenance
+checks passed; the app binary contains the new reservation marker.
+Candidate 7 is delivered at
+`E:\Madeira-Compatibility-Update-7\Madeira-diagnostic-8ed43f9.ipa`,
+87,414,539 bytes, SHA-256
+`a00c15268fb1a98e1fa65eda534b35eb417269a0c71690f7d2d24e4a7fadf83d`.
+The [candidate 7 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.7)
+has the exact runtime source tag; all five remote asset sizes and SHA-256
+digests match the verified USB copies.
+This is a capacity repair candidate; sustained phone gameplay and relaunch
+remain required before final acceptance. No private log is committed.
 
 Latest startup-crash candidate: `7257ae1`, with per-process late-alias
 registrations. Full 79-check host workflow 37319437329 passed at `dd2f973`;
@@ -139,7 +152,7 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
-| Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | October 5 candidate-5 log confirms required content ready, normal Valve-client game creation and D3D12 device creation; startup then faults in late cryptnet alias dispatch and separately on the main thread | Startup crash confirmed; per-emulator alias fix under build/test |
+| Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | Candidate 6 presents D3D12 frames, then exhausts its 8GB emulator arena during Steam worker startup; failed worker 0230 leaves Steam IPC waiting | Candidate-7 capacity repair passes all 80 host checks and native/app/USB gates; sustained gameplay and relaunch pending |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Supplied session log reaches physical footprint 6141 MB; no three-match survival result on the updated package | Memory pressure confirmed; updated device acceptance pending |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
 | Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |
@@ -155,7 +168,7 @@ build for collecting missing evidence; it does not establish completion.
 | Original requirement | Current authoritative evidence | Remaining gate |
 | --- | --- | --- |
 | 1. PEAK and Valve runtime | Coherent Valve runtime upgrade, actual PE machine/dependency fixtures, real archive checks, native/app builds and user report of earlier gameplay | Exact updated-package log; Steam survival, executable creation, single-player, audio/input, authentication, networking where supported and repeated launches |
-| 2. Teardown renderer/content/children | Candidate-5 phone log confirms owned required content ready, normal Steam launch and D3D12 device creation; startup crash is now confirmed, with per-emulator alias repair in source | Resolve startup crash, then menu, level, ten minutes and relaunch on the updated package; native peer-thread resource lifetime remains under audit |
+| 2. Teardown renderer/content/children | Candidate 6 confirms initial D3D12 rendering after the alias repair; the supplied freeze sequence identifies emulator-arena exhaustion and a Steam worker-startup/IPC wait | Verify the larger arena, menu, level, ten minutes and relaunch on the updated package; native peer-thread resource lifetime remains under audit |
 | 3. Ravenfield memory | Consumed learned JIT budgeting, measured footprint/headroom and source-built completed-resource ring trimming; host fixtures and graphics/app build | Three consecutive matches, scene changes, safe measured memory headroom and performance on the target phone |
 | 4. Bomber Crew windows | Compiled owner-thread primary-window repair, startup grace and actual-source sanitizer fixtures preserving dialogs and later minimization | Real Steam start, visible game window, switching, fullscreen/windowed transitions and relaunch |
 | 5. Steam downloads | Production adaptive concurrency, connection reuse/CDN selection, network/decode/write/hash/CPU/resume instrumentation, integrity fixtures and owned native-control measurement in candidate 5 | Measured same-CDN native-control comparison, roughly 70% median target when CPU is not limiting and actual device resume/update behavior |
