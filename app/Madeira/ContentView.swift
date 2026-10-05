@@ -2452,16 +2452,19 @@ struct ContentView: View {
             try entry.validate()
             if entry.usesLaunchOptions, entry.automaticCompatibility != false,
                let executable = LibraryEntry.hostURL(ofWindowsPath: entry.launchWindowsPath),
-               RDR2RendererSettings.isGame(executable: executable),
-               let user = SteamCloudPaths.userFolder(drive: LibraryModel.drive) {
+               RDR2RendererSettings.isGame(executable: executable) {
                 if preparedEntry.startsSteamGameDirectly {
                     preparedEntry.steamProgramArguments = RDR2RendererSettings.initialArguments(entry.programArguments)
                 } else {
                     preparedEntry.arguments = RDR2RendererSettings.initialArguments(entry.programArguments)
                 }
                 try preparedEntry.validate()
-                let file = user.url.appendingPathComponent("Documents/Rockstar Games/Red Dead Redemption 2/Settings/system.xml")
-                let changed = try RDR2RendererSettings.prepare(file: file)
+                var changed = false
+                if RDR2RendererSettings.requestsD3D12(preparedEntry.programArguments),
+                   let user = SteamCloudPaths.userFolder(drive: LibraryModel.drive) {
+                    let file = user.url.appendingPathComponent("Documents/Rockstar Games/Red Dead Redemption 2/Settings/system.xml")
+                    changed = try RDR2RendererSettings.prepare(file: file)
+                }
                 logStore.log("[compatibility-profile] RDR2 renderer=d3d12 settings=\(changed ? "updated" : "unchanged-or-not-generated")")
             }
         }
