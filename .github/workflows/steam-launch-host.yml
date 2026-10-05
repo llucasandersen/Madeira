@@ -19,5 +19,9 @@ jobs:
           swiftc --version
       - name: Steam launch configuration and routing
         run: python3 tests/host/check-steam-games.py
+      - name: Automatic renderer settings and preservation
+        run: python3 tests/host/check-game-compatibility.py
+      - name: Fixed executable cleanup ownership
+        run: python3 tests/host/check-fixed-image-owner-ready.py
       - name: Parse downloader source
         run: swiftc -frontend -parse app/Madeira/SwiftSteam/Content/DepotDownloader.swift
