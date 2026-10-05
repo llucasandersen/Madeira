@@ -75,7 +75,32 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 
 Host tests and a source build are separate gates. They do not stand in for the device results above.
 
-## Latest build verification
+## Original-scope completion audit, October 5, 2026
+
+This audit retains all eleven original requirements. Candidate 3 is a tested
+build for collecting missing evidence; it does not establish completion.
+
+| Original requirement | Current authoritative evidence | Remaining gate |
+| --- | --- | --- |
+| 1. PEAK and Valve runtime | Coherent Valve runtime upgrade, actual PE machine/dependency fixtures, real archive checks, native/app builds and user report of earlier gameplay | Exact candidate-3 log; Steam survival, executable creation, single-player, audio/input, authentication, networking where supported and repeated launches |
+| 2. Teardown renderer/content/children | Consumed renderer profile based on supplied registry, ownership/manifest-validated shared content preparation, child/socket/lifetime fixtures and compiled runtime | Normal Steam launch, confirmed D3D12 rendering, ten minutes and relaunch on candidate 3; native peer-thread resource lifetime remains under audit |
+| 3. Ravenfield memory | Consumed learned JIT budgeting, measured footprint/headroom and source-built completed-resource ring trimming; host fixtures and graphics/app build | Three consecutive matches, scene changes, safe measured memory headroom and performance on the target phone |
+| 4. Bomber Crew windows | Compiled owner-thread primary-window repair, startup grace and actual-source sanitizer fixtures preserving dialogs and later minimization | Real Steam start, visible game window, switching, fullscreen/windowed transitions and relaunch |
+| 5. Steam downloads | Production adaptive concurrency, connection reuse/CDN selection, network/decode/write/hash/CPU/resume instrumentation, integrity and benchmark fixtures | Measured same-CDN native-control comparison, roughly 70% median target when CPU is not limiting and actual device resume/update behavior |
+| 6. General compatibility profiles/review | Default generic path, user opt-out and consumed Teardown profile; documented upstream report/source comparison and generic native store fixes | Device validation of consumed policy; exclusive-store reservations and unrelated reported secondary-launcher failures remain separate unresolved findings |
+| 7. Steam robustness/UI | Coherent runtime dependencies, exact optional-helper gate, bounded launch stages and generation-correlated game/Steam-host creation/exit diagnostics, compiled Swift/native fixtures | Device proof that the client and optional-component/helper paths preserve launch; new logs must establish exact failure/stage attribution if a run fails |
+| 8. Target iPhone/address/JIT correctness | Preserved address-map architecture; package requests JIT/Memory+ and has no extended-VA entitlement; native ARM and iOS compilation | Re-signed installation and actual iPhone18,2/iOS 26.6.2 execution, StikDebug JIT, measured memory behavior and exception delivery |
+| 9. Regression/component gates | Exact 78-check Linux/Apple inventories, raw/effective exits zero, no sanitizer diagnostics; changed runtime/graphics and complete app build passed | Representative previously working games, actual target-device regressions and any further changed subsystem gates |
+| 10. Fork/docs/build/IPA | Preserved fork/submodule histories, licenses, clean worktree, documented clean build, verified package with no private signing identity, exact-source GitHub prerelease and checksum-verified USB copy | Final acceptance report and final release after the remaining required results; diagnostic publication is not final acceptance |
+| 11. Definition of done | Source, host/component build, test package, prerelease and USB candidate gates have evidence | All game/device/benchmark results above and final release; overall completion is unproven |
+
+The latest USB logs remain the October 4 export and contain no candidate-3
+source stamp or acceptance run. The phone was not present in the workstation's
+device inventory during this audit. A request for the candidate-3 Teardown
+rerun and full log is pending. New physical results must be tied to the exact
+package source/checksum before changing any pending acceptance status.
+
+## Historical component build verification
 
 At Madeira `9d2c6d3`, all 66 distinct host checks passed in
 [run 37252063633](https://github.com/llucasandersen/Madeira/actions/runs/37252063633).
