@@ -34,8 +34,11 @@ workflow 37278109635 passed at `4c0d431`; terminal Apple job 111659611983
 records 72 successful sample requests and observed peak concurrency eight.
 The byte-size check follows the manifest compressed-length contract also used
 by [SteamKit's CDN client](https://github.com/SteamRE/SteamKit/blob/master/SteamKit2/SteamKit2/Steam/CDN/Client.cs).
-The full 79-check gate 37278126945, app workflow 37278129844 and actual phone
-measurement remain pending.
+Full 79-check gate 37278126945 and app workflow 37278129844 also passed at
+`4c0d431`; downloaded test inventories/statuses and sanitizer logs were checked.
+The follow-up cache/background/installed-game access source at `7301473` requires
+full host 37279302920 and app 37279305970, which are still running. Actual phone
+measurement remains pending.
 Delivered candidate 4 predates this feature. No throughput result is inferred
 from the implementation or fixture.
 
