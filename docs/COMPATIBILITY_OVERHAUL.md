@@ -35,8 +35,14 @@ Its host run 37256201881 passed the production publisher and all other checks
 except the static Dock contract, which mistook the literal hash inventories for
 program-name launch rules. The contract now excludes only the two structurally
 validated SHA dictionaries, with all entries independently checked by the real
-Valve archive gate. No launch-name rule is exempted. The corrected full run is
-still required; app success is not a substitute for that gate or device testing.
+Valve archive gate. No launch-name rule is exempted. The corrected full run
+subsequently passed at `5848209` in run 37256617698. Both downloaded inventories
+matched all 69 distinct checks without omissions or duplicates, with all exit
+codes zero. The additional real-archive step also passed: all six old/new package
+sizes and hashes, all 51 legacy replacement hashes and ten critical hashes
+matched verified Valve contents, and the three new archives passed the production
+Swift extractor/header checks. This proves the host upgrade fixtures and package
+layout, not phone installation/gameplay or the subsequent helper-matching change.
 
 Source review found that `NtCreateUserProcess` searched every character of an
 image path for a blocked helper's name. A normal executable beneath a folder
