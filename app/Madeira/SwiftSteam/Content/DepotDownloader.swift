@@ -174,6 +174,9 @@ final class DepotDownloader {
             let existing = prepared.existing[index]
             let maximum = maxConcurrentChunks, attempts = attemptsPerChunk
             let depotStarted = ProcessInfo.processInfo.systemUptime
+            defer {
+                for line in plan.networkMetrics.report(depotID: plan.depotID) { SteamLog.event(line) }
+            }
             var timing = ChunkTiming()
             var fetchedChunks = 0
             var hostsUsed: [String: Int] = [:]
@@ -298,6 +301,7 @@ final class DepotDownloader {
         let auth: [String: String]
         let declaredSize: UInt64
         let health: ContentHostHealth
+        let networkMetrics = ContentNetworkMetrics()
     }
 
     struct WorkItem: Sendable {
@@ -430,6 +434,8 @@ final class DepotDownloader {
                                                path: String, attempts: Int, seed: Int) async throws -> ChunkTiming {
         var lastError: Error = SteamError.chunkDownloadFailed("No content server responded.")
         var result = ChunkTiming()
+        plan.networkMetrics.beginChunk()
+        defer { plan.networkMetrics.endChunk() }
         for attempt in 0..<max(1, attempts) {
             try Task.checkCancellation()
             // Healthy servers first, starting from a per-chunk offset.
@@ -441,7 +447,7 @@ final class DepotDownloader {
                 do {
                     let start = ProcessInfo.processInfo.systemUptime
                     defer { result.network += ProcessInfo.processInfo.systemUptime - start }
-                    encrypted = try await download(url)
+                    encrypted = try await download(url, metrics: plan.networkMetrics)
                 }
                 result.fetchedBytes += UInt64(encrypted.count)
                 let data: Data
@@ -502,9 +508,11 @@ final class DepotDownloader {
         }
     }
 
-    private nonisolated static func download(_ urlString: String) async throws -> Data {
+    private nonisolated static func download(_ urlString: String, metrics: ContentNetworkMetrics? = nil) async throws -> Data {
         guard let url = URL(string: urlString) else { throw SteamError.chunkDownloadFailed("Invalid content URL.") }
-        let (data, response) = try await http.data(from: url)
+        metrics?.beginRequest()
+        defer { metrics?.endRequest() }
+        let (data, response) = try await http.data(from: url, delegate: metrics)
         guard let status = (response as? HTTPURLResponse)?.statusCode, (200...299).contains(status) else {
             throw SteamError.chunkDownloadFailed("Content server returned HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0).")
         }
@@ -776,6 +784,86 @@ final class DepotDownloader {
             cdnAuthTokens[cacheKey] = ""
             return ""
         }
+    }
+}
+
+/// Chunk-request measurements shared by one depot. Delegate callbacks and
+/// download tasks may run concurrently; all mutable state is protected by lock.
+/// Keep only hostnames and numeric fields, never URLs or authorization headers.
+final class ContentNetworkMetrics: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private struct Samples {
+        var count = 0
+        var seconds = 0.0
+        mutating func add(_ start: Date?, _ end: Date?) {
+            guard let start, let end else { return }
+            let elapsed = end.timeIntervalSince(start)
+            guard elapsed.isFinite, elapsed >= 0 else { return }
+            count += 1
+            seconds += elapsed
+        }
+        var description: String {
+            count == 0 ? "unavailable" : String(format: "%.3fs/%d", seconds, count)
+        }
+    }
+    private struct Host {
+        var transactions = 0, reused = 0
+        var responseBytes: Int64 = 0
+        var dns = Samples(), connect = Samples(), tls = Samples(), ttfb = Samples()
+        var protocols: [String: Int] = [:]
+        var statuses: [Int: Int] = [:]
+    }
+    private let lock = NSLock()
+    private var hosts: [String: Host] = [:]
+    private var requests = 0, completed = 0, callbacks = 0
+    private var activeRequests = 0, peakRequests = 0
+    private var activeChunks = 0, peakChunks = 0
+
+    func beginChunk() {
+        lock.lock(); defer { lock.unlock() }
+        activeChunks += 1; peakChunks = max(peakChunks, activeChunks)
+    }
+    func endChunk() {
+        lock.lock(); defer { lock.unlock() }; activeChunks -= 1
+    }
+    func beginRequest() {
+        lock.lock(); defer { lock.unlock() }
+        requests += 1; activeRequests += 1; peakRequests = max(peakRequests, activeRequests)
+    }
+    func endRequest() {
+        lock.lock(); defer { lock.unlock() }; completed += 1; activeRequests -= 1
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        lock.lock(); defer { lock.unlock() }
+        callbacks += 1
+        for metric in metrics.transactionMetrics {
+            let hostname = metric.request.url?.host ?? "unknown"
+            var host = hosts[hostname] ?? Host()
+            host.transactions += 1
+            if metric.isReusedConnection { host.reused += 1 }
+            host.responseBytes += max(0, metric.countOfResponseBodyBytesReceived)
+            host.dns.add(metric.domainLookupStartDate, metric.domainLookupEndDate)
+            host.connect.add(metric.connectStartDate, metric.connectEndDate)
+            host.tls.add(metric.secureConnectionStartDate, metric.secureConnectionEndDate)
+            host.ttfb.add(metric.fetchStartDate, metric.responseStartDate)
+            let value = metric.networkProtocolName ?? "unknown"
+            let protocolName = ["http/1.0", "http/1.1", "h2", "h3"].contains(value) ? value : "other"
+            host.protocols[protocolName, default: 0] += 1
+            host.statuses[(metric.response as? HTTPURLResponse)?.statusCode ?? 0, default: 0] += 1
+            hosts[hostname] = host
+        }
+    }
+
+    func report(depotID: UInt32) -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        var lines = ["[steam-depot] network depot=\(depotID) requests=\(requests) completed=\(completed) metrics-callbacks=\(callbacks) active-requests=\(activeRequests) peak-active-requests=\(peakRequests) active-chunks=\(activeChunks) peak-active-chunks=\(peakChunks)"]
+        for name in hosts.keys.sorted() {
+            let host = hosts[name]!
+            let protocols = host.protocols.keys.sorted().map { "\($0):\(host.protocols[$0]!)" }.joined(separator: ",")
+            let statuses = host.statuses.keys.sorted().map { "\($0):\(host.statuses[$0]!)" }.joined(separator: ",")
+            lines.append("[steam-cdn] timing depot=\(depotID) host=\(name) transactions=\(host.transactions) reused=\(host.reused) dns=\(host.dns.description) connect=\(host.connect.description) tls=\(host.tls.description) ttfb=\(host.ttfb.description) response-bytes=\(host.responseBytes) protocols=\(protocols) statuses=\(statuses)")
+        }
+        return lines
     }
 }
 

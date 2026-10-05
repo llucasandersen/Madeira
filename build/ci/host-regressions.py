@@ -19,7 +19,7 @@ platform = parser.parse_args().platform
 # These checks compile production Swift using Apple SDK modules (Darwin and
 # CryptoKit). The Steam library harness supplies Linux crypto/compression shims
 # that conflict with the Apple SDK, so it belongs with the Linux checks.
-apple_checks = {'check-jit-network.py', 'check-steam-cloud.py'}
+apple_checks = {'check-jit-network.py', 'check-steam-cloud.py', 'check-depot-network-metrics.py'}
 tests = sorted((root / "tests/host").glob("check-*.py"))
 assert apple_checks <= {test.name for test in tests}, 'Apple test inventory changed'
 selected = [test for test in tests if (test.name in apple_checks) == (platform == 'macos')]

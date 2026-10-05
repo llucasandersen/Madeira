@@ -92,3 +92,34 @@ The decoder timing extension passed the complete 59-check host suite in
 [run 37236100223](https://github.com/llucasandersen/Madeira/actions/runs/37236100223)
 at `c76fd42`, including the production depot/decoder harness under
 AddressSanitizer. This verifies host regression behavior, not phone throughput.
+
+## URLSession transaction extension
+
+The source now attaches a shared, locked per-depot metrics delegate to chunk
+requests through Apple's
+[`data(from:delegate:)`](https://developer.apple.com/documentation/foundation/urlsession/data(from:delegate:)).
+It retains only numeric measurements and hostnames, never full request URLs,
+headers or CDN authorization fragments. Each depot reports request completion
+and metrics callback counts, plus observed peak active requests and chunks.
+Host summaries include transaction/status/protocol counts, connection reuse,
+response body bytes, DNS, connection, TLS and first-response-byte durations.
+
+Durations are summed per host and include the number of usable samples.
+`unavailable` denotes no sample, including TLS on HTTP or connection setup on
+reused connections; it does not assert that setup took zero time. These
+fields come from
+[`URLSessionTaskTransactionMetrics`](https://developer.apple.com/documentation/foundation/urlsessiontasktransactionmetrics).
+TTFB is measured from `fetchStartDate` to `responseStartDate`, including setup.
+Connection/TLS/TTFB intervals can overlap, so they must not be added as
+disjoint work. Host timing covers observed callbacks for chunk HTTP attempts,
+including HTTP errors and retries, and is emitted on depot failure as well as
+success. Manifests and authorization requests are outside this measurement.
+Compare callback counts with requests before assuming complete coverage on
+any Foundation backend.
+
+The new macOS fixture uses the production HTTP helper and delegate against a
+delayed localhost server, with both success and HTTP-error responses. The full
+host suite now has 60 checks: the existing 59 plus this Apple metrics fixture.
+Its first CI run and a new iOS compile are pending. This extension is not in
+the already delivered `e6f6a2c` diagnostic IPA. CPU load, resume SHA-1 timing,
+adaptive concurrency and a measured native control benchmark remain required.
