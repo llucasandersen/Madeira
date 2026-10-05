@@ -38,6 +38,7 @@ rejects(source.replacingOccurrences(of: "<gfxapi value=\"0\"/>", with: "<gfxapi 
 rejects(source.replacingOccurrences(of: "</options>", with: "<other><gfxapi value=\"0\"/></other></options>"))
 rejects(source.replacingOccurrences(of: "<gfxapi value=\"0\"/>", with: "<!-- <gfxapi value=\"0\"/> --><gfxapi value=\"0\"></gfxapi>"))
 rejects(source + "<!-- <gfxapi value=\"0\"/> -->")
+rejects(source.replacingOccurrences(of: "<gfxapi value=\"0\"/>", with: "<?hint <gfxapi value=\"0\"/> ?><gfxapi value=\"0\"></gfxapi>"))
 rejects("<!DOCTYPE registry [<!ENTITY x SYSTEM 'file:///private/file'>]>" + source)
 rejects(source.replacingOccurrences(of: "<quality value=\"3\"/>", with: "<![CDATA[<gfxapi value=\"0\"/>]]>"))
 rejects(source.replacingOccurrences(of: "</registry>", with: ""))

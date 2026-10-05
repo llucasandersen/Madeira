@@ -94,8 +94,8 @@ enum TeardownRendererSettings {
                "registry/options/gfx/gfxapi", "registry/options/gfx/d3d12support"]
                 .allSatisfy({ schema.counts[$0] == 1 }) else { throw Failure.unsupported }
         let source = text as NSString
-        let commentPattern = try NSRegularExpression(pattern: #"<!--[\s\S]*?-->"#)
-        let withoutComments = commentPattern.stringByReplacingMatches(in: text,
+        let ignoredPattern = try NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<\?[\s\S]*?\?>"#)
+        let withoutIgnoredMarkup = ignoredPattern.stringByReplacingMatches(in: text,
             range: NSRange(location: 0, length: source.length), withTemplate: "")
         var edits: [NSRange] = []
         for node in ["gfxapi", "d3d12support"] {
@@ -103,8 +103,8 @@ enum TeardownRendererSettings {
             let regex = try NSRegularExpression(pattern: pattern)
             let matches = regex.matches(in: text, range: NSRange(location: 0, length: source.length))
             // A matching-looking comment or a second node is ambiguous: no edit.
-            guard matches.count == 1, regex.numberOfMatches(in: withoutComments,
-                range: NSRange(location: 0, length: (withoutComments as NSString).length)) == 1 else {
+            guard matches.count == 1, regex.numberOfMatches(in: withoutIgnoredMarkup,
+                range: NSRange(location: 0, length: (withoutIgnoredMarkup as NSString).length)) == 1 else {
                 throw Failure.unsupported
             }
             edits.append(matches[0].range(at: 2))
