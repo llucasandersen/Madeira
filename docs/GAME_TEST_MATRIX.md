@@ -16,6 +16,14 @@ verified native runtime from 37274760178. The superseded intermediate app runs
 cancellation is not an app-build pass. USB candidate 4 remains the latest
 verified delivered package below, with no new phone results.
 
+The cache-preservation follow-up at `e0f8dda` passed all 79 checks and real Valve
+archives in 37278773557. Downloaded inventories match that source with zero
+raw/effective exits and no sanitizer diagnostics. The actual owned-library
+ASan harness reports cache and install-record preservation and refused-key
+enforcement for the new control method. This proof predates the later background
+observer and installed-game menu changes; their complete gates above remain
+required.
+
 Latest completed host validation: all 78 checks and real Valve archives passed
 at `889c6be` (37274755529). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,

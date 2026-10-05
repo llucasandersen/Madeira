@@ -47,9 +47,11 @@ its `depotCache` path. The control's manifest fetch now explicitly disables
 custom-executable cache publication; ordinary installs retain it. The owned
 library harness reuses a populated downloader, removes the fixture cache file,
 checks that the control does not recreate it or change the appmanifest, restores
-the fixture, and verifies depot-key refusal. These follow-up source/full/app
-gates remain pending; the earlier targeted transfer proof alone does not cover
-this cache behavior.
+the fixture, and verifies depot-key refusal. Full 79-check workflow 37278773557
+passed at `e0f8dda`; downloaded inventories/statuses and sanitizer logs are clean,
+and the actual owned-library harness has the cache/record/refused-key PASS record.
+The later background/menu source still requires the complete gates above;
+the earlier targeted transfer proof alone does not cover this cache behavior.
 
 Background entry now cancels the control directly before the install-only grace
 handler. The grace handler requires an active/queued download and would not
