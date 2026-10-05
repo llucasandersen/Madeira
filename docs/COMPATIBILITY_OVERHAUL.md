@@ -184,6 +184,14 @@ descriptor reuse, retained flag pointers, duplicate/concurrent teardown and
 under ASan/UBSan and ThreadSanitizer. Fresh native compilation and all 73 host
 checks are pending.
 
+The first full run 37261067320 passed the new ownership fixture under both
+ASan/UBSan and ThreadSanitizer. It failed only `check-frontend.py`, whose
+source extractor still searched for the old unconditional `else` fallback.
+That assertion now selects and requires the explicit session-owner branch and
+checks that the child path contains no initial-process exit hook. Its original
+invariant is retained and strengthened; corrected full-suite/native/app gates
+remain required.
+
 Records retain only small ownership metadata for the session, rather than
 being freed while exit threads may hold pointers. This fix does not establish
 full peer-thread quiescence or prevent an old native thread from seeing a new
