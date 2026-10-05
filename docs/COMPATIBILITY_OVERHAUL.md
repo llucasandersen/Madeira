@@ -27,6 +27,17 @@ remain unfinished.
 
 ## Optional helper containment path matching
 
+The existing-runtime upgrade's full app/IPA build passed in run 37256203960
+at `4acba7a`. The locally downloaded 87,316,034-byte package passed ZIP CRC,
+identity, runtime marker and source graphics pin/hash checks, SHA-256
+`e1c7e8a6ab5b195be49a091f18d4d07530cc43bc25174ab71680af5eccb993d7`.
+Its host run 37256201881 passed the production publisher and all other checks
+except the static Dock contract, which mistook the literal hash inventories for
+program-name launch rules. The contract now excludes only the two structurally
+validated SHA dictionaries, with all entries independently checked by the real
+Valve archive gate. No launch-name rule is exempted. The corrected full run is
+still required; app success is not a substitute for that gate or device testing.
+
 Source review found that `NtCreateUserProcess` searched every character of an
 image path for a blocked helper's name. A normal executable beneath a folder
 such as `hardwareupdater simulator` or `UnityCrashHandler64 Edition` therefore
@@ -51,6 +62,23 @@ false positives, short nonterminated buffers and ordinary game children.
 The native runtime must be rebuilt for this change; the previously verified
 runtime artifact cannot stand in for the changed C source. New full host,
 native/app and device regression gates are required.
+
+The current public [Portal 2 report](https://github.com/willfaust/Madeira/issues/192)
+was reviewed again on October 4. It describes a game rendering while Steam
+still reports SDL3 failure, with working keyboard/mouse but failed controller
+input. The proposed Steam Input connection is the reporter's hypothesis, not
+an established cause. This corroborates the need to treat a DLL rejection as
+diagnostic evidence rather than proof of game-launch failure. The coherent
+runtime repair still needs controller/device validation; no Portal 2 input fix
+is inferred from build success.
+
+The `d3d12` config gate in `ContentView.swift` controls the shader-converter
+canary test, not whether the game's D3D12 DLL can create a native device. The
+supplied Teardown log's native device creation already demonstrates that the
+canary-disabled message alone cannot establish a disabled renderer. Importing
+OPENGL32 also does not identify the active backend. Per-launch renderer
+selection and gameplay results must be established with runtime evidence;
+turning on the canary would not implement the requested renderer profile.
 
 ## Recoverable launch-stage deadlines
 
