@@ -2,6 +2,43 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## Completed upload cache reclamation under memory pressure
+
+The supplied Ravenfield run reaches physical footprint 6141 MB; its resource
+initializer upload census has a 228 MB peak. These counters do not establish
+that all of that peak remained cached. Source inspection does establish that
+DXMT's ring allocator keeps ordinary completed blocks for up to 300 completion
+cycles regardless of actual process headroom. Its idle initializer also tested
+reclamation against the previous cached completion fence before refreshing it.
+Both can delay release of temporary buffers after a scene upload.
+
+The DXMT fork adds `dxmt_memory_budget.hpp`, using existing MadeiraCtl operation
+7 for measured process headroom. Queries are shared and cached for 250 ms.
+Healthy headroom (at least 1536 MB), or an unavailable measurement, preserves
+the ordinary lifetime policy. Below 1536 MB the upload/copy/argument rings keep
+a two-block reserve; below 512 MB they keep one. `free_blocks` releases only
+the completed front of the FIFO, stops at unfinished GPU work, and retains the
+newest block under pressure. Freed oversized blocks repay the existing reuse
+quota. There is no forced GPU synchronization, texture data loss or release of
+resources still referenced by pending GPU commands. The initializer refreshes
+its completion fence before idle reclamation. This changes the DXMT command
+queue, resource initializer and ring allocator, preserving the generic path.
+
+`check-dxmt-ring-pressure.py` extracts the production ring template and budget
+helper, compiles them with ASan/UBSan and exercises pressure thresholds,
+recovery/unavailable measurement, query cadence, unfinished fences, latest
+suballocation reference lifetime, oversized reuse accounting and ordinary
+expiry. Full host and graphics source builds are required before packaging;
+their results are pending for this change. This Windows host has no C++
+compiler. The already delivered update 2 does not include this change.
+
+The tradeoff is more buffer allocation churn when measured headroom is low;
+the retained reserve limits that churn and healthy sessions retain their
+previous policy. The change cannot reclaim live textures or fix Ravenfield's
+entire memory problem. Adaptive JIT sizing, broader resource reclamation and
+three consecutive physical-device map loads remain required. Before/after
+footprint and performance measurements are pending.
+
 ## Baseline checkout and build constraints
 
 - Source baseline: `willfaust/Madeira` `main` at `bbbf8d0e20fd8b75f433f4a8d2a8eaf8d5571120`, with its pinned Madeira FEX, Wine, DXMT and Dock forks. The fork preserves upstream history and attribution.
