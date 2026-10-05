@@ -3,21 +3,26 @@
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
 Latest completed host validation: all 75 checks and real Valve archives passed
-at `b9c3219` (37264682803). Downloaded inventories match the full test tree.
-This includes creator-captured worker/socket generation fixtures under
-ASan/UBSan and TSan. Fresh native/app workflow 37264684593 passed.
+at `0546f2d` (37267168433). Downloaded inventories match the full test tree,
+with no missing or duplicate checks. This includes native exit records,
+callback delivery, exact selected-game/host generation correlation and stale
+file-tail delivery, alongside the existing sanitizer fixtures. Fresh native
+exit-diagnostic compilation passed at `5ed9a2e` (job 111625754782 in
+37266978621); `0546f2d` has identical native sources.
 
-Latest completed app validation: workflow 37264684593 passed at `b9c3219`,
-with fresh native runtime job 111618875388 and app job 111621179503.
+Latest completed app validation: workflow 37267171090 passed at `0546f2d`,
+using fresh native runtime job 111625754782 from `5ed9a2e` (37266978621).
+The native source trees are identical. App job 111626328581 passed.
 Local ZIP/CRC/identity/runtime/graphics/source-stamp checks passed, SHA-256
-`c99dd565f4c37bf7ade3eb827dc2b432803ca388fe0e4846256f734e31f98d90`.
-This diagnostic includes creator-captured worker ownership and has no new physical
+`17c55ec8c1e5e96b3a1335d4f54fb74592c9cbd6343657fb6865edf5264901cd`.
+The IPA is 87,374,288 bytes, includes native launch/exit correlation, and has no new physical
 acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
 repeated map loads and final delivery remain unverified.
 
-New native selected-game/embedded-Steam-host exit correlation and status
-preservation require fresh host/native/app gates. No new device result or
-final USB delivery is inferred from this diagnostic build.
+The later fixed-image owner-publication change at `7ab72cb` passed its targeted
+sanitizer/Swift checks (37267758310); its complete host and fresh native/app
+gates remain in progress (37267758234 and 37267760872). No new device result
+or final USB delivery is inferred from these builds.
 
 Earlier completed source validation: all 73 distinct checks and real Valve
 archives passed at `e0835ca` (37261593279). Fresh native socket changes compiled

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Verify all 75 distinct host checks and real Valve archives at `0546f2d`, fresh native exit diagnostics at `5ed9a2e`, and the complete source-stamped `0546f2d` IPA. Record current upstream compatibility-report/source comparisons. Subsequent image-owner publication gates, device acceptance and final USB delivery remain pending.
+
 - Synchronize fixed-image owner/death publication with image commit and retirement using the existing leaf mutex. Refuse takeover of a bound occupant and snapshot diagnostics before unlocking; extend actual ownership/concurrency sanitizer fixtures. Fresh native/full gates remain pending.
 
 - Correlate native selected-game and embedded Steam-host exits by Windows PID and immutable child birth generation. Preserve raw Windows status before Unix conversion, distinguish reported host faults from other exits, and deliver rare lifecycle events while gameplay file tailing is paused. Add actual C and production Swift regressions; fresh host/native/app gates are pending.

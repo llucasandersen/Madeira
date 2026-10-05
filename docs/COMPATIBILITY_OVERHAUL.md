@@ -2,9 +2,7 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
-## Native game and Steam-host exit diagnostics
-
-### Fixed-image owner publication
+## Fixed-image owner publication
 
 The readiness owner check also depended on metadata that two callbacks accessed
 outside `ios_exewin_lock`: `ios_exe_win_note_owner` could overwrite an already
@@ -19,6 +17,8 @@ retirement, null/wrong-module publication, and concurrent duplicate owner/death
 callbacks, alongside the existing retirement/readiness checks. ASan/UBSan,
 TSan, fresh native compilation and full host/app gates are pending. This closes
 metadata publication races; native peer-thread quiescence remains unproven.
+
+## Native game and Steam-host exit diagnostics
 
 The launch screen previously observed successful executable creation and
 Steam's game-running flag, but did not correlate native child teardown with
@@ -52,11 +52,36 @@ single publication across duplicate/concurrent teardown, fast exits, PID/PEB
 reuse and callback delivery. Compiled production Swift fixtures cover early
 exit ordering, unrelated helpers, stale generations, duplicate records, bounded
 cache eviction, legacy records, malformed input and terminal stage priority.
-Fresh native/app and complete host gates for this change are pending. This
+All 75 host checks and real Valve archives passed at `0546f2d` (37267168433).
+Downloaded inventories match all 75 checks without omissions or duplicates.
+Fresh native job 111625754782 at `5ed9a2e` passed (37266978621); the native
+sources are identical at `0546f2d`. App/package/signing gates passed at
+`0546f2d` (37267171090). Local ZIP/CRC/identity/runtime/graphics/source-stamp
+checks passed for the 87,374,288-byte IPA, SHA-256
+`17c55ec8c1e5e96b3a1335d4f54fb74592c9cbd6343657fb6865edf5264901cd`.
+This diagnostic predates the subsequent owner-publication change. This
 does not prove peer-thread quiescence, diagnose a Mach-task jetsam termination,
 or establish physical gameplay acceptance.
 
 ## Automatic renderer profiles: supplied Teardown registry
+
+### Current upstream report review (October 5)
+
+The public issue bodies and comments were read from the upstream repository,
+then compared with this fork's actual pinned sources. Reports establish the
+observed failures, not that a proposed workaround or this fork fixes them.
+
+| Report | Source comparison and remaining verification |
+| --- | --- |
+| [SDL3/controller input, #192](https://github.com/willfaust/Madeira/issues/192) | The report confirms rendering while SDL3 is rejected; Steam Input causation is unconfirmed. The coherent Valve runtime repair addresses the demonstrated mixed-machine runtime, but controller/device acceptance remains required. The latest comment supplies no new diagnostic evidence. |
+| [Metal 4.1 rejected on iOS 26.6.2, #121](https://github.com/willfaust/Madeira/issues/121) | The inherited `build/dxmt-ios/build.sh` and pinned DXMT Meson sources explicitly select Metal 3.1 and an older AIR target. The source-built graphics package preserves this policy. A successful host/package build is not a device DX11 cube pass. |
+| [Unity/Mono/CoreCLR/HotSpot stores, #123](https://github.com/willfaust/Madeira/issues/123) | The report supplies concrete `STLXR`, pre-index `STP` and `LDADDAL` encodings. The pool-alias Mach path contains SWP/CAS handling and offset-only integer STP handling; similar decoders elsewhere do not establish correct delivery here. These reported instructions and atomic/reservation semantics need dedicated Mach-path analysis and regression coverage; no fix is inferred from the CAS fixture. |
+| [Nonzero launch-option indices, #174](https://github.com/willfaust/Madeira/issues/174) | This fork's frontend selects validated Steam metadata and passes its launch ID; Dock parses and uses that ID for initial launch and retries. Completed host routing fixtures cover the contract. The reported game still needs a real device run. |
+| [Secondary launchers, #189](https://github.com/willfaust/Madeira/issues/189) | Required shared content is prepared through the native ownership/manifest-validated installer, including differing owner install folders. This addresses the demonstrated dependency class without inventing manifests. Missing AVI modules, bootstrapper descendant lifetime and the reported hard-error exit are separate findings, not proven fixed by content preparation or the new exit diagnostics. |
+| [Rockstar installer, #151](https://github.com/willfaust/Madeira/issues/151) | A missing `Msftedit.dll` is observed, but its role in the installer exit is not established. The game also skips required installers. It supplies no basis for bypassing setup or authentication; module packaging and installer behavior require their own reproduction. |
+
+These are broader compatibility review findings. The four requested games,
+download benchmark and target-device acceptance remain the completion gates.
 
 ### Thread-stable child socket ownership
 
