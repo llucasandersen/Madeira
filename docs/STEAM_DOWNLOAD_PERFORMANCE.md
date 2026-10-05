@@ -95,6 +95,11 @@ AddressSanitizer. This verifies host regression behavior, not phone throughput.
 
 ## URLSession transaction extension
 
+Following diagnostic delivery, the user reported on October 4, 2026
+(America/Chicago) that Steam downloading was much faster. This is a qualitative
+device observation; rates, trial conditions and the exact installed IPA have
+not been supplied. No measured speedup or native-control target is claimed.
+
 The source now attaches a shared, locked per-depot metrics delegate to chunk
 requests through Apple's
 [`data(from:delegate:)`](https://developer.apple.com/documentation/foundation/urlsession/data(from:delegate:)).

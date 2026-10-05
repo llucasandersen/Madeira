@@ -4,11 +4,11 @@ Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extende
 
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
-| PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | Reported Steam SDL3 `0xC000007B` blocks process creation; exact loader cause unknown | Not tested on this fork |
+| PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; successful log and exact installed build pending | Gameplay success reported; detailed acceptance pending |
 | Teardown, app 1167630 | Automatic D3D12 selection; menu, level, ten minutes of play, close and relaunch | Reported OpenGL stub and child dispatcher failures; no new device run | Not tested on this fork |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Reported DXMT texture and JIT pool pressure; no footprint trace for this fork | Not tested on this fork |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
-| Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | Source already has eight concurrent chunk tasks; no device benchmark | Not measured |
+| Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |
 | Existing working games | Representative Steam, D3D9, D3D11, D3D12, 32-bit and 64-bit smoke and regression runs | Selection pending | Not tested on this fork |
 
 Host tests and a source build are separate gates. They do not stand in for the device results above.
@@ -22,8 +22,18 @@ including verification of the USB copy at `E:\Madeira-Compatibility-Test`.
 Its SHA-256 is
 `c02c67e857a9995821b3bd14b32ee71b8e846936c947b91fb7962fe8d3fc89ee`.
 The CI build passed Xcode linking and macOS codesign verification. Phone
-installation and gameplay are still untested; the first requested result
-is a complete PEAK launch log from this exact IPA.
+gameplay subsequently received the user report below; the exact installed
+IPA and a complete successful PEAK launch log remain to be confirmed.
+
+## User device report, October 4, 2026 (America/Chicago)
+
+After diagnostic delivery, the user reported that PEAK worked, then clarified:
+"yes fully playable I believe also downloading speed is much faster on steam too".
+This records reported playable gameplay and a perceived download improvement.
+Audio, controls, single-player mode, repeat launches and networking were not
+confirmed individually. No diagnostic log, installed IPA checksum or measured
+throughput accompanied the report. It does not establish why the earlier SDL3
+failure cleared or whether the downloader meets the native-control target.
 
 ## Host regression evidence
 
