@@ -91,7 +91,7 @@ final class DepotDownloader {
             let key = try await depotKey(depotID: depot.depotID, appID: app.appID)
             let contentApp = !app.freeToDownload ? (depot.fromApp ?? app.appID) : app.appID
             let manifest = try await fetchManifest(depotID: depot.depotID, appID: contentApp,
-                manifestGID: gid, key: key, hosts: [host])
+                manifestGID: gid, key: key, hosts: [host], cacheCustomExecutables: false)
             let auth = await cdnAuthFragment(depotID: depot.depotID, appID: contentApp, host: host)
             var requests: [ContentControlRequest] = []
             var bytes: UInt64 = 0
@@ -638,7 +638,7 @@ final class DepotDownloader {
     // MARK: - Manifest
 
     private func fetchManifest(depotID: UInt32, appID: UInt32, manifestGID: UInt64,
-                               key: Data, hosts: [String]) async throws -> DepotManifest {
+                               key: Data, hosts: [String], cacheCustomExecutables: Bool = true) async throws -> DepotManifest {
         let requestCode = try await manifestRequestCode(depotID: depotID, appID: appID, manifestGID: manifestGID)
         var lastError: Error = SteamError.manifestFetchFailed("No content server returned the manifest.")
         for host in hosts.prefix(6) {
@@ -647,7 +647,7 @@ final class DepotDownloader {
             let code = requestCode == 0 ? "" : "/\(requestCode)"
             do {
                 let raw = try await Self.download("\(host)/depot/\(depotID)/manifest/\(manifestGID)/5\(code)\(auth)")
-                let cache = depotCache
+                let cache = cacheCustomExecutables ? depotCache : nil
                 return try await Task.detached(priority: .userInitiated) {
                     let (manifest, payload) = try Self.parseManifestKeepingPayload(raw, depotID: depotID, manifestGID: manifestGID, key: key)
                     // Valve's client reads a depot's manifest from steamapps/depotcache

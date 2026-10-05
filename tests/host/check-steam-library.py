@@ -1003,6 +1003,36 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
                 "verified shared installer content writes its owner record")
         require(FileManager.default.fileExists(atPath: steamApps.appendingPathComponent("common/Installer Store").path),
                 "shared installer files are installed outside the game directory")
+        if phase == "resume" {
+            // Reuse the installed downloader, whose depotCache is now populated.
+            // Its custom-executable manifest must not be republished by a control.
+            let cache = steamApps.appendingPathComponent("depotcache/9001_\(gid).manifest")
+            let cached = try Data(contentsOf: cache)
+            try FileManager.default.removeItem(at: cache)
+            let recordURL = steamApps.appendingPathComponent("appmanifest_9000.acf")
+            let record = try Data(contentsOf: recordURL)
+            var sample = app
+            sample.depots = app.depots.filter { $0.depotID == 9001 }
+            downloader.contentHosts = { _ in [hosts.last!] }
+            do {
+                _ = try await downloader.nativeControl(sample)
+                require(false, "the tiny fixture cannot masquerade as a valid control sample")
+            } catch SteamError.chunkDownloadFailed(let message) {
+                require(message.contains("16 MiB"), "the authorized manifest is parsed before sample refusal")
+            }
+            require(!FileManager.default.fileExists(atPath: cache.path), "native control never republishes the cached custom-executable manifest")
+            let afterControl = try Data(contentsOf: recordURL)
+            require(afterControl == record, "native control does not change the install record")
+            try cached.write(to: cache)
+            sample.depots = app.depots.filter { $0.depotID == 9004 }
+            do {
+                _ = try await downloader.nativeControl(sample)
+                require(false, "native control must honor a refused depot key")
+            } catch SteamError.depotKeyNotFound(let depot) {
+                require(depot == 9004, "refused owned-content authorization cannot become a control transfer")
+            }
+            print("PASS: owned native control preserves the populated manifest cache and install record and honors depot-key refusal")
+        }
     }
     if phase == "update" {
         require(SteamInstallFiles.buildID(appID: 9000, steamApps: steamApps) == 1001, "the update changed the recorded build")

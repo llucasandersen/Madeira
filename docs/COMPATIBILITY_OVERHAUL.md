@@ -26,6 +26,14 @@ running. The app reuses the verified native runtime from 37274760178 because
 this change touches no native component sources. Candidate 4 and its accepted
 build evidence remain unchanged; this feature has no device throughput result.
 
+The manifest-fetch review subsequently identified retained `depotCache` state
+after an install: a control could refresh a custom-executable manifest. The
+control now passes an explicit cache-publication opt-out, with the install
+default preserved. The existing real owned-library harness exercises the
+previously populated downloader and checks no cache recreation, unchanged
+appmanifest and depot-key refusal. Updated full/app gates are required for this
+follow-up; no acceptance result is inferred from the prior targeted transfer.
+
 ## Mach writable-alias integer paired stores
 
 ### Follow-up scalar register/writeback audit

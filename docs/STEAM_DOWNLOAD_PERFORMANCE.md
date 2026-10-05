@@ -37,6 +37,15 @@ measurement remain pending.
 Delivered candidate 4 predates this feature. No throughput result is inferred
 from the implementation or fixture.
 
+A follow-up review found that a downloader reused after installation retains
+its `depotCache` path. The control's manifest fetch now explicitly disables
+custom-executable cache publication; ordinary installs retain it. The owned
+library harness reuses a populated downloader, removes the fixture cache file,
+checks that the control does not recreate it or change the appmanifest, restores
+the fixture, and verifies depot-key refusal. These follow-up source/full/app
+gates remain pending; the earlier targeted transfer proof alone does not cover
+this cache behavior.
+
 ## Process CPU, resume checks and whole-install intervals
 
 The downloader now samples `getrusage(RUSAGE_SELF)` user plus system CPU time
