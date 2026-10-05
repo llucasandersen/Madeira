@@ -220,6 +220,47 @@ The failed build remains failed; corrected source/host gates must pass.
 
 ## Steam SDL3 loader failure
 
+### Supplied device architecture evidence and official package comparison
+
+The supplied October 4 PEAK logs, including the 19:10:28 session, now contain
+the fork's rejection diagnostic: `SDL3.dll` has `file_machine=014c`, while the
+calling process has `current_machine=8664`, `wow_teb=0`, `code=1`. The adjacent
+load result is `c000007b`, followed by the SDL3 assertion. This establishes an
+x86 DLL being requested by a 64-bit process in these runs, rather than a
+correct AMD64 SDL3 image failing PE mapping. The loader's architecture check
+correctly rejects that combination; admitting x86 machine code into the x64
+process would be an invalid fix. These session logs also accompany a reported
+playable PEAK run, so the rejection alone does not prove the game never starts.
+
+All three packages currently pinned in `SteamRuntime.swift` were downloaded
+from Valve's HTTPS host and verified against their exact sizes and SHA-256
+pins. The January `bins_win32` package supplies an x86 root `SDL3.dll`, SHA-256
+`db01ec466db9c4e19cc5fe8c878ac89bc1b6057136432554842b3cd4dca88669`, alongside
+the supported AMD64 `steamclient64.dll` (hash `71b391fe...`). Neither companion
+package supplies an AMD64 SDL3. The device file hash is unavailable, so package
+identity is not inferred solely from the matching machine type.
+
+Independent inspection of Valve's current `steam_client_win64` manifest,
+version 1788652215, and its size/SHA-256-verified component packages found:
+
+| Package | Archive SHA-256 | Relevant layout |
+| --- | --- | --- |
+| `bins_win64.zip.36f5d9202e79ab2aa3e3c5902e84bbd799d31fc0` | `93f5b6bea0267fd85dc8cc823fdab5c5fb55d7f3a1deab0598acefef0e133bce` | AMD64 SDL3, AMD64 steamclient64, x86 steamclient for 32-bit games |
+| `bins_codecs_win64.zip.9edc714e8a6f8c2881ac0cfdc2af382070e42c2e` | `5a32e6966666f6246acd2c92b98f1eee52e717d9085fe901c8825df77da48ffb` | AMD64 FFmpeg libraries imported by video64 |
+| `steam_win64_steamrow.zip.6f024698857e81681cf673422a8c1a4d06e2be7f` | `5dbc39918056cc8b7815daaa181eb3fa19a264b25dab33f3d1ad631b79ee3bb8` | AMD64 steam.exe |
+
+Its SDL3 hash is `e453238b...` from the earlier local AMD64 inspection below;
+its `steamclient64.dll` hash is the already supported September adapter's
+`caba4826aa3501039d095aee1843a6bfb270fb43a3ab4455b2d6733223579fee`.
+This provides a coherent official 64-bit runtime candidate, including media
+dependencies, without a third-party DLL replacement or weakened loader checks.
+The installer still uses the January packages: migrating its pinned runtime
+and safely upgrading existing verified installs remain implementation work.
+The original installer refuses an existing steam.exe, so changing fresh-install
+pins alone would not repair the user's prefix. Existing games, unknown user
+files, authentication and Valve's exact private adapter checks must be preserved.
+Downloaded Valve binaries remain ignored and are not redistributed in the IPA.
+
 The [public Portal 2 report](https://github.com/willfaust/Madeira/issues/192) records repeated `SDL3.dll` loads returning `0xC000007B`, followed by Steam's `Failed to load "SDL3.dll"` assertion and a crash reporter launch attempt. This establishes the order of failure; it does not identify which PE loader check returned the status. The same status is part of the reported PEAK failure, so this loader path is the first device regression target.
 
 A read-only inspection of a local Valve Steam installation's `SDL3.dll` (SHA-256 `e453238bb31d593a87e7de87f1f5985fa11d2f9ed12a83fc65c9a52857a30118`, dated 2026-09-02) found an AMD64 PE32+ image (`Machine=0x8664`), 4 KiB section alignment and a relocation directory. Its direct imports are KERNEL32, USER32, GDI32, ADVAPI32, SHELL32, OLE32, OLEAUT32, IMM32, SETUPAPI, VERSION, WINMM and HID. It has no direct VC runtime import. This local file has **not** been matched by hash to the failing device copy. `0xC000007B` could still come from machine routing, image mapping or a dependency; the current evidence cannot select among them.
