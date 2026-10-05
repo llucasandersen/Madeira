@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refuse green host CI results when a recovering sanitizer reports an error with subprocess exit zero. Preserve the raw status and output, and add actual runner integration coverage; updated 78-check CI is pending.
+
 - Verify all 77 host checks and real Valve archives at `17776be` in 37271658528, including corrected native ARM pair-store fixtures. Downloaded inventories and sanitizer logs passed; fresh iOS, physical acceptance and final delivery remain pending.
 
 - Correct the native pair fixture's pointer arithmetic and make sanitizer recovery fatal. Verified two clean actual ARM passes under ASan/UBSan and TSan at `17776be` in 37271658156; full 77-check and fresh iOS gates remain pending.

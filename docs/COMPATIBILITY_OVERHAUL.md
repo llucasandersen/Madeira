@@ -4,6 +4,16 @@ This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility
 
 ## Mach writable-alias integer paired stores
 
+The first ARM fixture run exposed an additional CI flaw: a recovering UBSan
+diagnostic could leave a subprocess exit of zero and be reported as PASS.
+`build/ci/host-regressions.py` now rejects captured sanitizer diagnostics even
+with a zero exit, while retaining the original subprocess status separately.
+The original log remains unchanged. `check-host-sanitizer-gate.py` runs the
+actual runner against controlled child checks, verifying recovered UBSan/TSan
+failures, ordinary failures, clean success, raw statuses and continued execution
+of later checks. This integration passed locally; the updated 78-check CI gate
+is pending. The previously downloaded 77-check logs contain no sanitizer errors.
+
 Upstream [report #123](https://github.com/willfaust/Madeira/issues/123)
 includes CoreCLR's `0xa9882149` (`STP x9,x8,[x10,#128]!`). Mach case 4
 previously recognized only offset integer pairs, wrote two independent C
