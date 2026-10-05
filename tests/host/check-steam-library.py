@@ -935,6 +935,15 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
     require(installers[0].installDepots().map(\.depotID) == [9003], "only declared installer depots are selected")
     let noInstallers = try await fetcher.fetchRequiredSharedInstalls(appID: 9000)
     require(noInstallers.isEmpty, "games without shared installers have no extra content")
+    let goodOwner = session.appInfo[9200]
+    session.appInfo[9200] = "\"appinfo\" { \"config\" { \"installdir\" \"Installer Store\" } \"depots\" { \"9003\" { } } }"
+    do {
+        _ = try await fetcher.fetchRequiredSharedInstalls(appID: 9300)
+        require(false, "missing required installer manifest must fail")
+    } catch {
+        require(true, "missing required installer manifest fails before recording readiness")
+    }
+    session.appInfo[9200] = goodOwner
     require(app.depots.first { $0.depotID == 9003 }?.publicManifestID == UInt64(gidShared), "the shared depot got its manifest from the owning app")
     require(app.sharedOwners[9100]?.installDir == "Fixture Game", "the owner of the shared depot is known for the record")
     let downloader = DepotDownloader(session: session)

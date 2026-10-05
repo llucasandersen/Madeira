@@ -916,6 +916,7 @@ final class SteamOwnedLibrary: ObservableObject {
         preparingDockContent = true
         defer { preparingDockContent = false; pump() }
         let running = active?.task
+        if let current = active { resumeAfterSession.insert(current.id) }
         running?.cancel()
         await running?.value
         let dependencies = try await fetcher.fetchRequiredSharedInstalls(appID: UInt32(appID))
