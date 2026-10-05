@@ -86,12 +86,29 @@ in `check-dock-start-screen.py` covers both cases, including the parked
 `-32000,-32000` coordinates, and passed in the full host suite.
 
 That path is not general geometry normalization: zero-sized windows are not
-shown in the census, and a non-minimized off-screen rect is not corrected by
+marked visible in the census, and a non-minimized off-screen rect is not corrected by
 this restore rule. The diagnostic Bomber Crew run must establish the window
 style/geometry sequence and whether `[born-minimized]` reports a successful
 post. The reported symptom alone does not prove which path failed or that
 the existing restore covers this game. No Bomber Crew fix or device pass is
 claimed by this source audit.
+
+A further source audit found that only desktop-mode swapchains fed the census
+Metal flag. Game-mode swapchains updated the UIKit compositor's separate set
+without feeding the launch census. Also, the Metal flag setter ignored windows
+not yet listed by WindowPosChanged. This could lose render-window evidence at
+startup. The game-mode Wine-thread callback now snapshots current top-level
+client geometry through win32u before marking Metal evidence. A zero-sized or
+off-screen render window can therefore be recorded without falsely calling it
+visible. Child and null HWNDs remain excluded, and UIKit dispatch follows the
+Wine query so the main queue never performs this query without a Wine TEB.
+The census ABI and normal compositor behavior are unchanged.
+
+The production census harness now exercises swapchain-before-frame ordering,
+zero/off-screen geometry, child/null exclusion and preservation of the Metal
+flag when a later valid frame arrives. Host and native compilation of this
+change are pending. This fixes missing launch evidence; geometry normalization
+and the Bomber Crew device acceptance remain unfinished.
 
 ## D3D11 memory headroom policy for 64-bit guests
 

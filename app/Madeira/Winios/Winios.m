@@ -394,6 +394,7 @@ static void winios_remove_layer(HWND hwnd);   /* compositor, below */
 #define WINIOS_WS_MINIMIZE   0x20000000u
 
 extern int winios_drv_census_owner(HWND hwnd, unsigned int *pid, unsigned int *style);
+extern int winios_drv_census_rect(HWND hwnd, int *x, int *y, int *w, int *h, int *visible);
 extern int winios_drv_process_image(unsigned int pid, char *out, unsigned int size);
 extern int winios_drv_post_restore(HWND hwnd);
 extern int winios_drv_foreground_if_owner(HWND hwnd);
@@ -528,6 +529,17 @@ static void winios_census_note_metal(HWND hwnd) {
     struct winios_census_window *e = winios_census_find(hwnd);
     if (e) e->metal = 1;
     pthread_mutex_unlock(&g_census_lock);
+}
+
+/* Game-mode swapchain callback runs on a Wine thread. Seed the census from
+ * current geometry even if its first WindowPosChanged has not arrived yet.
+ * A zero-size window still gets Metal evidence; it is not called visible. */
+static void winios_census_note_game_metal(HWND hwnd) {
+    if (!hwnd || !atomic_load_explicit(&g_census_on, memory_order_relaxed)) return;
+    int x, y, w, h, visible;
+    if (!winios_drv_census_rect(hwnd, &x, &y, &w, &h, &visible)) return;
+    winios_census_note_frame(hwnd, x, y, w, h, visible);
+    winios_census_note_metal(hwnd);
 }
 
 static void winios_census_forget(HWND hwnd) {
@@ -1052,6 +1064,7 @@ static BOOL winios_game_window_shown(NSNumber *key) {
 /* Called by IOSDisplayShim on a wine thread when a swapchain (D3D9/11/12)
  * takes the game layer for an HWND in a game session. */
 void winios_note_game_metal_hwnd(void *hwnd) {
+    winios_census_note_game_metal((HWND)hwnd);
     dispatch_async(dispatch_get_main_queue(), ^{
         NSNumber *key = @((uintptr_t)hwnd);
         if (!g_game_metal) g_game_metal = [NSMutableSet new];

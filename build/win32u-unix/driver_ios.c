@@ -337,6 +337,22 @@ int winios_drv_census_owner( HWND hwnd, unsigned int *pid, unsigned int *style )
     return 1;
 }
 
+/* Swapchain creation can precede WindowPosChanged. Snapshot geometry on the
+ * calling Wine thread so the launch census can list that render window too. */
+int winios_drv_census_rect( HWND hwnd, int *x, int *y, int *w, int *h, int *visible )
+{
+    struct window_rects rects;
+    unsigned int pid, style;
+    if (!winios_drv_census_owner( hwnd, &pid, &style ) ||
+        !get_window_rects( hwnd, COORDS_SCREEN, &rects, get_thread_dpi() )) return 0;
+    *x = rects.client.left;
+    *y = rects.client.top;
+    *w = rects.client.right - rects.client.left;
+    *h = rects.client.bottom - rects.client.top;
+    *visible = !!(style & WS_VISIBLE);
+    return 1;
+}
+
 /* The executable path of process `pid`, as the server recorded it when the
  * process started (no handle is opened): lower-case, with the NT "\??\"
  * prefix removed, so "\??\C:\Windows\explorer.exe" reads

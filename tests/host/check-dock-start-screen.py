@@ -102,6 +102,9 @@ require(winios.count('winios_census_note_frame(hwnd, x, y, w, h, visible);') == 
         winios.count('winios_census_note_present(hwnd);') == 1 and winios.count('winios_census_note_metal((HWND)hwnd);') == 1,
         'the census is fed by the frame, GDI flush and swapchain hooks')
 require('#include "Winios.h"' in winios, 'Winios.m includes the header Swift reads the census struct from')
+game_metal = winios[winios.index('void winios_note_game_metal_hwnd(void *hwnd) {'):]
+require(game_metal.index('winios_census_note_game_metal((HWND)hwnd);') < game_metal.index('dispatch_async('),
+        'game swapchain geometry is queried on the Wine thread before UIKit dispatch')
 
 # ------------------------------------------------------------------ 1. Swift
 checks = r'''
@@ -352,6 +355,14 @@ int winios_drv_process_image(unsigned int pid, char *out, unsigned int size) {
 }
 int winios_drv_post_restore(HWND hwnd) { atomic_fetch_add(&restores, 1); last_restore = hwnd; return 1; }
 int winios_drv_foreground_if_owner(HWND hwnd) { return hwnd ? 1 : 0; }
+static int render_x, render_y, render_w = 640, render_h = 480;
+int winios_drv_census_rect(HWND hwnd, int *x, int *y, int *w, int *h, int *visible) {
+    struct fake *f = lookup(hwnd);
+    if (!f || !f->top) return 0;
+    *x = render_x; *y = render_y; *w = render_w; *h = render_h;
+    *visible = !!(f->style & 0x10000000);
+    return 1;
+}
 static HWND add(unsigned long h, unsigned style, int top, unsigned pid) {
     fakes[nfakes] = (struct fake){ (HWND)h, style, top, pid };
     return fakes[nfakes++].hwnd;
@@ -444,6 +455,22 @@ int main(int argc, char **argv) {
     n = winios_window_census(out, WINIOS_CENSUS_MAX);
     CHECK(n == 5 && !find(game, n) && find(game2, n), "destroyed windows leave");
     CHECK(winios_window_census(out, 2) == 2, "copy is bounded by the caller");
+
+    HWND early = add(0x6000, 0x94000000, 1, 0x44);
+    render_x = render_y = -32000; render_w = render_h = 0;
+    winios_census_note_game_metal(early);
+    n = winios_window_census(out, WINIOS_CENSUS_MAX);
+    CHECK(find(early, n) && find(early, n)->metal && !find(early, n)->visible &&
+          find(early, n)->x == -32000 && find(early, n)->w == 0,
+          "swapchain before frame creates a zero-size/off-screen render entry");
+    winios_census_note_game_metal(child);
+    winios_census_note_game_metal(NULL);
+    CHECK(winios_window_census(out, WINIOS_CENSUS_MAX) == n, "child and null swapchains are excluded");
+    render_x = render_y = 0; render_w = 1280; render_h = 720;
+    winios_census_note_frame(early, 0, 0, 1280, 720, 1);
+    n = winios_window_census(out, WINIOS_CENSUS_MAX);
+    CHECK(find(early, n)->visible && find(early, n)->metal, "later valid frame preserves Metal evidence");
+    winios_census_forget(early);
 
     for (unsigned long i = 0; i < 80; i++) winios_census_note_frame(add(0x1000 + i, 0x84000000, 1, 0x44), 0, 0, 10, 10, 1);
     n = winios_window_census(out, WINIOS_CENSUS_MAX);
