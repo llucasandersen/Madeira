@@ -31,7 +31,11 @@ and these explicit assertions. Native ARM host, full 77-check and fresh iOS
 build gates are pending. The first targeted run (37271500504) exposed invalid
 intermediate pointer arithmetic in the test fixture despite its success exit;
 the fixture now uses a bounded offset and fatal sanitizer recovery settings.
-That initial result is not accepted as a sanitizer pass.
+That initial result is not accepted as a sanitizer pass. Corrected targeted
+workflow 37271658156 passed at `17776be`; its terminal ARM job 111639750713
+contains two native fixture PASS records and no sanitizer error/summary lines.
+Full corrected suite 37271658528 and fresh runtime/app workflow 37271515195
+(production-equivalent `343028f`) are still running.
 Device exception delivery, exclusive reservations,
 peer-thread quiescence and physical acceptance remain unproven.
 

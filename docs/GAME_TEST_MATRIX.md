@@ -22,7 +22,11 @@ repeated map loads and final delivery remain unverified.
 The later Mach LSE alias change at `5d10bb3` passed its targeted ASan/UBSan and
 TSan checks (37269300151), full 76-check suite and fresh native compilation.
 Its app/package gates passed (37269302622). The subsequent integer paired-store
-change at `343028f` has native ARM, full 77-check and fresh iOS gates pending.
+change at `343028f` passed corrected native ARM ASan/UBSan and TSan fixtures
+at `17776be` (37271658156), with terminal logs checked for sanitizer errors.
+The initial fixture's recovering UBSan result is not accepted. Full 77-check
+suite 37271658528 and fresh iOS workflow 37271515195 remain pending; `17776be`
+changes only tests/docs from the runtime/app sources built at `343028f`.
 No new device result
 or final USB delivery is inferred from these builds.
 

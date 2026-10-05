@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Correct the native pair fixture's pointer arithmetic and make sanitizer recovery fatal. Verified two clean actual ARM passes under ASan/UBSan and TSan at `17776be` in 37271658156; full 77-check and fresh iOS gates remain pending.
+
 - Decode indexed and offset integer STP/STNP through complete writable aliases, including the reported CoreCLR opcode. Preserve native pair atomicity, either-half fault handling and base writeback; add a real ARM/LSE2 Mac regression with guard pages and competing native pair operations. Full 77-check/native/app gates and device acceptance remain pending.
 
 - Verify all 76 host checks and real Valve archives at `5d10bb3`, including actual Mach LSE operation/alias/concurrency fixtures under both sanitizers, fresh native iOS compilation and the complete app package. Local source-stamp/runtime/graphics/identity/checksum verification passed; subsequent paired-store gates, physical acceptance and final delivery remain pending.
