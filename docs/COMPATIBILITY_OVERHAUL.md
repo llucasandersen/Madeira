@@ -34,6 +34,12 @@ multiline rejection. The remaining risk is that a later unrelated optional
 failure replaces an earlier diagnostic, hence the UI labels it the last
 observed rejection. New full host and Xcode app gates are required.
 
+The initial parser run 37257705322 failed only its CRLF callback fixture:
+Swift represents CRLF as one `Character`, so removing two characters also
+removed the last status digit. Terminator removal now consumes one Character
+for CRLF, LF or CR, with all three covered. The app built in run 37257707336,
+but that package predates this parser correction and is not a final release.
+
 ## Child spawn failure descriptor ownership
 
 Source review found two errors in the iOS `spawn_process` path. Both `dup`

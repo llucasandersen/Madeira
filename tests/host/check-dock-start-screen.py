@@ -254,7 +254,9 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
             require(final?.text.contains("private") == false && final?.fileMachine == nil, "resolution does not retain paths or invent architecture")
         }
         require(SteamLoaderRejection.parse(#"[dll-missing] ml718 UNCAPPED L"C:\Steam\video64.dll" status=c0000135 (subsystem dependency)"#)?.status == "C0000135", "dependency not found status is explicit")
-        require(SteamLoaderRejection.parse(#"[dll-missing] rev=ml336 #3 L"SDL3.dll" status=c000007b"# + "\r\n")?.status == "C000007B", "native callback line terminator is accepted")
+        for ending in ["\r\n", "\n", "\r"] {
+            require(SteamLoaderRejection.parse(#"[dll-missing] rev=ml336 #3 L"SDL3.dll" status=c000007b"# + ending)?.status == "C000007B", "native callback line terminator is accepted")
+        }
         for detail in ["status=00000000", "status=bogus", "status=c000007b status=c0000135"] {
             require(SteamLoaderRejection.parse("[dll-missing] rev=ml336 #1 " + #"L"C:\Steam\SDL3.dll" "# + detail) == nil, "reject invalid or ambiguous resolution: " + detail)
         }

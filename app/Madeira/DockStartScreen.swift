@@ -202,8 +202,8 @@ struct SteamLoaderRejection: Equatable {
         guard raw.utf8.count <= 4096 else { return nil }
         var raw = raw
         // Native callbacks can include one line terminator; file-tail records do not.
-        if raw.hasSuffix("\r\n") { raw.removeLast(2) }
-        else if raw.hasSuffix("\n") || raw.hasSuffix("\r") { raw.removeLast() }
+        // Swift treats CRLF as a single Character, so remove one terminator.
+        if raw.hasSuffix("\r\n") || raw.hasSuffix("\n") || raw.hasSuffix("\r") { raw.removeLast() }
         guard !raw.contains("\n"), !raw.contains("\r") else { return nil }
         let range = NSRange(raw.startIndex..., in: raw)
         let match: NSTextCheckingResult
