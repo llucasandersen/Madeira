@@ -89,8 +89,6 @@ post. The reported symptom alone does not prove which path failed or that
 the existing restore covers this game. No Bomber Crew fix or device pass is
 claimed by this source audit.
 
-## Verification still required
-
 ## D3D11 memory headroom policy for 64-bit guests
 
 The pinned DXMT already had an automatic large-BC-texture mip policy, but its
@@ -119,6 +117,8 @@ graphics DLL must be built, verified and staged before an IPA can contain
 this policy; the delivered diagnostic retains the prior graphics binaries.
 Ravenfield's repeated map-load acceptance and regressions on other games
 still require device tests.
+
+## Verification still required
 
 Clean runner builds also exposed several reproducibility defects, documented
 with exact runs in [BUILDING.md](BUILDING.md): an unsupported optional native

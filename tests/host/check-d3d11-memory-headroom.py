@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
         assert(GetMipClampAutoConfig().enabled);
         assert(MipClampAutoBias(512, 512, 10) == 0 && queries == 0);
         assert(MipClampAutoBias(4096, 4096, 1) == 0 && queries == 0);
-        assert(MipClampAutoBias(4097, 4097, 13) == 0 && queries == 0);
+        assert(MipClampAutoBias(2050, 2050, 12) == 0 && queries == 0);
         assert(MipClampAutoBias(4096, 4096, 13) == 0 && queries == 1);
         // Approaching pressure refreshes every eligible allocation, then
         // crossing it drops one physical level. Recovery leaves new ones intact.
