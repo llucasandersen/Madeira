@@ -46,6 +46,8 @@ static void *anon_mmap_tryfixed(void *base, size_t size, int protection, int fla
 }
 '''
 code += enum + '\nstatic enum ios_exewin_state ios_exewin_st;\n'
+code += function('void ios_exe_win_note_owner(')
+code += function('static void ios_exe_win_note_dead_peb(')
 code += function('void ios_retire_own_fixed_base_image(')
 code += function('void ios_exe_win_mark_ready(')
 code += r'''
@@ -60,12 +62,42 @@ static void own(void *owner, unsigned generation) {
     unmap_failure = hold_failure = unmaps = holds = 0;
 }
 static void *wrong_cleanup(void *owner) {
-    for (int i = 0; i < 1000; ++i) ios_exe_win_mark_ready(owner);
+    for (int i = 0; i < 1000; ++i) {
+        ios_exe_win_note_owner((void *)0x140000000ULL, owner);
+        ios_exe_win_note_dead_peb(owner);
+        ios_exe_win_mark_ready(owner);
+    }
+    return NULL;
+}
+static void *owner_callbacks(void *owner) {
+    for (int i = 0; i < 1000; ++i) {
+        ios_exe_win_note_owner((void *)0x140000000ULL, owner);
+        ios_exe_win_note_dead_peb(owner);
+    }
     return NULL;
 }
 int main(void) {
     void *a = (void *)0x1000, *b = (void *)0x2000;
     unsetenv("MADEIRA_NO_IMAGE_RETIRE");
+    own(a, 1);
+    ios_exe_win_note_owner((void *)0x140000000ULL, b);
+    ios_exe_win_note_dead_peb(b);
+    assert(ios_exe_win_img_peb == a && !ios_exe_win_img_dead); /* old code stole ownership */
+    pthread_t peers[8];
+    for (int i = 0; i < 8; ++i) assert(!pthread_create(&peers[i], NULL, wrong_cleanup, b));
+    for (int i = 0; i < 8; ++i) assert(!pthread_join(peers[i], NULL));
+    assert(ios_exe_win_img_peb == a && !ios_exe_win_img_dead && ios_exewin_st == IOS_EXEWIN_OWNED);
+    ios_exe_win_img_peb = NULL;
+    ios_exe_win_note_owner(NULL, a);
+    ios_exe_win_note_owner((void *)0x150000000ULL, a);
+    assert(!ios_exe_win_img_peb);
+    ios_exe_win_note_owner((void *)0x140000000ULL, a);
+    assert(ios_exe_win_img_peb == a);
+    for (int i = 0; i < 8; ++i) assert(!pthread_create(&peers[i], NULL, owner_callbacks, a));
+    for (int i = 0; i < 8; ++i) assert(!pthread_join(peers[i], NULL));
+    assert(ios_exe_win_img_dead && ios_exe_win_img_peb == a);
+    ios_exe_win_note_owner((void *)0x140000000ULL, b);
+    assert(ios_exe_win_img_peb == a);
     own(a, 1);
     ios_retire_own_fixed_base_image(b);
     assert(ios_exewin_st == IOS_EXEWIN_OWNED && unmaps == 0);
@@ -76,7 +108,6 @@ int main(void) {
     assert(ios_exewin_st == IOS_EXEWIN_HELD_NOT_READY); /* old code prematurely promoted */
     ios_exe_win_mark_ready(NULL);
     assert(ios_exewin_st == IOS_EXEWIN_HELD_NOT_READY);
-    pthread_t peers[8];
     for (int i = 0; i < 8; ++i) assert(!pthread_create(&peers[i], NULL, wrong_cleanup, b));
     for (int i = 0; i < 8; ++i) assert(!pthread_join(peers[i], NULL));
     assert(ios_exewin_st == IOS_EXEWIN_HELD_NOT_READY);

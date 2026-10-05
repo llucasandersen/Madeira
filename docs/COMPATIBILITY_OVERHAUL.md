@@ -4,6 +4,22 @@ This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility
 
 ## Native game and Steam-host exit diagnostics
 
+### Fixed-image owner publication
+
+The readiness owner check also depended on metadata that two callbacks accessed
+outside `ios_exewin_lock`: `ios_exe_win_note_owner` could overwrite an already
+bound owner, and `ios_exe_win_note_dead_peb` could race image commit/retirement.
+Both now use the existing leaf mutex and snapshot their log fields before
+unlocking. Owner publication accepts only an unbound, live `OWNED` image whose
+base matches the mapped module; a late callback cannot replace an established
+owner. No virtual-memory or JIT lock is acquired while the leaf is held.
+
+The actual fixed-image fixture now exercises wrong-owner takeover/refused
+retirement, null/wrong-module publication, and concurrent duplicate owner/death
+callbacks, alongside the existing retirement/readiness checks. ASan/UBSan,
+TSan, fresh native compilation and full host/app gates are pending. This closes
+metadata publication races; native peer-thread quiescence remains unproven.
+
 The launch screen previously observed successful executable creation and
 Steam's game-running flag, but did not correlate native child teardown with
 the selected executable. The initial-process exit hook describes Wine's

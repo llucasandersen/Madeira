@@ -7190,28 +7190,46 @@ void ios_exe_win_commit_claim( void *base, size_t size, int mapped )
  * where the owning PEB and the main module base are both known. */
 void ios_exe_win_note_owner( void *module, void *owner_peb )
 {
+    size_t size = 0;
+    unsigned gen = 0;
     if (!module || !owner_peb) return;
-    if (module != ios_exe_win_img_base) return;
-    if (ios_exe_win_img_peb == owner_peb) return;
-    ios_exe_win_img_peb = owner_peb;
-    dprintf( 2, "ml983: gen %u's image %p+%#lx is owned by peb=%p\n", ios_exe_win_generation,
-             ios_exe_win_img_base, (unsigned long)ios_exe_win_img_size, owner_peb );
+    pthread_mutex_lock( &ios_exewin_lock );
+    /* Publication belongs to the successfully mapped, still-unbound occupant.
+     * A late boot callback cannot replace an established owner's identity. */
+    if (ios_exewin_st == IOS_EXEWIN_OWNED && module == ios_exe_win_img_base &&
+        !ios_exe_win_img_dead && !ios_exe_win_img_peb)
+    {
+        ios_exe_win_img_peb = owner_peb;
+        size = ios_exe_win_img_size;
+        gen = ios_exe_win_generation;
+    }
+    pthread_mutex_unlock( &ios_exewin_lock );
+    if (gen) dprintf( 2, "ml983: gen %u's image %p+%#lx is owned by peb=%p\n",
+                      gen, module, (unsigned long)size, owner_peb );
 }
 
 /* ml983: the occupant's pseudo-process has been reclaimed. Called from
  * ios_jit_reclaim_process, which by then has tombstoned every pool mapping and
- * retired every anon alias belonging to that PEB -- a stronger quiescence
- * statement than server EOF, because no FEX-translated code of that process can
- * be entered any more. */
+ * retired every anon alias belonging to that PEB. This publishes completion of
+ * that allocator walk; it does not prove all native peer threads have stopped. */
 static void ios_exe_win_note_dead_peb( void *dead_peb )
 {
-    if (!dead_peb || !ios_exe_win_img_base) return;
-    if (dead_peb != ios_exe_win_img_peb || ios_exe_win_img_dead) return;
-    ios_exe_win_img_dead = 1;
-    dprintf( 2, "ml983: gen %u's window occupant %p+%#lx is now ownerless (peb=%p reclaimed) -- "
-             "the window can be re-granted to the next >=64MB fixed map\n",
-             ios_exe_win_generation, ios_exe_win_img_base,
-             (unsigned long)ios_exe_win_img_size, dead_peb );
+    void *base = NULL;
+    size_t size = 0;
+    unsigned gen = 0;
+    if (!dead_peb) return;
+    pthread_mutex_lock( &ios_exewin_lock );
+    if (ios_exe_win_img_base && dead_peb == ios_exe_win_img_peb && !ios_exe_win_img_dead)
+    {
+        ios_exe_win_img_dead = 1;
+        base = ios_exe_win_img_base;
+        size = ios_exe_win_img_size;
+        gen = ios_exe_win_generation;
+    }
+    pthread_mutex_unlock( &ios_exewin_lock );
+    if (gen) dprintf( 2, "ml983: gen %u's window occupant %p+%#lx is now ownerless (peb=%p reclaimed) -- "
+                     "the window can be re-granted to the next >=64MB fixed map\n",
+                     gen, base, (unsigned long)size, dead_peb );
 }
 
 static void *anon_mmap_tryfixed( void *start, size_t size, int prot, int flags )
@@ -10132,12 +10150,9 @@ void ios_jit_reclaim_process( void *peb )
                 maps_killed, aliases_killed,
                 (unsigned long)jit_pool_offset, ios_pool_free_count);
 
-    /* ml983: only now is the fixed-base window occupant safe to retire. This is
-     * deliberately AFTER the ledger walk, not before it: the flag is what lets
-     * another thread delete that image view, and it must not be observable while
-     * this PEB's pool mappings and anon aliases are still live -- otherwise the
-     * view could go while FEX-translated code referring to it is still entrant.
-     * Server EOF alone would not carry that guarantee; completing this walk does. */
+    /* Publish allocator retirement only AFTER the ledger walk has removed this
+     * PEB's mappings and aliases. This flag does not establish native peer-thread
+     * quiescence; that lifetime requirement remains separate from the walk. */
     ios_exe_win_note_dead_peb( peb );
 }
 
