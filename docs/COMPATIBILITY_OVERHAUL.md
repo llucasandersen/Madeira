@@ -4,6 +4,28 @@ This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility
 
 ## Automatic renderer profiles: supplied Teardown registry
 
+### Additional fixed-image cleanup owner defect
+
+The child lifetime audit found `ios_exe_win_mark_ready(dead_peb)` ignored its
+argument. Every exiting child calls this after its own JIT cleanup, so an
+unrelated helper could promote the global executable interval from
+`HELD_NOT_READY` to `HELD_READY` while the image owner's cleanup was unfinished.
+This is a source-established defect, not yet a proven cause of a supplied
+Teardown crash or content wait.
+
+`virtual_ios.c` now retains the owner and generation at successful no-clobber
+retirement, and publishes readiness only for that matching cleanup. It captures
+the interval used in the log while holding the mutex, avoiding a later
+claim changing those fields during logging. The new
+`check-fixed-image-owner-ready.py` compiles the actual complete retirement and
+readiness functions, with controlled unmap/hold results. It checks the
+original wrong-owner failure, null/duplicate/stale-generation notifications,
+next-owner retirement, 8,000 concurrent unrelated notifications, failed unmap
+and failed no-clobber reservation under ASan/UBSan and TSan. This fixes an owner
+barrier; it does not prove peer threads stopped, solve recycled PEB identity
+or make the existing pool grace period a lifetime guarantee. Fresh native,
+75-check and app gates are pending.
+
 The user supplied `options.xml` on the USB after the earlier export omitted it.
 Its root is `<registry version="2.1.0">`; `options/gfx/gfxapi` and
 `options/gfx/d3d12support` both contain `value="1"`. The earlier supplied game

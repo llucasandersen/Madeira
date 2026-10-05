@@ -6856,6 +6856,10 @@ static size_t   ios_exe_win_img_size;
 static void    *ios_exe_win_img_peb;
 static int      ios_exe_win_img_dead;
 static unsigned ios_exe_win_generation;
+/* Retained while the unmapped interval awaits THIS owner's pool cleanup.
+ * Another exiting helper must not publish readiness for this generation. */
+static void    *ios_exe_win_retiring_peb;
+static unsigned ios_exe_win_retiring_generation;
 
 /* ml988: ownership state machine for the fixed-base executable window.
  *
@@ -25729,6 +25733,8 @@ void ios_retire_own_fixed_base_image( void *dying_peb )
     ios_exe_win_img_size  = 0;
     ios_exe_win_img_peb   = NULL;
     ios_exe_win_img_dead  = 0;
+    ios_exe_win_retiring_peb = dying_peb;
+    ios_exe_win_retiring_generation = gen;
     ios_exewin_st         = IOS_EXEWIN_HELD_NOT_READY;
     pthread_mutex_unlock( &ios_exewin_lock );
 
@@ -25754,11 +25760,18 @@ void ios_retire_own_fixed_base_image( void *dying_peb )
 void ios_exe_win_mark_ready( void *dead_peb )
 {
     int promoted = 0;
+    void *base = NULL;
+    size_t size = 0;
 
     pthread_mutex_lock( &ios_exewin_lock );
-    if (ios_exewin_st == IOS_EXEWIN_HELD_NOT_READY)
+    if (dead_peb && ios_exewin_st == IOS_EXEWIN_HELD_NOT_READY &&
+        dead_peb == ios_exe_win_retiring_peb &&
+        ios_exe_win_retiring_generation == ios_exe_win_generation)
     {
         ios_exewin_st = IOS_EXEWIN_HELD_READY;
+        base = ios_exe_win_held_base;
+        size = ios_exe_win_held_size;
+        ios_exe_win_retiring_peb = NULL;
         promoted = 1;
     }
     pthread_mutex_unlock( &ios_exewin_lock );
@@ -25766,7 +25779,7 @@ void ios_exe_win_mark_ready( void *dead_peb )
     if (promoted)
         dprintf( 2, "ml988: pool mappings for peb=%p reclaimed -- %p+%#lx HELD_NOT_READY -> "
                  "HELD_READY; the next >=64MB fixed-base map may take it\n",
-                 dead_peb, ios_exe_win_held_base, (unsigned long)ios_exe_win_held_size );
+                 dead_peb, base, (unsigned long)size );
 }
 
 /***********************************************************************
