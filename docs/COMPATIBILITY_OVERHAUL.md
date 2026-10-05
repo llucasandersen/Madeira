@@ -36,7 +36,11 @@ including real Valve archives. Downloaded inventories match all 78 tests with
 zero raw/effective exits and no sanitizer diagnostics; the ARM log has both
 scalar and pair PASS records for both sanitizers. Fresh native job
 111649257006 in workflow 37274760178 passed at `889c6be`; app job
-111652524468 is still running, so updated packaging remains unverified.
+111652524468 also passed, including strict macOS codesign verification.
+The downloaded 87,374,598-byte IPA and its USB candidate-4 copy passed
+ZIP/CRC/identity/runtime/graphics/source-stamp/checksum verification, SHA-256
+`8600b07540c57783e61777ac63086a7a30e63706cf0e6a9209d96128ebf58670`.
+No new physical acceptance result is inferred from these build gates.
 The earlier `91a7a92` native workflow
 37274597234 was deliberately cancelled after this source correction superseded
 it; cancellation is not a compilation or package pass.

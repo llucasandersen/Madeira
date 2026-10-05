@@ -12,17 +12,17 @@ fixtures, explicit Mach FP/LR/SP scalar writeback/pre-index cases and the
 runner's recovering-sanitizer integration. Every raw and
 effective exit is zero, with no sanitizer diagnostics. Fresh native compilation
 at `889c6be` passed in job 111649257006 of workflow 37274760178, including the
-scalar register/pre-index follow-up. Its app job 111652524468 is still running;
-no updated package or device acceptance is inferred from native compilation.
+scalar register/pre-index follow-up. Its app job 111652524468 also passed;
+physical device acceptance remains unverified.
 
-Latest completed app validation: workflow 37272620144 passed at `3e94179`,
-including app job 111642667843 and strict macOS codesign verification. It reuses
-the fresh native runtime above; runtime/app sources are identical between the
-two commits, with intervening changes confined to tests, CI and documentation.
+Latest completed app validation: workflow 37274760178 passed at `889c6be`,
+including app job 111652524468 and strict macOS codesign verification. It uses
+the fresh native runtime from the same workflow and source commit above.
 Local ZIP/CRC/identity/runtime/graphics/source-stamp checks passed, SHA-256
-`972ec25405fc37632b1faf0bebe714db2e72bd632b5b38cb2170ce733e511991`.
-The IPA is 87,374,766 bytes, includes native launch/exit correlation, image
-ownership synchronization, scalar Mach LSE atomics and integer paired stores,
+`8600b07540c57783e61777ac63086a7a30e63706cf0e6a9209d96128ebf58670`.
+The IPA is 87,374,598 bytes, includes native launch/exit correlation, image
+ownership synchronization, scalar Mach LSE atomics, integer paired stores
+and the explicit scalar register/pre-index follow-up,
 and has no new physical
 acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
 repeated map loads and final delivery remain unverified.
@@ -135,6 +135,21 @@ window repair and measured headroom overlay. Device acceptance remains pending;
 adaptive JIT sizing and broader resource reclamation are still unfinished.
 
 ## Diagnostic package delivery
+
+Test candidate 4 is copied to
+`E:\Madeira-Compatibility-Update-4\Madeira-diagnostic-889c6be.ipa`, with checksum,
+source/graphics provenance and installation/test instructions. The USB copy
+passed the package verifier with the exact source commit and checksum above.
+This is the latest package for new phone tests; candidate 3 predates the scalar
+register/writeback/pre-index follow-up. The app/helper identities and update
+signing requirements are unchanged. The full goal is not complete: device
+acceptance, measured download comparison and remaining native lifetime findings
+still require evidence and work.
+The [candidate 4 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.4)
+is published at exact source commit `889c6be`. Its five remote asset sizes and
+server SHA-256 digests match the USB files; draft=false and prerelease=true
+were checked through the GitHub API. Teardown acceptance was requested against
+this specific package. The supplied logs remain dated October 4.
 
 Test candidate 3 is copied to
 `E:\Madeira-Compatibility-Update-3\Madeira-diagnostic-3e94179.ipa`, with checksum,

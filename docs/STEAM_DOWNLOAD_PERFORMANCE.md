@@ -94,7 +94,9 @@ fields when comparing measurements.
    before changing concurrency or server rotation. Re-run interrupted resume,
    update, corruption and ownership tests after any downloader change.
 
-No phone benchmark or improvement claim has been made for this fork yet.
+No measured phone/native-control benchmark has been supplied. The user reported
+faster downloads; that qualitative observation is recorded below and does not
+establish a measured speedup or the control-median target.
 
 ## Measurement report tool
 
