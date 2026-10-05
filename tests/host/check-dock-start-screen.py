@@ -92,6 +92,11 @@ require(capture.index('SteamLoaderRejection.parse(raw)') < capture.index('if sup
         'LogStore.shared.setLaunchDiagnosticsActive(true)' in screen and
         'LogStore.shared.setLaunchDiagnosticsActive(false)' in screen,
         'startup diagnostic capture survives hidden live log and stops with the launch hold')
+require(capture.index('SteamExecutableCreation.parse(raw') < capture.index('if suppressed { return }') and
+        'LogStore.shared.trackLaunchExecutable(game == nil ? nil : MadeiraDock.launchImage)' in screen and
+        'executableCreated: hostStarted && creation != nil' in screen and
+        'expectedImage: launchImage' in content and 'if let created = dockStart.executableStatus' in library,
+        'exact chosen executable evidence reaches the UI before hidden-log suppression')
 status = library[library.index('    private var dockStatus: String {'):]
 status = status[:status.index('\n    }\n')]
 require(status.index('DockInstallers.poll(drive: MadeiraDock.drive)') < status.index('DockInstallers.finishedAt ?? model.launchStartedAt')
@@ -272,6 +277,37 @@ func window(_ image: String, _ w: Int, _ h: Int, visible: Bool = true, drawn: Bo
         require(SteamLoaderRejection.parse(#"[pe-image] section rejected L"C:\private\token.txt" status=c000007b"#) == nil, "only module filenames are captured")
         require(SteamLoaderRejection.parse(String(repeating: "x", count: 4097)) == nil, "bounded input")
         require(SteamLoaderRejection.parse("ordinary log line") == nil, "ignore unrelated logs")
+        let selectedImage = #"C:\Games\Fixture\Game.exe"#
+        func createdRecord(_ image: String) -> String {
+            "[process-created] pid=000000ab tid=000000cd status=00000000 image_utf16=" + image.utf16.map { String(format: "%04x", $0) }.joined()
+        }
+        let created = SteamExecutableCreation.parse(createdRecord(#"\??\C:\Games\Fixture\Game.exe"#), expectedImage: selectedImage)
+        require(created?.pid == 0xab && created?.tid == 0xcd && created?.module == "Game.exe", "server creation matches the complete selected image")
+        require(created?.text.contains("Fixture") == false && created?.text.contains("0xab") == true, "creation UI retains basename/PID without private path")
+        require(SteamExecutableCreation.parse(createdRecord(#"c:/games/fixture/game.exe"#), expectedImage: selectedImage) != nil, "case and Windows slash forms match")
+        for wrong in [#"C:\Other\Game.exe"#, #"C:\Games\Fixture\Helper.exe"#, #"C:\Games\Fixture\..\Fixture\Game.exe"#, "relative/Game.exe"] {
+            require(SteamExecutableCreation.parse(createdRecord(wrong), expectedImage: selectedImage) == nil, "different executable identity is not game creation")
+        }
+        let unicodeImage = #"C:\Games\é🚀\Game.exe"#
+        require(SteamExecutableCreation.parse(createdRecord(unicodeImage), expectedImage: unicodeImage) != nil, "Unicode and paired surrogates preserve identity")
+        let encoded = createdRecord(selectedImage)
+        for ending in ["", "\r\n", "\r", "\n"] {
+            require(SteamExecutableCreation.parse(encoded + ending, expectedImage: selectedImage) != nil, "creation callback/file line endings")
+        }
+        for bad in [encoded.replacingOccurrences(of: "status=00000000", with: "status=c000007b"),
+                    encoded.replacingOccurrences(of: "pid=000000ab", with: "pid=00000000"),
+                    encoded.replacingOccurrences(of: "tid=000000cd", with: "tid=garbage"), encoded + "f", encoded + "\n\n",
+                    "prefix" + encoded, encoded + " status=00000000", String(repeating: "x", count: 4097),
+                    "[process-created] pid=000000ab tid=000000cd status=00000000 image_utf16=d800"] {
+            require(SteamExecutableCreation.parse(bad, expectedImage: selectedImage) == nil, "reject malformed, failed, ambiguous or multiline creation")
+        }
+        var createdTracker = SteamLaunchProgress()
+        require(createdTracker.step(["launch-request-submitted": "1"], programObserved: false, rendered: false, now: 1, executableCreated: true) && createdTracker.stage == .executableCreated,
+                "confirmed executable creation is separate from a request/window")
+        require(createdTracker.warning(now: 180) == nil && createdTracker.warning(now: 181)?.contains("selected executable was created") == true, "created-but-windowless deadline")
+        require(!createdTracker.step([:], programObserved: false, rendered: false, now: 182, executableCreated: true), "repeated creation evidence does not reset deadline")
+        require(createdTracker.step([:], programObserved: true, rendered: false, now: 183, executableCreated: true) && createdTracker.stage == .programObserved, "window observation advances beyond executable creation")
+        require(createdTracker.step(["launch-game-ended": "1"], programObserved: false, rendered: false, now: 184, executableCreated: true) && createdTracker.stage == .exited, "exit outranks retained creation")
         var tracker = SteamLaunchProgress()
         require(tracker.warning(now: 59) == nil && tracker.warning(now: 60) != nil, "startup warning boundary")
         require(tracker.step(["session-authenticated-online": "1"], programObserved: false, rendered: false, now: 61), "authentication advances stage")

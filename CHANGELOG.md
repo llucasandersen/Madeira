@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Match server-confirmed process creation to the complete executable path selected from Steam launch metadata. Add a distinct startup creation stage and windowless timeout message, preserving generic observations when the image is unknown. Extend the real parser/state/contract fixtures; full host/app and device gates are pending.
+
 - Emit a bounded machine-readable Windows process creation record only after the server confirms successful `NtCreateUserProcess`. Preserve Unicode image identity without command lines; add formatter sanitizer and publication-order fixtures. Fresh native/72-check gates and UI lifecycle integration are pending.
 - Verify all 71 host checks and the real Valve archive gate at `08c3862`; the fresh child-spawn cleanup runtime and complete app build passed. Physical acceptance and final delivery remain pending.
 

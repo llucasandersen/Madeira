@@ -216,6 +216,8 @@ struct DockGame: Identifiable, Equatable, Sendable {
 /// The app side is this contract: environment variables, a one-use sign-in
 /// transfer file and a numeric report file (C:\madeira-dock.txt).
 enum MadeiraDock {
+    /// Validated selected launch image. Configured and read on the main thread.
+    nonisolated(unsafe) static private(set) var launchImage: String?
     /// `env.MADEIRA_DOCK = 0` hides Dock. Without a built dockhost.exe it is hidden too.
     static var enabled: Bool { SteamSignIn.flag("MADEIRA_DOCK", default: true) && bundled }
     static var bundled: Bool {
@@ -559,7 +561,8 @@ enum MadeiraDock {
     }
 
     /// The host's environment for one launch.
-    static func configure(_ game: DockGame, launchOption: Int? = nil) {
+    static func configure(_ game: DockGame, launchOption: Int? = nil, expectedImage: String? = nil) {
+        launchImage = expectedImage
         for key in ["MADEIRA_STEAM_HOST_PROBE", "MADEIRA_STEAM_HOST_SESSION", "MADEIRA_STEAM_HOST_LOGIN", "MADEIRA_STEAM_HOST_LAUNCH"] {
             setenv(key, "1", 1)
         }

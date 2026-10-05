@@ -113,6 +113,39 @@ Matching the chosen Steam launch executable and integrating creation/exit
 evidence into the UI remain outstanding. No game-creation or phone acceptance
 pass is inferred from the new source.
 
+### Selected executable creation in the startup UI
+
+`ContentView.startDock` now retains the same validated on-disk Steam launch
+choice used to select the numbered launch option. Its complete Windows image
+path is passed through `MadeiraDock.configure` to the startup tracker. A launch
+without a known selected executable resets that identity and retains generic
+window-based observations rather than guessing a game name.
+
+The production `SteamExecutableCreation` parser decodes the bounded UTF-16
+record, validates nonzero IDs/success, rejects malformed Unicode and compares
+the complete normalized Windows path. An identically named executable in
+another folder, a helper, a parent traversal, partial fields or a failed
+creation cannot satisfy the match. Only the basename and IDs survive into the
+diagnostic object; full private paths are absent from the UI. `LogStore`
+captures these records before hidden-live-log suppression and clears the match
+at each launch/session end.
+
+The state machine now has an `executableCreated` stage separate from Steam's
+request bit and the window census. It shows the selected executable and PID
+while waiting for a game/launcher window. Its 180-second inactivity warning
+does not reset on repeated evidence; window/render/exit/host-result observations
+retain their priority. A selected executable can itself be a secondary launcher,
+so this is creation evidence, not proof that a game's main menu rendered.
+Exact Steam crash and process-exit identity tracking remain outstanding.
+
+The actual Swift parser/state fixtures cover full-path identity, NT prefixes,
+case/slash forms, Unicode/surrogates, callback line endings, malformed/failed
+records, stale identity reset and request/creation/window/exit transitions.
+Full host and Xcode app gates are pending for this integration. The principal
+regression risk is missing an aliased path or unavailable Steam launch metadata;
+those cases stay unknown and do not invent successful creation. No physical
+acceptance or final-release claim is made.
+
 ## Earlier verified app baseline: a5669ae
 
 [Host run 37253512089](https://github.com/llucasandersen/Madeira/actions/runs/37253512089)

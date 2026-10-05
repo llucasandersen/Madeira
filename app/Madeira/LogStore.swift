@@ -27,6 +27,18 @@ final class LogStore: ObservableObject {
     private var displaySuppressed = false
     private var launchDiagnosticsActive = false
     private var latestLaunchRejection: SteamLoaderRejection?
+    private var expectedLaunchImage: String?
+    private var latestLaunchCreation: SteamExecutableCreation?
+
+    var launchCreation: SteamExecutableCreation? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return latestLaunchCreation
+    }
+
+    func trackLaunchExecutable(_ image: String?) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        expectedLaunchImage = image; latestLaunchCreation = nil
+    }
 
     var launchRejection: SteamLoaderRejection? {
         stateLock.lock(); defer { stateLock.unlock() }
@@ -199,6 +211,13 @@ final class LogStore: ObservableObject {
         // parsing is suspended. Do not retain paths or scan generic log noise.
         if (raw.contains("[pe-image]") || raw.contains("[dll-missing]")), let rejection = SteamLoaderRejection.parse(raw) {
             stateLock.lock(); latestLaunchRejection = rejection; stateLock.unlock()
+        }
+        if raw.hasPrefix("[process-created]") {
+            stateLock.lock()
+            if let expectedLaunchImage, let creation = SteamExecutableCreation.parse(raw, expectedImage: expectedLaunchImage) {
+                latestLaunchCreation = creation
+            }
+            stateLock.unlock()
         }
         stateLock.lock(); let suppressed = displaySuppressed; stateLock.unlock()
         if suppressed { return }

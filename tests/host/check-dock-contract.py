@@ -210,6 +210,11 @@ func jwt(_ claims: String) -> String {
         // Host environment and launch.
         setenv("MADEIRA_STEAM_HOST_ACCOUNT", "stale", 1); setenv("MADEIRA_STEAM_HOST_STEAMID", "1", 1)
         MadeiraDock.configure(game)
+        require(MadeiraDock.launchImage == nil, "unknown selected image has no creation match")
+        MadeiraDock.configure(game, expectedImage: game.windowsInstallPath + "\\game.exe")
+        require(MadeiraDock.launchImage == game.windowsInstallPath + "\\game.exe", "selected image is retained for diagnostic matching")
+        MadeiraDock.configure(game)
+        require(MadeiraDock.launchImage == nil, "next launch clears stale expected image")
         require(["MADEIRA_STEAM_HOST_PROBE", "MADEIRA_STEAM_HOST_SESSION", "MADEIRA_STEAM_HOST_LOGIN", "MADEIRA_STEAM_HOST_LAUNCH"].allSatisfy { env($0) == "1" }, "host gates on")
         require(env("MADEIRA_STEAM_HOST_APPID") == "4000" && env("MADEIRA_STEAM_HOST_CLIENT_DIR") == "C:\\Program Files (x86)\\Steam" &&
                 env("MADEIRA_STEAM_HOST_EXPECTED_INSTALL") == game.windowsInstallPath && env("MADEIRA_STEAM_HOST_LOG") == "C:\\madeira-dock.txt", "host inputs")

@@ -243,18 +243,66 @@ struct SteamLoaderRejection: Equatable {
     }
 }
 
+/// Successful NtCreateUserProcess evidence for the selected launch executable.
+/// Retains only a basename and IDs after comparing the complete image identity.
+struct SteamExecutableCreation: Equatable {
+    let module: String
+    let pid: UInt32
+    let tid: UInt32
+
+    private static let record = try! NSRegularExpression(pattern:
+        #"^\[process-created\] pid=([0-9a-fA-F]{8}) tid=([0-9a-fA-F]{8}) status=00000000 image_utf16=([0-9a-fA-F]{4,2048})$"#)
+
+    static func parse(_ line: String, expectedImage: String) -> Self? {
+        guard line.utf8.count <= 4096 else { return nil }
+        var line = line
+        if line.hasSuffix("\r\n") || line.hasSuffix("\r") || line.hasSuffix("\n") { line.removeLast() }
+        guard !line.contains("\r"), !line.contains("\n") else { return nil }
+        guard let match = record.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else { return nil }
+        func part(_ n: Int) -> String { String(line[Range(match.range(at: n), in: line)!]) }
+        guard let pid = UInt32(part(1), radix: 16), pid != 0,
+              let tid = UInt32(part(2), radix: 16), tid != 0 else { return nil }
+        let hex = Array(part(3).utf8)
+        guard hex.count % 4 == 0 else { return nil }
+        var units: [UInt16] = []
+        for offset in stride(from: 0, to: hex.count, by: 4) {
+            guard let unit = UInt16(String(decoding: hex[offset..<offset + 4], as: UTF8.self), radix: 16) else { return nil }
+            units.append(unit)
+        }
+        // Do not silently repair malformed UTF-16 into an executable identity.
+        let image = String(decoding: units, as: UTF16.self)
+        guard Array(image.utf16) == units else { return nil }
+        func identity(_ value: String) -> String? {
+            let path = SteamLaunchScene.path(value)
+            let chars = Array(path.utf8)
+            guard chars.count >= 4, (97...122).contains(chars[0]), chars[1] == 58, chars[2] == 92,
+                  !path.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 }),
+                  path.hasSuffix(".exe") else { return nil }
+            let components = path.split(separator: "\\", omittingEmptySubsequences: false)
+            guard !components.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }) else { return nil }
+            return path
+        }
+        guard let actual = identity(image), let expected = identity(expectedImage), actual == expected,
+              let module = image.replacingOccurrences(of: "/", with: "\\").split(separator: "\\").last.map(String.init),
+              module.utf8.count <= 128 else { return nil }
+        return Self(module: module, pid: pid, tid: tid)
+    }
+
+    var text: String { "Selected executable created: \(module) (PID 0x\(String(pid, radix: 16)))." }
+}
+
 /// Recoverable inactivity warnings based on evidence, not on retry counters.
 /// A Steam running flag is not proof that an executable or render window exists.
 struct SteamLaunchProgress {
     enum Stage: String {
         case starting, signingIn, authenticated, authorized, content, configuration
-        case requested, programObserved, rendered, exited, hostEnded
+        case requested, executableCreated, programObserved, rendered, exited, hostEnded
 
         var timeout: Double? {
             switch self {
             case .starting: return 60
             case .signingIn, .authenticated: return 120
-            case .authorized, .configuration, .requested, .programObserved: return 180
+            case .authorized, .configuration, .requested, .executableCreated, .programObserved: return 180
             case .content: return 600
             case .rendered, .exited, .hostEnded: return nil
             }
@@ -269,7 +317,7 @@ struct SteamLaunchProgress {
     }
 
     mutating func step(_ fields: [String: String], programObserved: Bool, rendered: Bool,
-                       now: Double) -> Bool {
+                       now: Double, executableCreated: Bool = false) -> Bool {
         guard now.isFinite, now >= lastTime else { return false }
         lastTime = now
         let next: Stage
@@ -277,6 +325,7 @@ struct SteamLaunchProgress {
         else if fields["launch-game-ended"] == "1" { next = .exited }
         else if rendered { next = .rendered }
         else if programObserved { next = .programObserved }
+        else if executableCreated { next = .executableCreated }
         else if fields["launch-update-wait"] != nil && fields["launch-update-ready"] == nil { next = .content }
         else if fields["launch-config-wait"] != nil && ["22", "23"].contains(fields["launch-client-error"] ?? "") { next = .configuration }
         else if fields["launch-request-submitted"] == "1" || fields["launch-client-error"] == "0" || fields["launch-game-running"] == "1" { next = .requested }
@@ -297,6 +346,7 @@ struct SteamLaunchProgress {
         case .configuration: reason = "Steam has not finished loading the game's configuration."
         case .requested: reason = "Steam received the launch request, but no game or launcher window has been observed."
         case .programObserved: reason = "A game or launcher process has a window, but no game frame has been observed."
+        case .executableCreated: reason = "The selected executable was created, but no game or launcher window has been observed."
         case .authorized: reason = "The license is confirmed, but Steam has not accepted the launch."
         case .authenticated: reason = "Steam signed in, but has not confirmed the game's license."
         case .signingIn: reason = "Steam has not confirmed sign-in."
@@ -390,6 +440,7 @@ final class DockStartScreen: ObservableObject {
     @Published private(set) var attention = false
     @Published private(set) var progressWarning: String?
     @Published private(set) var loaderDiagnostic: String?
+    @Published private(set) var executableStatus: String?
 
     private var hold: SteamLaunchHold?
     private var progress = SteamLaunchProgress()
@@ -406,6 +457,8 @@ final class DockStartScreen: ObservableObject {
         active = game != nil; appID = game?.id; failure = nil
         progress = SteamLaunchProgress(); progressWarning = nil
         loaderDiagnostic = nil; LogStore.shared.resetLaunchRejection()
+        executableStatus = nil
+        LogStore.shared.trackLaunchExecutable(game == nil ? nil : MadeiraDock.launchImage)
         exitObserved = false; hostStarted = false; early = []; started = start
         guard let game, MadeiraConfig.flag("MADEIRA_DOCK_HIDE_DESKTOP") else { return }   // 0: a Dock start's starting screen ends on the desktop's first frame, as before
         LogStore.shared.setLaunchDiagnosticsActive(true)
@@ -421,6 +474,7 @@ final class DockStartScreen: ObservableObject {
         active = false; appID = nil; failure = nil
         progressWarning = nil
         loaderDiagnostic = nil
+        executableStatus = nil; LogStore.shared.trackLaunchExecutable(nil)
         LogStore.shared.setLaunchDiagnosticsActive(false)
     }
 
@@ -461,11 +515,15 @@ final class DockStartScreen: ObservableObject {
         let programObserved = hostStarted && windows.contains {
             !early.contains($0.hwnd) && SteamLaunchScene.owner($0.image, places: places) == .other
         }
-        if progress.step(fields, programObserved: programObserved, rendered: decision.scene == .game, now: elapsed) {
+        let creation = LogStore.shared.launchCreation
+        if progress.step(fields, programObserved: programObserved, rendered: decision.scene == .game, now: elapsed,
+                         executableCreated: hostStarted && creation != nil) {
             LogStore.shared.log("[steam-launch-stage] stage=\(progress.stage.rawValue) t=\(Int(elapsed))s")
         }
         let warning = hostStarted ? progress.warning(now: elapsed) : nil
         if progressWarning != warning { progressWarning = warning }
+        let status = progress.stage == .executableCreated ? creation.map { $0.text + " Waiting for a game or launcher window." } : nil
+        if executableStatus != status { executableStatus = status }
         if decision.scene != hold.scene, sceneLines < 24 {
             sceneLines += 1
             let window = decision.window.map {

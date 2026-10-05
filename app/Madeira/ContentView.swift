@@ -3181,7 +3181,8 @@ struct ContentView: View {
             let launchOptions = await SteamOwnedLibrary.shared.launchOptions(appID: game.id) ?? []
             let launchFolder = MadeiraDock.drive.appendingPathComponent(
                 game.library + "/common/" + game.installDir, isDirectory: true)
-            let launchOption = SteamDirectStart.choose(launchOptions, installFolder: launchFolder)?.launchID
+            let launchChoice = SteamDirectStart.choose(launchOptions, installFolder: launchFolder)
+            let launchOption = launchChoice?.launchID
             do {
                 try await SteamOwnedLibrary.shared.prepareRequiredDockContent(appID: game.id,
                     steamApps: MadeiraDock.drive.appendingPathComponent(game.library, isDirectory: true))
@@ -3198,7 +3199,8 @@ struct ContentView: View {
                 }
                 try MadeiraDock.writeHandoff(account: signIn.accountName, token: signIn.refreshToken, appID: game.id)
             } catch { fail(error); return }
-            MadeiraDock.configure(game, launchOption: launchOption)
+            let launchImage = launchChoice.map { game.windowsInstallPath + "\\" + $0.program.replacingOccurrences(of: "/", with: "\\") }
+            MadeiraDock.configure(game, launchOption: launchOption, expectedImage: launchImage)
             // The game's one-time installs (its Steam install script) run first, in the same
             // session. No session runs yet, so the registry files can be read and written.
             DockInstallers.prepare(game, drive: MadeiraDock.drive, prefix: MadeiraDock.prefix)

@@ -3593,6 +3593,7 @@ struct LibraryHUD: View {
             if let warning = dockStart.progressWarning {
                 return warning + (dockStart.loaderDiagnostic.map { "\n" + $0 } ?? "")
             }
+            if let created = dockStart.executableStatus { return created }
             return DockStartStatus.text(MadeiraDock.pollReport().fields, installers: DockInstallers.script != nil,
                                         installerProgress: progress, installsFinished: DockInstallers.finishedAt != nil,
                                         waited: Date().timeIntervalSince(hostDue))
