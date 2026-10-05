@@ -26,7 +26,15 @@ The predicate now accepts unsigned/unscaled/post/pre forms while leaving the
 separate unprivileged mode `10` unhandled and unchanged. The fixture covers
 pre-index stores and unprivileged refusal for all four widths. See the
 [Arm instruction reference](https://documentation-service.arm.com/static/67e40f3398aa3c3b6eea6a85).
-Targeted ARM, full 78-check and fresh native/app gates are pending.
+The expanded fixture first failed at `91a7a92` in targeted workflow
+37274594067: `scalar_store` did not accept a valid pre-index encoding. After
+the predicate correction, targeted workflow 37274755701 passed at `889c6be`.
+Terminal ARM job 111649237226 has two scalar-decoder PASS records and two
+native paired-store PASS records, covering ASan/UBSan and TSan, with no
+sanitizer diagnostics. Full 78-check workflow 37274755529 and fresh native/app
+workflow 37274760178 are still running. The earlier `91a7a92` native workflow
+37274597234 was deliberately cancelled after this source correction superseded
+it; cancellation is not a compilation or package pass.
 These follow-up source changes are not in the delivered candidate-3 IPA.
 
 The first ARM fixture run exposed an additional CI flaw: a recovering UBSan
