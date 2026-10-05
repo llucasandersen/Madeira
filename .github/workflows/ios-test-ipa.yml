@@ -15,6 +15,10 @@ on:
         description: Earlier successful FEX artifact run ID (optional)
         type: string
         default: ''
+      dxmt_source_run:
+        description: Successful DXMT ARM64EC source build run with matching Wine/DXMT pins (optional)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -151,6 +155,41 @@ jobs:
         run: |
           xcodebuild -downloadComponent MetalToolchain
           bash build/dxmt-ios/build.sh
+      - name: Require a successful graphics source workflow
+        if: inputs.dxmt_source_run != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DXMT_SOURCE_RUN: ${{ inputs.dxmt_source_run }}
+        run: |
+          [[ "$DXMT_SOURCE_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DXMT_SOURCE_RUN" > build/ci-artifacts/dxmt-run.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          run = json.loads(Path('build/ci-artifacts/dxmt-run.json').read_text())
+          assert run['status'] == 'completed' and run['conclusion'] == 'success', 'graphics run has not passed'
+          assert run['path'] == '.github/workflows/dxmt-arm64ec-build.yml', 'unexpected graphics workflow'
+          PY
+      - uses: actions/download-artifact@v4
+        if: inputs.dxmt_source_run != ''
+        with:
+          name: DXMT-ARM64EC-source-build
+          run-id: ${{ inputs.dxmt_source_run }}
+          github-token: ${{ github.token }}
+          path: build/ci-artifacts/dxmt-source
+      - name: Verify and stage source-built DXMT graphics DLLs
+        if: inputs.dxmt_source_run != ''
+        env:
+          DXMT_SOURCE_RUN: ${{ inputs.dxmt_source_run }}
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          run = json.loads(Path('build/ci-artifacts/dxmt-run.json').read_text())
+          commit = Path('build/ci-artifacts/dxmt-source/madeira-commit.txt').read_text().strip()
+          assert commit == run['head_sha'], 'artifact source does not match authenticated run'
+          PY
+          python3 tools/stage-dxmt-artifact.py build/ci-artifacts/dxmt-source --run-id "$DXMT_SOURCE_RUN"
       - name: Build and package diagnostic IPA
         run: bash build/ci/package-ipa.sh
       - uses: actions/upload-artifact@v4

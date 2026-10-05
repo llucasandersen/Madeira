@@ -8,8 +8,9 @@ DXMT and Dock forks. This supersedes the historical statement below that those
 upstream submodule commits were only local. This compatibility fork pins its
 changed FEX, Wine and Dock commits to `llucasandersen/FEX`,
 `llucasandersen/wine` and `llucasandersen/madeira-dock` in `.gitmodules`.
-These retain the Madeira fork histories; FEX's nested rpmalloc fork and DXMT
-remain the original Madeira forks. After checkout, run
+These retain the Madeira fork histories; DXMT is now pinned to the preserved
+history `llucasandersen/dxmt` fork as well. FEX's nested rpmalloc fork remains
+the original Madeira fork. After checkout, run
 `git submodule update --init --recursive` and verify `git submodule status` has
 no leading `-` or `+` entries before building.
 
@@ -418,3 +419,20 @@ rebuild, signing and installation has NOT been performed. Until it is,
 docs/LICENSING.md keeps the relink capability marked unverified. The
 alternative the LGPL offers, shipping the application's object files, is
 not currently done.
+# Verified DXMT graphics artifacts in diagnostic IPAs
+
+The diagnostic workflow accepts optional `dxmt_source_run`, a completed,
+successful run of `dxmt-arm64ec-build.yml` in the same repository. It downloads
+the authenticated Actions artifact and verifies its recursive Wine/DXMT pins
+against the checkout, module inventory, SHA-256 hashes, PE metadata and ARM64EC
+compiler provenance before staging `d3d10core.dll`, `d3d11.dll`, `dxgi.dll` and
+`winemetal.dll`. The existing Wine `d3d9.dll` is preserved. The app packaging
+gate verifies those same hashes inside the built app and includes the graphics
+run, component pins and hashes in `build-provenance.json`. The Metal side is
+still rebuilt from the pinned DXMT source in the app job. Without this optional
+input, tracked graphics PE binaries remain in use.
+
+Graphics source run 37248224379 passed with DXMT `7e2396b` and Wine `f8a08956`.
+Local verification accepted its downloaded artifact and rejected a modified
+DLL and a mismatched component pin. This establishes source build and staging
+checks, not rendered gameplay or a Ravenfield device pass.

@@ -68,6 +68,14 @@ report = {
     'microsoft_runtime_binaries_included': False,
     'unchanged_PE_components': 'tracked upstream binaries; complete clean PE rebuild pending',
 }
+staging = out / 'dxmt-staging.json'
+if staging.exists():
+    graphics = json.loads(staging.read_text())
+    for name, expected in graphics['staged_sha256'].items():
+        assert sha(app / 'arm64ec-windows' / name) == expected, f'packaged DXMT mismatch: {name}'
+    assert sha(app / 'arm64ec-windows/d3d9.dll') == graphics['preserved_wine_d3d9_sha256'], 'packaged Wine D3D9 changed'
+    report['source_built_dxmt'] = graphics
+    report['unchanged_PE_components'] = 'tracked upstream binaries except rebuilt ntdll, Dock and four DXMT graphics DLLs; complete clean PE rebuild pending'
 (out / 'build-provenance.json').write_text(json.dumps(report, indent=2) + '\n')
 PY
 PACKAGE="$(mktemp -d "$OUT/package.XXXXXX")"
