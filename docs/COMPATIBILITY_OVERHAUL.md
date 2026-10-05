@@ -2,7 +2,14 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
-## Latest verified app and host gates: 08c3862
+## Latest completed app and host gates: af27470
+
+The selected executable UI integration and UTF-16 identity comparison passed
+all 72 host checks in run 37259671288 at `af27470`. The app/Metal/Xcode/package
+and codesign workflow 37259672896 also passed using the freshly built runtime
+job 111602365049 from run 37259115833 (`d73604a`). These builds precede the
+socket ownership change below. Artifact inventory/package inspection is
+recorded separately when downloaded; physical acceptance remains pending.
 
 The corrected parser and child-spawn cleanup subsequently passed all 71
 distinct host checks at `08c3862` in
@@ -145,6 +152,45 @@ Full host and Xcode app gates are pending for this integration. The principal
 regression risk is missing an aliased path or unavailable Steam launch metadata;
 those cases stay unknown and do not invent successful creation. No physical
 acceptance or final-release claim is made.
+
+## Child socket registry saturation and repeated teardown
+
+Source review found that the 64-entry child master-socket registry incremented
+its published count even when registration failed because the table was full.
+Lookups then iterated beyond the array. After a registered child exited, its
+PEB key was cleared; a later peer teardown no longer found its identity and
+fell through to the parent socket/initial-process exit hook. Both are concrete
+source defects. The supplied Teardown content wait is not attributed to these
+paths without matching device evidence.
+
+`server_ios.c` now keeps mutex-protected hash buckets of individually allocated
+owner records. It has no 64-child lifetime ceiling or growing array bound.
+Record addresses and retired identities remain stable for the session because
+callers retain the per-process exiting flag pointer. Each teardown is claimed
+once; a repeated call leaves the parent, other children, their descriptors and
+the already-reclaimed resources alone. The socket stays available during
+fixed-base retirement, then its record becomes closed before its owned FD is
+closed. Unknown non-session owners cannot borrow/close the parent socket.
+The initial session's PEB is captured during initial server setup; null-owner
+bootstrap/foreign-thread behavior is preserved. Failed record allocation stops
+child startup, closes only its transferred socket and uses the existing iOS
+exit shim to reach child boot cleanup.
+
+`check-process-socket-ownership.py` compiles the actual registry/registration
+and full exit wrapper, with a separately linked initial-process exit hook.
+Real pipes and duplicated FDs cover unknown ownership, allocation failure,
+descriptor reuse, retained flag pointers, duplicate/concurrent teardown and
+800 concurrent child registrations/exits beyond the former limit. It runs
+under ASan/UBSan and ThreadSanitizer. Fresh native compilation and all 73 host
+checks are pending.
+
+Records retain only small ownership metadata for the session, rather than
+being freed while exit threads may hold pointers. This fix does not establish
+full peer-thread quiescence or prevent an old native thread from seeing a new
+generation if its PEB address itself has been recycled. The latest registration
+at an address supports ordinary new child startup; generation identity and
+reclamation after peer termination remain a separate audit item. Physical
+child/session regression acceptance and the final goal remain incomplete.
 
 ## Earlier verified app baseline: a5669ae
 

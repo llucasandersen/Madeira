@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Replace the overflowing 64-entry child socket registry with stable mutex-protected owner records. Retain retired identities, claim teardown once and prevent unknown child owners from falling through to the parent socket. Add real-descriptor saturation/duplicate-exit/concurrency sanitizer fixtures; new native/73-check gates and generation/quiescence audit are pending.
+- Complete the 72-check host and app build gates at `af27470`, including selected executable startup evidence and exact UTF-16 identity matching. Physical acceptance and final delivery remain pending.
+
 - Match server-confirmed process creation to the complete executable path selected from Steam launch metadata. Add a distinct startup creation stage and windowless timeout message, preserving generic observations when the image is unknown. Extend the real parser/state/contract fixtures; full host/app and device gates are pending.
 
 - Emit a bounded machine-readable Windows process creation record only after the server confirms successful `NtCreateUserProcess`. Preserve Unicode image identity without command lines; add formatter sanitizer and publication-order fixtures. Fresh native/72-check gates and UI lifecycle integration are pending.

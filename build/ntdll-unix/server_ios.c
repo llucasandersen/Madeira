@@ -178,32 +178,65 @@ sigset_t server_block_set;  /* signals to block during server calls */
 static int fd_socket = -1;
 
 #ifdef WINE_IOS
-#define IOS_MAX_PROC_SOCKETS 64
+#define IOS_PROC_SOCKET_BUCKETS 256
 static struct ios_proc_socket
 {
-    void *peb;      /* NULL = free slot */
+    void *peb;
     int fd;         /* this pseudo-process's master socket to wineserver */
     BOOL exiting;   /* per-process process_exiting flag */
-} ios_proc_sockets[IOS_MAX_PROC_SOCKETS];
-static int ios_proc_socket_count = 0;
+    BOOL teardown_started;
+    struct ios_proc_socket *next;
+} *ios_proc_sockets[IOS_PROC_SOCKET_BUCKETS];
+static pthread_mutex_t ios_proc_socket_lock = PTHREAD_MUTEX_INITIALIZER;
+static void *ios_session_peb;
+static BOOL ios_unknown_process_exiting = TRUE;
 
 extern void *ios_jit_current_peb(void);
 
-static int ios_proc_socket_index(void)
+/* Entries have stable addresses for the session lifetime: callers retain the
+ * exiting flag's address, and retired identities must never become the parent.
+ * A new registration is prepended if an image reuses a PEB address. */
+static unsigned ios_proc_socket_bucket( void *owner )
 {
-    void *cur = ios_jit_current_peb();
-    int i, n = ios_proc_socket_count;
-    if (cur)
-        for (i = 0; i < n; i++)
-            if (ios_proc_sockets[i].peb == cur) return i;
-    return -1;
+    uintptr_t address = (uintptr_t)owner;
+    return ((address >> 12) ^ (address >> 24)) % IOS_PROC_SOCKET_BUCKETS;
+}
+
+static struct ios_proc_socket *ios_proc_socket_find_locked( void *owner )
+{
+    struct ios_proc_socket *entry;
+    unsigned bucket = ios_proc_socket_bucket( owner );
+    if (!owner) return NULL;
+    for (entry = ios_proc_sockets[bucket]; entry; entry = entry->next)
+        if (entry->peb == owner) return entry;
+    return NULL;
+}
+
+static struct ios_proc_socket *ios_current_proc_socket(void)
+{
+    struct ios_proc_socket *entry;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    entry = ios_proc_socket_find_locked( ios_jit_current_peb() );
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+    return entry;
+}
+
+static BOOL ios_session_socket_owner(void)
+{
+    void *owner = ios_jit_current_peb();
+    return !owner || owner == ios_session_peb;
 }
 
 /* Master socket for the CURRENT thread's pseudo-process (parent = global). */
 static int ios_current_fd_socket(void)
 {
-    int i = ios_proc_socket_index();
-    return (i >= 0) ? ios_proc_sockets[i].fd : fd_socket;
+    struct ios_proc_socket *entry;
+    int fd;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    entry = ios_proc_socket_find_locked( ios_jit_current_peb() );
+    fd = entry ? entry->fd : ios_session_socket_owner() ? fd_socket : -1;
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+    return fd;
 }
 
 /* Per-process process_exiting flag (used by NtTerminateProcess). A global
@@ -211,8 +244,28 @@ static int ios_current_fd_socket(void)
  * dies (they skip their self-terminate and the server never hears). */
 BOOL *ios_process_exiting_ptr(void)
 {
-    int i = ios_proc_socket_index();
-    return (i >= 0) ? &ios_proc_sockets[i].exiting : &process_exiting;
+    struct ios_proc_socket *entry = ios_current_proc_socket();
+    return entry ? &entry->exiting : ios_session_socket_owner() ? &process_exiting : &ios_unknown_process_exiting;
+}
+
+static BOOL ios_claim_proc_teardown( struct ios_proc_socket *entry )
+{
+    BOOL claimed;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    claimed = !entry->teardown_started;
+    entry->teardown_started = TRUE;
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+    return claimed;
+}
+
+static int ios_take_proc_socket( struct ios_proc_socket *entry )
+{
+    int fd;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    fd = entry->fd;
+    entry->fd = -1;
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+    return fd;
 }
 
 /* ─── ml586 fd-ownership trace ────────────────────────────────────────────
@@ -309,19 +362,19 @@ static void ios_fdt_autopsy( const char *what, int fd, int ret, int err )
                    e ? e->gen : 0, e ? ios_fdt_names[e->prev_kind] : "oob");
 }
 
-static void ios_register_proc_socket(void *peb_id, int fd)
+static BOOL ios_register_proc_socket(void *peb_id, int fd)
 {
-    int idx = __sync_fetch_and_add(&ios_proc_socket_count, 1);
-    if (idx >= IOS_MAX_PROC_SOCKETS)
-    {
-        wine_log_write("[Wine child] proc-socket table FULL (%d)!", idx);
-        return;
-    }
+    struct ios_proc_socket *entry;
+    unsigned bucket = ios_proc_socket_bucket( peb_id );
+    if (!peb_id || fd < 0 || !(entry = calloc( 1, sizeof(*entry) ))) return FALSE;
     ios_fdt_reg( fd, FDT_MASTER, peb_id );
-    ios_proc_sockets[idx].fd = fd;
-    ios_proc_sockets[idx].exiting = FALSE;
-    __sync_synchronize();
-    ios_proc_sockets[idx].peb = peb_id;
+    entry->peb = peb_id;
+    entry->fd = fd;
+    pthread_mutex_lock( &ios_proc_socket_lock );
+    entry->next = ios_proc_sockets[bucket];
+    ios_proc_sockets[bucket] = entry;
+    pthread_mutex_unlock( &ios_proc_socket_lock );
+    return TRUE;
 }
 #endif
 static _Thread_local int initial_cwd = -1;
@@ -3599,22 +3652,28 @@ void process_exit_wrapper( int status )
 #ifdef WINE_IOS
     /* Close THIS pseudo-process's master socket — the EOF is how wineserver
      * learns the process died (signals its process object, wakes waiters).
-     * Clear the registry slot so a stray second call can't double-close. */
-    int i = ios_proc_socket_index();
-    if (i >= 0)
+     * Retain its identity and claim teardown once: a later peer must never
+     * be mistaken for the session or close a reused descriptor. */
+    struct ios_proc_socket *entry = ios_current_proc_socket();
+    if (entry)
     {
         extern void ios_jit_reclaim_process( void *peb );
         extern void ios_retire_own_fixed_base_image( void *peb );
-        void *dead_peb = ios_proc_sockets[i].peb;
+        void *dead_peb = entry->peb;
+        int owned_fd;
+        if (!ios_claim_proc_teardown( entry )) { exit( status ); return; }
         wine_log_write("[Wine ntdll/server] process_exit_wrapper(%d): closing child fd_socket=%d",
-                       status, ios_proc_sockets[i].fd);
+                       status, ios_current_fd_socket());
         /* ml987: hand back the fixed-base main image BEFORE the socket closes.
          * NtUnmapViewOfSection needs a live server connection, and this is the
          * last moment we have one while still on the owning process's thread. */
         ios_retire_own_fixed_base_image( dead_peb );
-        ios_fdt_note_close( ios_proc_sockets[i].fd, "exit-master", dead_peb );
-        close( ios_proc_sockets[i].fd );
-        ios_proc_sockets[i].peb = NULL;
+        owned_fd = ios_take_proc_socket( entry );
+        if (owned_fd >= 0)
+        {
+            ios_fdt_note_close( owned_fd, "exit-master", dead_peb );
+            close( owned_fd );
+        }
         /* ml571: drop this pseudo-process's fd cache and close what it held.
          * Must happen on the SAME identity used to key it, and before the JIT
          * reclaim below reuses anything. */
@@ -3647,7 +3706,7 @@ void process_exit_wrapper( int status )
             ios_exe_win_mark_ready( dead_peb );
         }
     }
-    else
+    else if (ios_session_socket_owner())
     {
         /* No slot: this is the session's initial process, the program the app
          * itself handed to __wine_main (WineProcessBridge.m). Its exit status
@@ -4164,6 +4223,9 @@ size_t server_init_process(void)
     size_t info_size;
     DWORD pid, tid;
 
+#ifdef WINE_IOS
+    ios_session_peb = ios_jit_current_peb();
+#endif
     server_pid = -1;
     if (env_socket)
     {
@@ -4353,7 +4415,12 @@ size_t server_init_process_child( int child_fd_socket )
      * resolve per-process via ios_current_fd_socket(). */
     if (fcntl( child_fd_socket, F_SETFD, FD_CLOEXEC ) == -1)
         wine_log_write("[Wine child] WARNING: fcntl FD_CLOEXEC failed on fd %d", child_fd_socket);
-    ios_register_proc_socket( ios_jit_current_peb(), child_fd_socket );
+    if (!ios_register_proc_socket( ios_jit_current_peb(), child_fd_socket ))
+    {
+        wine_log_write("[Wine child] cannot register owned master socket; child startup stopped");
+        close( child_fd_socket );
+        exit( 1 ); /* iOS shim returns to the child's boot cleanup, never the parent */
+    }
 
     wine_log_write("[Wine child] server_init_process_child: fd_socket=%d (peb=%p)",
                    child_fd_socket, ios_jit_current_peb());
