@@ -110,6 +110,28 @@ flag when a later valid frame arrives. Host and native compilation of this
 change are pending. This fixes missing launch evidence; geometry normalization
 and the Bomber Crew device acceptance remain unfinished.
 
+The follow-up startup normalization uses the first visible, unowned top-level
+game-mode Metal render HWND per process. Child, disabled, tool, modal-framed
+and owned dialog windows are excluded. An initially minimized, zero-client-
+size or distant off-screen render window is queued for a single repair after
+500 ms. Its owning Wine thread consumes the queue from the event pump, outside
+WindowPosChanged and outside the registry mutex. It rechecks identity, styles
+and geometry; a normal size established during the grace period is preserved.
+Minimized windows first receive SW_RESTORE; geometry is queried again because
+that call may run application code or destroy the window. Remaining invalid
+geometry is normalized to the guest host bounds without activation or z-order
+changes. Destroy/session reset clear the bounded registry, and subsequent
+swapchain recreation does not reverse a later deliberate minimize.
+
+The production driver-block harness covers grace timing, owner-thread routing,
+one repair, later minimization, parked and zero-size windows, restoration,
+destruction during restore, valid geometry during the grace period, excluded
+windows, changed process identity, secondary windows, tick wrap and bounded
+capacity under ASan/UBSan. These checks and the native build are pending.
+This is a generic startup repair, with a regression risk that an intentionally
+invalid primary render window at initial swapchain creation may be normalized.
+Bomber Crew's device run and window/fullscreen/relaunch checks remain required.
+
 ## D3D11 memory headroom policy for 64-bit guests
 
 The pinned DXMT already had an automatic large-BC-texture mip policy, but its

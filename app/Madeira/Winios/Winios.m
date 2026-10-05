@@ -395,6 +395,9 @@ static void winios_remove_layer(HWND hwnd);   /* compositor, below */
 
 extern int winios_drv_census_owner(HWND hwnd, unsigned int *pid, unsigned int *style);
 extern int winios_drv_census_rect(HWND hwnd, int *x, int *y, int *w, int *h, int *visible);
+extern void winios_drv_render_window_created(HWND hwnd);
+extern void winios_drv_render_window_forget(HWND hwnd);
+extern void winios_drv_repair_render_windows(void);
 extern int winios_drv_process_image(unsigned int pid, char *out, unsigned int size);
 extern int winios_drv_post_restore(HWND hwnd);
 extern int winios_drv_foreground_if_owner(HWND hwnd);
@@ -574,6 +577,7 @@ int winios_window_census(struct winios_census_window *out, int max) {
 }
 
 void winios_pDestroyWindow(HWND hwnd) {
+    winios_drv_render_window_forget(hwnd);
     WLOG("pDestroyWindow hwnd=%p", hwnd);
     uintptr_t pending = (uintptr_t)hwnd;
     atomic_compare_exchange_strong(&g_restore_foreground, &pending, 0);
@@ -732,6 +736,7 @@ void winios_post_key(int vk, int down) {
 }
 
 BOOL winios_pProcessEvents(DWORD mask) {
+    winios_drv_repair_render_windows();
     /* The restored born-minimized window's own thread brings it to the front
      * (see g_restore_foreground); other threads leave the request in place. */
     uintptr_t fg = atomic_load_explicit(&g_restore_foreground, memory_order_relaxed);
@@ -1065,6 +1070,7 @@ static BOOL winios_game_window_shown(NSNumber *key) {
  * takes the game layer for an HWND in a game session. */
 void winios_note_game_metal_hwnd(void *hwnd) {
     winios_census_note_game_metal((HWND)hwnd);
+    winios_drv_render_window_created((HWND)hwnd);
     dispatch_async(dispatch_get_main_queue(), ^{
         NSNumber *key = @((uintptr_t)hwnd);
         if (!g_game_metal) g_game_metal = [NSMutableSet new];
@@ -1079,6 +1085,7 @@ void winios_note_game_metal_hwnd(void *hwnd) {
 /* Called at every Wine session start (WineProcessBridge): a game session
  * starts with no overlay windows and no known Metal windows. */
 void winios_session_reset(void) {
+    winios_drv_render_window_forget(NULL);
     dispatch_async(dispatch_get_main_queue(), ^{
         [g_game_metal removeAllObjects];
         if (g_comp_game) winios_drop_compositor("new session");
