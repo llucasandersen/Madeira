@@ -2,12 +2,13 @@
 
 ## Baseline and measurement
 
-The current downloader schedules up to eight chunks per depot with a shared
+The delivered `e6f6a2c` baseline schedules up to eight chunks per depot with a shared
 ephemeral `URLSession` and up to eight connections per host. It writes each
 verified chunk with `pwrite` at the manifest offset, journals completed chunks,
 and resumes an interrupted install. Network requests are therefore already
-concurrent. There is no measured device throughput baseline yet, so increasing
-the limit would be speculation.
+concurrent. A qualitative device improvement has since been reported, but
+there is no measured throughput baseline. The adaptive source change below
+requires separate build and device verification.
 
 Each completed depot now emits one `[steam-depot] timing` line. `fetched-bytes`
 counts downloaded payload bytes, including responses retried after decode or
@@ -25,9 +26,9 @@ Those sums overlap across parallel tasks and need not add up to `wall`.
 are never logged. `retries` counts failed attempts before successful chunks.
 Failures that ultimately abort the depot remain visible in the existing
 per-attempt trace but have no completion line. This is a first measurement
-point, not a complete URLSession transaction trace: connection setup,
-time-to-first-byte, local resume SHA-1 time and CPU load are not yet separately
-recorded. Build attempts dispatched before this extension use the earlier
+point. The later URLSession extension below adds connection setup and
+time-to-first-byte; local resume SHA-1 time and CPU load remain unmeasured.
+Build attempts dispatched before this extension use the earlier
 aggregate timing; match the source commit to the log
 fields when comparing measurements.
 
@@ -128,8 +129,13 @@ host suite now has 60 checks: the existing 59 plus this Apple metrics fixture.
 The Apple fixture passed in run 37245983985: three completed requests had
 three callbacks, two reused connections, and 0.414 seconds of summed TTFB
 against the delayed HTTP server. The entire 60-check host run and iOS
-diagnostic build 37245986232 succeeded at `22b4341`; downloaded inventories
-and package verification are recorded separately once checked. This extension is not in
+diagnostic build 37245986232 succeeded at `22b4341`. Both downloaded host
+inventories exactly matched all 60 distinct checks, with no missing,
+duplicate or failing entries. The downloaded IPA passed the package verifier
+(checksum, ZIP CRC, app/helper identity and runtime provenance): SHA-256
+`db202ce0d0a2356c18e1a98868b9ed9d27fbd702a99d4f2fc141831f3ebd1bc3`.
+It is retained locally, with the published/USB diagnostic unchanged.
+This extension is not in
 the already delivered `e6f6a2c` diagnostic IPA. CPU load, resume SHA-1 timing,
 a measured native control benchmark remain required.
 
