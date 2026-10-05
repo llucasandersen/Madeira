@@ -18,8 +18,12 @@ SteamGames.swift, host test/CI inventory and benchmark documentation.
 Regression risks include account handoff/cancellation, response-size assumptions
 and sample/hostname comparability. The actual-source local HTTP fixture checks
 transfer bounds, three exact-byte trials, HTTP/length refusal and cancellation;
-the full owned-library harness also compiles the production downloader. Apple,
-full 79-check and updated app gates are pending. Candidate 4 and its accepted
+the full owned-library harness also compiles the production downloader. Targeted
+workflow 37278109635 passed at `4c0d431`; actual Apple job 111659611983
+reports three exact-byte trials, 72 successful requests and peak concurrency
+eight. Full 79-check workflow 37278126945 and app workflow 37278129844 remain
+running. The app reuses the verified native runtime from 37274760178 because
+this change touches no native component sources. Candidate 4 and its accepted
 build evidence remain unchanged; this feature has no device throughput result.
 
 ## Mach writable-alias integer paired stores

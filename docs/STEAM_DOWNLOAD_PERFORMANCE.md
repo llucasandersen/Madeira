@@ -27,8 +27,13 @@ network and CDN hostname. The fixed eight-transfer control measures the
 response path; it is not a full install or an arbitrary Internet speed test.
 
 The new actual-source HTTP fixture covers three trials, bounded concurrency,
-invalid samples, HTTP/length refusal, cancellation and numeric JSON. Its Apple
-and full 79-check gates, updated IPA and actual phone measurement are pending.
+invalid samples, HTTP/length refusal, cancellation and numeric JSON. Targeted
+workflow 37278109635 passed at `4c0d431`; terminal Apple job 111659611983
+records 72 successful sample requests and observed peak concurrency eight.
+The byte-size check follows the manifest compressed-length contract also used
+by [SteamKit's CDN client](https://github.com/SteamRE/SteamKit/blob/master/SteamKit2/SteamKit2/Steam/CDN/Client.cs).
+The full 79-check gate 37278126945, app workflow 37278129844 and actual phone
+measurement remain pending.
 Delivered candidate 4 predates this feature. No throughput result is inferred
 from the implementation or fixture.
 

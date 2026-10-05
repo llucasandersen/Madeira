@@ -2,6 +2,13 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+Subsequent source work at `4c0d431` adds the owned-depot phone native-control
+measurement and a 79th actual-source host check. Targeted 37278109635 passed;
+full host 37278126945 and app 37278129844 are still running. The latter reuses
+the unchanged verified native runtime from 37274760178. No updated IPA or phone
+result is inferred from this targeted pass; USB candidate 4 remains the latest
+verified delivered package below.
+
 Latest completed host validation: all 78 checks and real Valve archives passed
 at `889c6be` (37274755529). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,
