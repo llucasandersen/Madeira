@@ -2,20 +2,25 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
-Latest completed host validation: all 77 checks and real Valve archives passed
-at `17776be` (37271658528). Downloaded inventories match that full test tree,
+Latest completed host validation: all 78 checks and real Valve archives passed
+at `3e94179` (37272555190). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,
 callback delivery, exact selected-game/host generation correlation and stale
 file-tail delivery, synchronized image-owner publication and scalar Mach LSE
-alias atomics and native ARM paired stores, alongside the existing sanitizer fixtures. Fresh native
-compilation passed at `5d10bb3` (job 111632689095 in 37269302622).
+alias atomics and native ARM paired stores, alongside the existing sanitizer
+fixtures and the runner's recovering-sanitizer integration. Every raw and
+effective exit is zero, with no sanitizer diagnostics. Fresh native compilation
+passed at `343028f` (job 111639327861 in 37271515195).
 
-Latest completed app validation: workflow 37269302622 passed at `5d10bb3`,
-including fresh native runtime and app job 111635040105.
+Latest completed app validation: workflow 37272620144 passed at `3e94179`,
+including app job 111642667843 and strict macOS codesign verification. It reuses
+the fresh native runtime above; runtime/app sources are identical between the
+two commits, with intervening changes confined to tests, CI and documentation.
 Local ZIP/CRC/identity/runtime/graphics/source-stamp checks passed, SHA-256
-`fe6179f44f35385c547e6a3bbdd63adf8eb952e7399c7165b7bc247e5bc9c3c9`.
-The IPA is 87,373,902 bytes, includes native launch/exit correlation, image
-ownership synchronization and scalar Mach LSE alias atomics, and has no new physical
+`972ec25405fc37632b1faf0bebe714db2e72bd632b5b38cb2170ce733e511991`.
+The IPA is 87,374,766 bytes, includes native launch/exit correlation, image
+ownership synchronization, scalar Mach LSE atomics and integer paired stores,
+and has no new physical
 acceptance results. Automatic renderer selection, 10-minute/relaunch behavior,
 repeated map loads and final delivery remain unverified.
 
@@ -26,7 +31,7 @@ change at `343028f` passed corrected native ARM ASan/UBSan and TSan fixtures
 at `17776be` (37271658156), with terminal logs checked for sanitizer errors.
 The initial fixture's recovering UBSan result is not accepted. Full 77-check
 suite 37271658528 passed with exact inventories and clean native ARM logs;
-fresh iOS workflow 37271515195 remains pending. `17776be`
+fresh iOS workflow 37271515195 passed. `17776be`
 changes only tests/docs from the runtime/app sources built at `343028f`.
 No new device result
 or final USB delivery is inferred from these builds.
@@ -102,6 +107,22 @@ window repair and measured headroom overlay. Device acceptance remains pending;
 adaptive JIT sizing and broader resource reclamation are still unfinished.
 
 ## Diagnostic package delivery
+
+Test candidate 3 is copied to
+`E:\Madeira-Compatibility-Update-3\Madeira-diagnostic-3e94179.ipa`, with checksum,
+source/graphics provenance and installation/test instructions. The USB copy
+passed the package verifier with exact source commit and checksum above. It
+contains the coherent runtime repair, automatic Teardown renderer profile,
+learned JIT and staging trim policies, and the subsequent native ownership,
+exit correlation and store fixes missing from update 2. It retains the existing
+app identity for updating with the same signing account/App ID prefix.
+New phone logs have been requested for Teardown's content preparation,
+ten-minute gameplay and relaunch. This is an acceptance-test candidate;
+the complete goal and final release remain pending the device gates.
+The [candidate 3 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.3)
+is published at exact source commit `3e94179`. All five uploaded asset sizes
+and server SHA-256 digests match the USB IPA, checksum, provenance, graphics
+metadata and README; the release is a published prerelease rather than a draft.
 
 Update 2 packages `Madeira-diagnostic-e6e9b23.ipa` from the verified source
 commit above. Local package checks and the copy at

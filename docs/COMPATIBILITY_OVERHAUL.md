@@ -11,8 +11,10 @@ with a zero exit, while retaining the original subprocess status separately.
 The original log remains unchanged. `check-host-sanitizer-gate.py` runs the
 actual runner against controlled child checks, verifying recovered UBSan/TSan
 failures, ordinary failures, clean success, raw statuses and continued execution
-of later checks. This integration passed locally; the updated 78-check CI gate
-is pending. The previously downloaded 77-check logs contain no sanitizer errors.
+of later checks. This integration passed locally and in the complete 78-check
+workflow 37272555190 at `3e94179`. Downloaded inventories have no missing or
+duplicate checks; every raw/effective exit is zero and sanitizer-error flag
+false. The previously downloaded 77-check logs contain no sanitizer errors too.
 
 Upstream [report #123](https://github.com/willfaust/Madeira/issues/123)
 includes CoreCLR's `0xa9882149` (`STP x9,x8,[x10,#128]!`). Mach case 4
@@ -37,8 +39,7 @@ faults, register combinations, writeback and unchanged refusal. A protected
 page checks that a rejected span never writes its first half. Competing native
 STP writers and an LDP reader verify 100,000 pair writes. ASan/UBSan and TSan
 check the surrounding C; inline assembly itself is checked by hardware accesses
-and these explicit assertions. Native ARM host, full 77-check and fresh iOS
-build gates are pending. The first targeted run (37271500504) exposed invalid
+and these explicit assertions. The first targeted run (37271500504) exposed invalid
 intermediate pointer arithmetic in the test fixture despite its success exit;
 the fixture now uses a bounded offset and fatal sanitizer recovery settings.
 That initial result is not accepted as a sanitizer pass. Corrected targeted
@@ -48,7 +49,15 @@ Full corrected suite 37271658528 passed all 77 distinct checks and the real
 Valve archive gate at `17776be`. Downloaded result inventories match the entire
 test tree without omissions, duplicates or nonzero exits; the ARM fixture logs
 contain both PASS records and no sanitizer errors. Fresh runtime/app workflow
-37271515195 (production-equivalent `343028f`) is still running.
+37271515195 passed at `343028f`, including native job 111639327861. Corrected
+source-stamped package workflow 37272620144 passed at `3e94179`, reusing that
+source-equivalent native runtime. Local and USB package checks passed for
+`Madeira-diagnostic-3e94179.ipa` (87,374,766 bytes), SHA-256
+`972ec25405fc37632b1faf0bebe714db2e72bd632b5b38cb2170ce733e511991`.
+The USB test candidate is under `E:\Madeira-Compatibility-Update-3`.
+The [candidate 3 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.3)
+is tagged at exact package source `3e94179`; all five server asset sizes and
+SHA-256 digests match the verified USB copies.
 Device exception delivery, exclusive reservations,
 peer-thread quiescence and physical acceptance remain unproven.
 

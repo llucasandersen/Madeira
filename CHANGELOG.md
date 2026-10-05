@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Verify all 78 host checks and real Valve archives at `3e94179`, fresh paired-store native compilation at `343028f`, and the complete source-stamped `3e94179` app package. Local and USB test-candidate package verification passed; device acceptance and final release remain pending.
+
 - Refuse green host CI results when a recovering sanitizer reports an error with subprocess exit zero. Preserve the raw status and output, and add actual runner integration coverage; updated 78-check CI is pending.
 
 - Verify all 77 host checks and real Valve archives at `17776be` in 37271658528, including corrected native ARM pair-store fixtures. Downloaded inventories and sanitizer logs passed; fresh iOS, physical acceptance and final delivery remain pending.
