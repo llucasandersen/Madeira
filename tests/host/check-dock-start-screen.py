@@ -98,7 +98,7 @@ destroy = winios[winios.index('void winios_pDestroyWindow(HWND hwnd) {'):]
 destroy = destroy[:destroy.index('\n}\n')]
 require('atomic_compare_exchange_strong(&g_restore_foreground, &pending, 0)' in destroy and 'winios_census_forget(hwnd)' in destroy,
         'a destroyed window leaves the census and any pending front request')
-require(winios.count('winios_census_note_frame(hwnd, x, y, w, h, visible);') == 1 and
+require(winios.count('winios_census_note_frame(hwnd, x, y, w, h, visible);') == 2 and
         winios.count('winios_census_note_present(hwnd);') == 1 and winios.count('winios_census_note_metal((HWND)hwnd);') == 1,
         'the census is fed by the frame, GDI flush and swapchain hooks')
 require('#include "Winios.h"' in winios, 'Winios.m includes the header Swift reads the census struct from')

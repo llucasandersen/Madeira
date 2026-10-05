@@ -927,6 +927,14 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
             "\"branches\" { \"public\" { \"buildid\" \"7\" } } } }"]
     let fetcher = SteamLibraryFetcher(session: session)
     guard let app = try await fetcher.fetchInstallInfo(appID: 9000) else { require(false, "app info"); return }
+    session.appInfo[9300] = "\"appinfo\" { \"config\" { \"installdir\" \"Consumer\" } \"depots\" { \"9003\" { \"sharedinstall\" \"1\" \"depotfromapp\" \"9200\" \"config\" { \"oslist\" \"windows\" } } } }"
+    session.appInfo[9200] = "\"appinfo\" { \"common\" { \"name\" \"Installer Owner\" \"type\" \"Tool\" } \"config\" { \"installdir\" \"Installer Store\" } \"depots\" { \"9003\" { \"manifests\" { \"public\" { \"gid\" \"\(gidShared)\" } } } \"9999\" { \"manifests\" { \"public\" { \"gid\" \"999\" } } } \"branches\" { \"public\" { \"buildid\" \"7\" } } } }"
+    let installers = try await fetcher.fetchRequiredSharedInstalls(appID: 9300)
+    require(installers.count == 1 && installers[0].appID == 9200 && installers[0].installDir == "Installer Store",
+            "required installers resolve into the owner directory")
+    require(installers[0].installDepots().map(\.depotID) == [9003], "only declared installer depots are selected")
+    let noInstallers = try await fetcher.fetchRequiredSharedInstalls(appID: 9000)
+    require(noInstallers.isEmpty, "games without shared installers have no extra content")
     require(app.depots.first { $0.depotID == 9003 }?.publicManifestID == UInt64(gidShared), "the shared depot got its manifest from the owning app")
     require(app.sharedOwners[9100]?.installDir == "Fixture Game", "the owner of the shared depot is known for the record")
     let downloader = DepotDownloader(session: session)
@@ -962,6 +970,11 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
         let events = loggedEvents.joined(separator: "\n")
         require(!events.contains("Fixture") && !events.contains("7656119") && !events.contains("tok"), "no name, account or token in the log")
         require(events.contains("[steam-depot] license app=9000 skipped=9004"), "a depot the account neither has a key for nor a license for is left out")
+        _ = try await downloader.install(installers[0], steamApps: steamApps, mergeExistingOwnerRecord: true) { _ in }
+        require(SteamInstallFiles.buildID(appID: 9200, steamApps: steamApps) == 7,
+                "verified shared installer content writes its owner record")
+        require(FileManager.default.fileExists(atPath: steamApps.appendingPathComponent("common/Installer Store").path),
+                "shared installer files are installed outside the game directory")
     }
     if phase == "update" {
         require(SteamInstallFiles.buildID(appID: 9000, steamApps: steamApps) == 1001, "the update changed the recorded build")

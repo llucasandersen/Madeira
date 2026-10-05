@@ -3180,6 +3180,10 @@ struct ContentView: View {
             let launchFolder = MadeiraDock.drive.appendingPathComponent(
                 game.library + "/common/" + game.installDir, isDirectory: true)
             let launchOption = SteamDirectStart.choose(launchOptions, installFolder: launchFolder)?.launchID
+            do {
+                try await SteamOwnedLibrary.shared.prepareRequiredDockContent(appID: game.id,
+                    steamApps: MadeiraDock.drive.appendingPathComponent(game.library, isDirectory: true))
+            } catch { fail(error); return }
             await SteamOwnedLibrary.shared.prepareDock()
             do {
                 // The launch state may have changed while the connection closed.

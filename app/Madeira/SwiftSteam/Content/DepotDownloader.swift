@@ -76,6 +76,7 @@ final class DepotDownloader {
     /// appmanifest. Returns the install folder. Throws CancellationError when
     /// the calling task is cancelled; completed chunks stay journaled.
     func install(_ app: SteamAppInfo, steamApps: URL,
+                 mergeExistingOwnerRecord: Bool = false,
                  ownedDepots: @escaping () async -> Set<UInt32>? = { nil },
                  progress report: @escaping (SteamDownloadProgress) -> Void) async throws -> URL {
         let depots = app.installDepots()
@@ -266,12 +267,21 @@ final class DepotDownloader {
                 .map { $0.filename.replacingOccurrences(of: "/", with: "\\") }
         }
         if !custom.isEmpty { SteamLog.event("[steam-record] custom-executables app=\(app.appID) custom=\(custom.count)") }
+        if mergeExistingOwnerRecord {
+            guard shared.isEmpty, custom.isEmpty else {
+                throw SteamFileError.invalid("Unsupported nested or customized shared installer content.")
+            }
+            try AppManifestWriter.mergeOwnerManifest(ownerAppID: app.appID, ownerName: app.name,
+                ownerBuildID: app.buildID, installDir: folderName, steamID: accountID,
+                steamAppsPath: steamApps.path, depots: own)
+        } else {
         try AppManifestWriter.writeManifest(
             appID: app.appID, name: app.name, installDir: folderName, buildID: app.buildID,
             steamID: accountID, sizeOnDisk: prepared.totalUncompressed,
             steamAppsPath: steamApps.path, installedDepots: own,
             sharedDepots: shared.map { ($0.depotID, Int(owners[UInt32($0.depotID)]!)) },
             customExecutables: custom)
+        }
         if !shared.isEmpty {
             var written = 0, skipped = 0
             for ownerID in Set(owners.values).sorted() {

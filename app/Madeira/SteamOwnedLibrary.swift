@@ -214,6 +214,7 @@ final class SteamOwnedLibrary: ObservableObject {
                                                 reopen: { [session] in session.resume() })
     private lazy var fetcher = SteamLibraryFetcher(session: session)
     private lazy var downloader = DepotDownloader(session: session)
+    private var preparingDockContent = false
     private var started = false
     /// Which account the cached list belongs to: a SHA-256 of the account name,
     /// so the cache file holds no name.
@@ -905,6 +906,30 @@ final class SteamOwnedLibrary: ObservableObject {
         SteamLog.event("[steam-library] connection closed for Madeira Dock")
     }
 
+    /// Finish required shared content before handing the account to Dock.
+    /// The same downloader verifies chunks, keeps its journal and writes the
+    /// owner record only after completion. Existing owner depots are retained.
+    func prepareRequiredDockContent(appID: Int, steamApps: URL) async throws {
+        guard signedIn, !inSession, !preparingDockContent, appID > 0, appID <= Int(UInt32.max) else {
+            throw DockError.message("Steam cannot prepare this launch right now. Try again after the current session finishes.")
+        }
+        preparingDockContent = true
+        defer { preparingDockContent = false; pump() }
+        let running = active?.task
+        running?.cancel()
+        await running?.value
+        let dependencies = try await fetcher.fetchRequiredSharedInstalls(appID: UInt32(appID))
+        for dependency in dependencies {
+            try Task.checkCancellation()
+            MadeiraDockModel.shared.status = "Preparing required Steam content…"
+            _ = try await downloader.install(dependency, steamApps: steamApps,
+                mergeExistingOwnerRecord: true) { progress in
+                SteamDownloadBackground.shared.progress(progress)
+            }
+        }
+        SteamLog.event("[steam-required-content] app=\(appID) ready=1 owners=\(dependencies.count)")
+    }
+
     /// Madeira Dock's session ended, or its start failed (MadeiraDockModel,
     /// ContentView.startDock): the connection comes back once no session runs.
     func dockEnded() {
@@ -1034,7 +1059,7 @@ final class SteamOwnedLibrary: ObservableObject {
     }
 
     private func pump() {
-        guard active == nil, !inSession, !queue.isEmpty else { return }
+        guard active == nil, !inSession, !preparingDockContent, !queue.isEmpty else { return }
         let appID = queue.removeFirst()
         downloads[appID]?.state = .active
         SteamDownloadBackground.shared.downloadStarted(appID: appID, name: game(appID)?.name ?? "Steam game")
