@@ -66,7 +66,10 @@
  *
  * Scope is much wider than one crash: any zero-store into an alias-backed page
  * was corrupting memory this way. */
-#define IOS_STORE_SRC(r) ((r) == 31 ? 0ULL : state.__x[r])
+/* FP/LR/SP are separate Darwin fields, not legal __x[29..31] elements.
+ * Source register 31 remains ZR; base register 31 is SP. */
+#define IOS_STORE_SRC(r) ((r) < 29 ? state.__x[r] : (r) == 29 ? state.__fp : (r) == 30 ? state.__lr : 0ULL)
+#define IOS_STORE_BASE_PTR(r) ((r) < 29 ? &state.__x[r] : (r) == 29 ? &state.__fp : (r) == 30 ? &state.__lr : &state.__sp)
 
 #include <mach/mach_vm.h>
 #include <mach/thread_act.h>
@@ -3384,8 +3387,7 @@ static void *ios_mach_exception_thread( void *arg )
                             if (wb)
                             {
                                 base_new = base_old + (uint64_t)off;
-                                if (rn == 31) state.__sp = base_new;
-                                else          state.__x[rn] = base_new;
+                                *IOS_STORE_BASE_PTR(rn) = base_new;
                             }
                             emulated = 1;
                             {
@@ -3515,7 +3517,7 @@ static void *ios_mach_exception_thread( void *arg )
                             int rn = (insn >> 5) & 0x1f;
                             int imm9 = (insn >> 12) & 0x1ff;
                             if (imm9 & 0x100) imm9 |= ~0x1ff;  // sign-extend 9-bit
-                            state.__x[rn] = (uint64_t)((int64_t)state.__x[rn] + imm9);
+                            *IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;
                         }
                     }
                     /* STR (immediate, post/pre-index, 32-bit): 1011 1000 00 0imm9 0[10]1 Rn Rt */
@@ -3530,7 +3532,7 @@ static void *ios_mach_exception_thread( void *arg )
                             int rn = (insn >> 5) & 0x1f;
                             int imm9 = (insn >> 12) & 0x1ff;
                             if (imm9 & 0x100) imm9 |= ~0x1ff;
-                            state.__x[rn] = (uint64_t)((int64_t)state.__x[rn] + imm9);
+                            *IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;
                         }
                     }
                     /* STRB (immediate, post/pre-index, 8-bit): 0011 1000 00 0imm9 0[10]1 Rn Rt
@@ -3548,7 +3550,7 @@ static void *ios_mach_exception_thread( void *arg )
                             int rn = (insn >> 5) & 0x1f;
                             int imm9 = (insn >> 12) & 0x1ff;
                             if (imm9 & 0x100) imm9 |= ~0x1ff;
-                            state.__x[rn] = (uint64_t)((int64_t)state.__x[rn] + imm9);
+                            *IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;
                         }
                     }
                     /* STRH (immediate, post/pre-index, 16-bit): 0111 1000 00 0imm9 0[10]1 Rn Rt */
@@ -3563,7 +3565,7 @@ static void *ios_mach_exception_thread( void *arg )
                             int rn = (insn >> 5) & 0x1f;
                             int imm9 = (insn >> 12) & 0x1ff;
                             if (imm9 & 0x100) imm9 |= ~0x1ff;
-                            state.__x[rn] = (uint64_t)((int64_t)state.__x[rn] + imm9);
+                            *IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;
                         }
                     }
                     /* SIMD/FP STR (immediate, post/pre-index, D-reg = 64-bit):
@@ -3584,7 +3586,7 @@ static void *ios_mach_exception_thread( void *arg )
                                 int rn = (insn >> 5) & 0x1f;
                                 int imm9 = (insn >> 12) & 0x1ff;
                                 if (imm9 & 0x100) imm9 |= ~0x1ff;
-                                state.__x[rn] = (uint64_t)((int64_t)state.__x[rn] + imm9);
+                                *IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;
                             }
                         }
                     }
@@ -3603,7 +3605,7 @@ static void *ios_mach_exception_thread( void *arg )
                                 int rn = (insn >> 5) & 0x1f;
                                 int imm9 = (insn >> 12) & 0x1ff;
                                 if (imm9 & 0x100) imm9 |= ~0x1ff;
-                                state.__x[rn] = (uint64_t)((int64_t)state.__x[rn] + imm9);
+                                *IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;
                             }
                         }
                     }
@@ -3622,7 +3624,7 @@ static void *ios_mach_exception_thread( void *arg )
                                 int rn = (insn >> 5) & 0x1f;
                                 int imm9 = (insn >> 12) & 0x1ff;
                                 if (imm9 & 0x100) imm9 |= ~0x1ff;
-                                state.__x[rn] = (uint64_t)((int64_t)state.__x[rn] + imm9);
+                                *IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;
                             }
                         }
                     }

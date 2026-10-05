@@ -4,6 +4,25 @@ This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility
 
 ## Mach writable-alias integer paired stores
 
+### Follow-up scalar register/writeback audit
+
+After candidate 3 delivery, the source review found remaining out-of-array
+register access in the older Mach alias-store branches. `IOS_STORE_SRC` handled
+ZR but indexed `__x[29]`/`__x[30]` for FP/LR. Seven scalar/SIMD indexed-store
+branches similarly wrote base registers through `__x[rn]`, including SP, and
+performed signed address addition. Layout adjacency does not make those array
+accesses valid C; signed addition also fails at address wrap boundaries.
+
+The source macro now uses Darwin's explicit FP/LR fields, with source 31 still
+zero. A base-pointer macro selects the actual x/FP/LR/SP field. Indexed
+writeback uses unsigned A64 address arithmetic, and the SIMD pair writeback
+uses the same valid field selection. The ARM fixture now compiles the actual
+scalar decoder branches and exercises all 32 source/base encodings, widths,
+offset/unscaled/pre/post modes, signed offsets, source/base overlap and both
+signed-boundary and unsigned address wrap. Its existing native pair/guard-page
+tests remain. Targeted ARM, full 78-check and fresh native/app gates are pending.
+These follow-up source changes are not in the delivered candidate-3 IPA.
+
 The first ARM fixture run exposed an additional CI flaw: a recovering UBSan
 diagnostic could leave a subprocess exit of zero and be reported as PASS.
 `build/ci/host-regressions.py` now rejects captured sanitizer diagnostics even

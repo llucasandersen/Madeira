@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Correct FP/LR store sources and FP/LR/SP indexed base writeback in older Mach alias-store paths. Use explicit Darwin register fields and unsigned address arithmetic; extend the real ARM fixture with actual scalar decoder branches and boundary cases. New native/full gates are pending; candidate 3 predates this follow-up.
+
 - Verify all 78 host checks and real Valve archives at `3e94179`, fresh paired-store native compilation at `343028f`, and the complete source-stamped `3e94179` app package. Local and USB test-candidate package verification passed; device acceptance and final release remain pending.
 
 - Refuse green host CI results when a recovering sanitizer reports an error with subprocess exit zero. Preserve the raw status and output, and add actual runner integration coverage; updated 78-check CI is pending.

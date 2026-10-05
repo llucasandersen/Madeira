@@ -15,6 +15,12 @@ assert subprocess.check_output(['sysctl', '-n', 'hw.optional.arm.FEAT_LSE2'], te
 source = (root / 'build/ntdll-unix/signal_arm64_ios.c').read_text(encoding='utf-8')
 start = source.index('static int ios_mach_emulate_stp_alias(')
 production = source[start:source.index('\n}', start) + 2]
+macros = '\n'.join(line for line in source.splitlines() if line.startswith(('#define IOS_STORE_SRC(', '#define IOS_STORE_BASE_PTR(')))
+scalar_start = source.index('                    /* STR (immediate, unsigned offset, 64-bit):')
+scalar_end = source.index('                    /* SIMD/FP STR (immediate, post/pre-index, D-reg', scalar_start)
+scalar = source[scalar_start:scalar_end]
+assert source.count('*IOS_STORE_BASE_PTR(rn) += (uint64_t)(int64_t)imm9;') == 7
+assert '*IOS_STORE_BASE_PTR(rn) = base_new;' in source
 assert 'emulated = ios_mach_emulate_stp_alias(insn, fault_addr, rw_addr, rx, sz, in_jit, &state);' in source
 code = r'''
 #include <assert.h>
@@ -33,7 +39,19 @@ uintptr_t ios_jit_anon_alias_lookup(uintptr_t address) {
     return address >= guest && address - guest < extent ? host + (address - guest) : 0;
 }
 '''
-code += production
+code += production + '\n' + macros + '\n'
+code += '''
+static int scalar_store(uint32_t insn, uintptr_t rw_addr, arm_thread_state64_t *captured) {
+    arm_thread_state64_t state = *captured;
+    int emulated = 0, in_jit = 1;
+    uintptr_t fault_addr = guest, rx = guest;
+    size_t sz = extent;
+    if (0) {}
+''' + scalar + '''
+    *captured = state;
+    return emulated;
+}
+'''
 code += r'''
 static uint32_t instruction(unsigned width, unsigned mode, int units, unsigned rt, unsigned rt2, unsigned rn) {
     return 0x28000000u | (width == 8 ? 0x80000000u : 0) | (mode << 23) |
@@ -59,6 +77,40 @@ static void *pair_writer(void *lane) {
 int main(void) {
     _Alignas(16) unsigned char memory[2048];
     guest = 0x70000000; host = (uintptr_t)memory; extent = sizeof(memory);
+    // Actual scalar decoder branches: every register, width, signed offset,
+    // unsigned/unscaled/indexed mode and base/source overlap. Writeback wraps
+    // in unsigned A64 address arithmetic without signed-overflow UB.
+    const int deltas[] = {-256, -1, 0, 1, 255};
+    const uint64_t bases[] = {(uint64_t)INT64_MAX - 63, (uint64_t)INT64_MAX + 64, UINT64_MAX - 63};
+    for (unsigned lg = 0; lg < 4; lg++) for (unsigned mode = 0; mode < 4; mode++)
+    for (unsigned rn = 0; rn < 32; rn++) for (unsigned rt = 0; rt < 32; rt++)
+    for (unsigned oi = 0; oi < 5; oi++) for (unsigned bi = 0; bi < 3; bi++) {
+        unsigned width = 1u << lg;
+        arm_thread_state64_t captured = {0};
+        for (unsigned i = 0; i < 31; i++) put(&captured, i, 0x123456789abcdef0ULL + i);
+        uint64_t base = bases[bi];
+        if (rn == 31) captured.__sp = base; else put(&captured, rn, base);
+        captured.__pc = 0x1234; captured.__cpsr = 0x9876;
+        uint64_t expected_source = get(&captured, rt);
+        arm_thread_state64_t expected = captured;
+        int delta = deltas[oi];
+        if (mode == 1 || mode == 3) {
+            uint64_t updated = base + (uint64_t)(int64_t)delta;
+            if (rn == 31) expected.__sp = updated; else put(&expected, rn, updated);
+        }
+        uint32_t op = mode == 0 ? 0x39000000u : 0x38000000u |
+            (((uint32_t)delta & 511) << 12) | ((mode == 2 ? 0 : mode) << 10);
+        op |= lg << 30 | rn << 5 | rt;
+        memset(memory, 0x5a, 16);
+        assert(scalar_store(op, host, &captured));
+        uint64_t stored = 0; memcpy(&stored, memory, width);
+        uint64_t mask = width == 8 ? UINT64_MAX : (1ULL << (width * 8)) - 1;
+        assert(stored == (expected_source & mask));
+        for (unsigned i = 0; i < 31; i++) assert(get(&captured, i) == get(&expected, i));
+        assert(captured.__sp == expected.__sp && captured.__pc == expected.__pc && captured.__cpsr == expected.__cpsr);
+        for (unsigned i = width; i < 16; i++) assert(memory[i] == 0x5a);
+    }
+    puts("PASS: actual scalar alias store branches, all FP/LR/ZR sources and FP/LR/SP bases, signed offsets, overlap and unsigned writeback wrap");
     const int offsets[] = {-64, -1, 0, 1, 63};
     for (unsigned width = 4; width <= 8; width += 4) for (unsigned mode = 0; mode < 4; mode++)
     for (unsigned oi = 0; oi < 5; oi++) for (unsigned half = 0; half < 2; half++) for (int pool = 0; pool < 2; pool++) {
