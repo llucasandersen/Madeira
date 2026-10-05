@@ -48,7 +48,7 @@ typedef struct { unsigned Type; void *Pointer; } MEM_EXTENDED_PARAMETER;
 #define MemExtendedParameterAddressRequirements 1
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
 #define ERR(...) fprintf(stderr, __VA_ARGS__)
-static uint64_t ios_layerkit_lo = 0x12c400000ull, ios_layerkit_hi = 0xb30000000ull;
+static unsigned long long ios_layerkit_lo = 0x12c400000ull, ios_layerkit_hi = 0xb30000000ull;
 static uint64_t ceiling = 0xfc0000000ull, capacity = 12ull << 30;
 static ULONG_PTR ios_fex_arena_base_unix, ios_fex_arena_end_unix;
 static uint64_t held_base, held_size;
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
             assert(ceiling - (held_base + held_size) >= (6ull << 30));
         }
     }
-    unsigned before = successful_maps;
+    int before = successful_maps;
     ios_reserve_fex_arena(); assert(successful_maps == before); /* once per task */
     printf("PASS: production arena reservation %s\n", argv[1]);
 }
