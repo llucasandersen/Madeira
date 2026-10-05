@@ -36,10 +36,12 @@ The byte-size check follows the manifest compressed-length contract also used
 by [SteamKit's CDN client](https://github.com/SteamRE/SteamKit/blob/master/SteamKit2/SteamKit2/Steam/CDN/Client.cs).
 Full 79-check gate 37278126945 and app workflow 37278129844 also passed at
 `4c0d431`; downloaded test inventories/statuses and sanitizer logs were checked.
-The follow-up cache/background/installed-game access source at `7301473` requires
-full host 37279302920 and app 37279305970, which are still running. Actual phone
+The follow-up cache/background/installed-game access source at `7301473` passed
+full host 37279302920 and app 37279305970. Downloaded inventories and package
+verification passed; the verified candidate-5 IPA is on the USB and GitHub.
+Actual phone
 measurement remains pending.
-Delivered candidate 4 predates this feature. No throughput result is inferred
+Delivered candidate 4 predates this feature; candidate 5 includes it. No throughput result is inferred
 from the implementation or fixture.
 
 A follow-up review found that a downloader reused after installation retains
@@ -50,14 +52,14 @@ checks that the control does not recreate it or change the appmanifest, restores
 the fixture, and verifies depot-key refusal. Full 79-check workflow 37278773557
 passed at `e0f8dda`; downloaded inventories/statuses and sanitizer logs are clean,
 and the actual owned-library harness has the cache/record/refused-key PASS record.
-The later background/menu source still requires the complete gates above;
+The later background/menu source passed the complete gates above;
 the earlier targeted transfer proof alone does not cover this cache behavior.
 
 Background entry now cancels the control directly before the install-only grace
 handler. The grace handler requires an active/queued download and would not
 otherwise run for an isolated control measurement. The owned-library gate
-checks this observer wiring; updated app compilation and a physical background
-cancellation check remain required.
+checks this observer wiring; updated app compilation passed. A physical
+background cancellation check remains required.
 
 ## Process CPU, resume checks and whole-install intervals
 

@@ -2,7 +2,23 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
-Subsequent source work at `4c0d431` adds the owned-depot phone native-control
+Latest completed host validation: all 79 checks and real Valve archives passed
+at `7301473` in 37279302920. Downloaded inventories match every distinct check,
+with zero raw/effective exits and no sanitizer diagnostics. This includes the
+actual native control transfers, cache/record preservation and refused depot
+keys, alongside all earlier native/loader/window/memory/download regressions.
+
+Latest completed app validation: workflow 37279305970 and app job 111663398759
+passed at `7301473`, including strict macOS codesign verification. The package
+reuses the unchanged native runtime verified at `889c6be` in 37274760178.
+Local and USB ZIP/CRC/identity/runtime/graphics/source-stamp/checksum checks
+passed. The IPA is 87,414,822 bytes, SHA-256
+`b894ed3bce43fcb03f5cdb34dd55c6743913d8102c4d6e62349932284a69bd15`.
+This adds the owned native control, read-only cache handling, immediate
+background cancellation and installed-game access to candidate 4. No new
+physical gameplay, throughput or complete native peer shutdown proof is inferred.
+
+Earlier source work at `4c0d431` adds the owned-depot phone native-control
 measurement and a 79th actual-source host check. Targeted 37278109635, full
 host 37278126945 and app 37278129844 passed. Downloaded host inventories match
 all 79 distinct checks with zero raw/effective exits and no sanitizer diagnostics;
@@ -10,10 +26,10 @@ the native control fixture observed 72 successful requests and peak concurrency
 eight. No package from this source was delivered: the follow-up at `7301473`
 disables retained manifest-cache publication, cancels directly on background
 entry and exposes the controls for installed owned games. Full host 37279302920
-and app 37279305970 are running for that source. The app reuses the unchanged
+and app 37279305970 passed for that source. The app reuses the unchanged
 verified native runtime from 37274760178. The superseded intermediate app runs
 37278775828 and 37279072888 were requested to cancel after real source changes;
-cancellation is not an app-build pass. USB candidate 4 remains the latest
+cancellation is not an app-build pass. USB candidate 5 is the latest
 verified delivered package below, with no new phone results.
 
 The cache-preservation follow-up at `e0f8dda` passed all 79 checks and real Valve
@@ -21,10 +37,10 @@ archives in 37278773557. Downloaded inventories match that source with zero
 raw/effective exits and no sanitizer diagnostics. The actual owned-library
 ASan harness reports cache and install-record preservation and refused-key
 enforcement for the new control method. This proof predates the later background
-observer and installed-game menu changes; their complete gates above remain
-required.
+observer and installed-game menu changes, which passed their complete gates
+above. Physical checks remain required.
 
-Latest completed host validation: all 78 checks and real Valve archives passed
+Earlier completed host validation: all 78 checks and real Valve archives passed
 at `889c6be` (37274755529). Downloaded inventories match that full test tree,
 with no missing or duplicate checks. This includes native exit records,
 callback delivery, exact selected-game/host generation correlation and stale
@@ -37,7 +53,7 @@ at `889c6be` passed in job 111649257006 of workflow 37274760178, including the
 scalar register/pre-index follow-up. Its app job 111652524468 also passed;
 physical device acceptance remains unverified.
 
-Latest completed app validation: workflow 37274760178 passed at `889c6be`,
+Earlier completed app validation: workflow 37274760178 passed at `889c6be`,
 including app job 111652524468 and strict macOS codesign verification. It uses
 the fresh native runtime from the same workflow and source commit above.
 Local ZIP/CRC/identity/runtime/graphics/source-stamp checks passed, SHA-256
@@ -157,6 +173,18 @@ window repair and measured headroom overlay. Device acceptance remains pending;
 adaptive JIT sizing and broader resource reclamation are still unfinished.
 
 ## Diagnostic package delivery
+
+Test candidate 5 is copied to
+`E:\Madeira-Compatibility-Update-5\Madeira-diagnostic-7301473.ipa`, with checksum,
+source/graphics provenance and installation/test instructions. The USB copy
+passed the package verifier with the exact source commit and checksum above.
+The [candidate 5 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.5)
+is published at exact source commit `7301473`. All five remote asset sizes and
+server SHA-256 digests match the USB files; draft=false and prerelease=true were
+verified through the GitHub API. The updated Teardown log and native control
+JSON were requested for this package. Private USB logs remain dated October 4;
+the complete goal/final release and remaining runtime findings are not resolved
+by this delivery.
 
 Test candidate 4 is copied to
 `E:\Madeira-Compatibility-Update-4\Madeira-diagnostic-889c6be.ipa`, with checksum,

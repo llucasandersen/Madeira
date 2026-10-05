@@ -21,8 +21,8 @@ transfer bounds, three exact-byte trials, HTTP/length refusal and cancellation;
 the full owned-library harness also compiles the production downloader. Targeted
 workflow 37278109635 passed at `4c0d431`; actual Apple job 111659611983
 reports three exact-byte trials, 72 successful requests and peak concurrency
-eight. Full 79-check workflow 37278126945 and app workflow 37278129844 remain
-running. The app reuses the verified native runtime from 37274760178 because
+eight. Full 79-check workflow 37278126945 and app workflow 37278129844 passed.
+The app reuses the verified native runtime from 37274760178 because
 this change touches no native component sources. Candidate 4 and its accepted
 build evidence remain unchanged; this feature has no device throughput result.
 
@@ -31,8 +31,16 @@ after an install: a control could refresh a custom-executable manifest. The
 control now passes an explicit cache-publication opt-out, with the install
 default preserved. The existing real owned-library harness exercises the
 previously populated downloader and checks no cache recreation, unchanged
-appmanifest and depot-key refusal. Updated full/app gates are required for this
-follow-up; no acceptance result is inferred from the prior targeted transfer.
+appmanifest and depot-key refusal. Full 79-check workflow 37278773557 passed
+this follow-up at `e0f8dda`, with downloaded inventories and clean sanitizer logs.
+The final background/menu source at `7301473` passed full 79-check workflow
+37279302920 and app workflow 37279305970. The 87,414,822-byte IPA, USB candidate-5
+copy and five public prerelease assets match the exact source, provenance and
+SHA-256 `b894ed3bce43fcb03f5cdb34dd55c6743913d8102c4d6e62349932284a69bd15`.
+Immediate background cancellation uses the existing app notification observer;
+installed owned games expose the same sheet through Download options. The
+actual phone measurements, cancellation/handoff behavior and all game acceptance
+criteria remain required; the supplied logs have no result for this package.
 
 ## Mach writable-alias integer paired stores
 

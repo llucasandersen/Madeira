@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Verify all 79 host checks, real Valve archives and app packaging at `7301473`, including the owned native control follow-ups. Local, USB candidate-5 and public prerelease asset/source/checksum verification passed; physical acceptance and remaining runtime findings keep the complete goal and final release unfinished.
+
 - Expose Download options from an owned game's library-card context menu so the native control is reachable for installed games as well as uninstalled ones. Full host/app verification remains pending.
 
 - Cancel native control measurements directly on app background entry, before download-only grace handling. The measurement must not depend on an active install for cancellation; updated host/app gates are pending.
