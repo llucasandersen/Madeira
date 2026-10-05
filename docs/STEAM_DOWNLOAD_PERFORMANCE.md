@@ -1,5 +1,43 @@
 # Steam download performance
 
+## Process CPU, resume checks and whole-install intervals
+
+The downloader now samples `getrusage(RUSAGE_SELF)` user plus system CPU time
+at the start/end of each depot's chunk phase and the whole install. Logs expose
+`process-cpu-seconds` and `process-cpu-cores` (CPU seconds divided by interval
+wall seconds). Average cores can exceed one; this is the entire Madeira
+process, including other concurrent work, not CPU attribution to a specific
+chunk or a percentage of all hardware cores. Unavailable counters are labeled
+`process-cpu=unavailable`. The adaptive concurrency policy still uses its
+measured decode/write load proxy; CPU reporting does not change scheduling.
+
+On-disk reuse now reports `resume-checks`, `resume-hits`,
+`resume-checked-bytes`, `resume-check-sum` and `resume-sha1-sum`. The overall
+check includes open/read/buffer preparation, SHA-1 comparison and close; the
+SHA-1 duration is a substage, so the two durations must not be added together.
+They overlap across chunk tasks just like the network/decode sums. SHA-1
+verification and manifest offsets are unchanged. Journal-skipped chunks do not
+perform a new on-disk check. Failed/incomplete tasks may not return their stage
+measurements, while the process CPU interval includes their actual CPU work.
+
+`[steam-install] timing` covers server/key/manifest preparation, journals/files,
+chunks and final record creation, even when an install fails (`completed=0`).
+Its byte count is fetched payload returned by completed chunk tasks, including
+their retry responses. It is not total observed network traffic for aborted
+tasks or useful installed bytes. Successful whole-install payload throughput
+is distinct from the existing depot chunk-phase throughput.
+
+`tools/depot-benchmark-report.py` reports CPU/resume data and the separate
+whole-install measurements while accepting older logs. It excludes incomplete
+trials from rate medians when terminal install summaries are present; a failed
+partial install must not masquerade as a successful throughput benchmark.
+`check-depot-process-cpu.py` runs the production CPU sampler against the real
+OS counter and validates old/new, unavailable and malformed benchmark records.
+The existing production depot harness checks measured update reuse and the
+full-install/CPU records while retaining its HTTP request, byte-integrity,
+corruption, resume and ownership assertions. Full host/app gates are pending.
+No new device/native-control throughput result is claimed.
+
 ## Baseline and measurement
 
 The delivered `e6f6a2c` baseline schedules up to eight chunks per depot with a shared

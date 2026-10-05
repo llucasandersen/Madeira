@@ -9,6 +9,11 @@
 import Foundation
 import zlib
 import CommonCrypto
+#if os(Linux)
+import Glibc
+#else
+import Darwin
+#endif
 
 /// Progress for one application install, across all of its depots.
 struct SteamDownloadProgress: Equatable, Sendable {
@@ -79,6 +84,16 @@ final class DepotDownloader {
                  mergeExistingOwnerRecord: Bool = false,
                  ownedDepots: @escaping () async -> Set<UInt32>? = { nil },
                  progress report: @escaping (SteamDownloadProgress) -> Void) async throws -> URL {
+        let installStarted = ProcessInfo.processInfo.systemUptime
+        let installCPU = ContentProcessCPUInterval()
+        var totalFetchedBytes: UInt64 = 0
+        var completed = false
+        defer {
+            let wall = max(0.001, ProcessInfo.processInfo.systemUptime - installStarted)
+            SteamLog.event(String(format: "[steam-install] timing app=%u completed=%d fetched-bytes=%llu wall=%.3fs payload-MiBps=%.3f %@",
+                app.appID, completed ? 1 : 0, totalFetchedBytes, wall,
+                Double(totalFetchedBytes) / wall / 1048576, installCPU.report(wall: wall)))
+        }
         let depots = app.installDepots()
         guard !depots.isEmpty else { throw SteamError.depotNotFound(app.appID) }
         // Before the key requests, so a refused depot still has its selection logged.
@@ -174,6 +189,7 @@ final class DepotDownloader {
             let existing = prepared.existing[index]
             let attempts = attemptsPerChunk
             let depotStarted = ProcessInfo.processInfo.systemUptime
+            let depotCPU = ContentProcessCPUInterval()
             var concurrency = ContentConcurrency(started: depotStarted)
             defer {
                 for line in plan.networkMetrics.report(depotID: plan.depotID) { SteamLog.event(line) }
@@ -192,11 +208,17 @@ final class DepotDownloader {
                     let path = paths[item.file]
                     let verify = existing[item.file]
                     group.addTask {
-                        if verify, Self.chunkAlreadyPresent(chunk, path: path) {
-                            return (item.key, UInt64(chunk.compressedSize), ChunkTiming())
+                        var local = ChunkTiming()
+                        if verify, Self.chunkAlreadyPresent(chunk, path: path, timing: &local) {
+                            return (item.key, UInt64(chunk.compressedSize), local)
                         }
-                        let measured = try await Self.fetchChunk(chunk, plan: plan, path: path,
+                        var measured = try await Self.fetchChunk(chunk, plan: plan, path: path,
                                                                  attempts: attempts, seed: item.file &+ item.chunk)
+                        measured.resumeCheck = local.resumeCheck
+                        measured.resumeChecksum = local.resumeChecksum
+                        measured.resumeChecks = local.resumeChecks
+                        measured.resumeHits = local.resumeHits
+                        measured.resumeCheckedBytes = local.resumeCheckedBytes
                         return (item.key, UInt64(chunk.compressedSize), measured)
                     }
                 }
@@ -205,7 +227,13 @@ final class DepotDownloader {
                     active -= 1
                     journal.append(key)
                     state.doneBytes += bytes
+                    timing.resumeCheck += chunkTiming.resumeCheck
+                    timing.resumeChecksum += chunkTiming.resumeChecksum
+                    timing.resumeChecks += chunkTiming.resumeChecks
+                    timing.resumeHits += chunkTiming.resumeHits
+                    timing.resumeCheckedBytes += chunkTiming.resumeCheckedBytes
                     if chunkTiming.fetchedBytes > 0 {
+                        totalFetchedBytes += chunkTiming.fetchedBytes
                         fetchedChunks += 1
                         timing.fetchedBytes += chunkTiming.fetchedBytes
                         timing.network += chunkTiming.network
@@ -239,11 +267,13 @@ final class DepotDownloader {
             let mibPerSecond = Double(timing.fetchedBytes) / wall / 1_048_576
             let hostSummary = hostsUsed.sorted { $0.key < $1.key }
                 .map { "\($0.key):\($0.value)" }.joined(separator: ",")
-            SteamLog.event(String(format: "[steam-depot] timing depot=%u fetched-chunks=%d fetched-bytes=%llu wall=%.2fs network-sum=%.2fs decode-sum=%.2fs decrypt-sum=%.2fs decompress-sum=%.2fs checksum-sum=%.2fs write-sum=%.2fs retries=%d MiBps=%.2f hosts=%@ concurrency-limit=%d",
+            SteamLog.event(String(format: "[steam-depot] timing depot=%u fetched-chunks=%d fetched-bytes=%llu wall=%.2fs network-sum=%.2fs decode-sum=%.2fs decrypt-sum=%.2fs decompress-sum=%.2fs checksum-sum=%.2fs write-sum=%.2fs retries=%d MiBps=%.2f hosts=%@ concurrency-limit=%d resume-checks=%d resume-hits=%d resume-checked-bytes=%llu resume-check-sum=%.6fs resume-sha1-sum=%.6fs %@",
                                   plan.depotID, fetchedChunks, timing.fetchedBytes, wall,
                                   timing.network, timing.decode, timing.decrypt, timing.decompress,
                                   timing.checksum, timing.write, timing.retries,
-                                  mibPerSecond, hostSummary, concurrency.peak))
+                                  mibPerSecond, hostSummary, concurrency.peak,
+                                  timing.resumeChecks, timing.resumeHits, timing.resumeCheckedBytes,
+                                  timing.resumeCheck, timing.resumeChecksum, depotCPU.report(wall: wall)))
         }
 
         // 4. Install record. Sizes come from the manifests; no tree walk.
@@ -302,6 +332,7 @@ final class DepotDownloader {
         }
         try? FileManager.default.removeItem(at: journalDir)
         SteamLog.event("[steam-depot] install complete app=\(app.appID) bytes=\(prepared.totalUncompressed) seconds=\(Int(Date().timeIntervalSince(started)))")
+        completed = true
         return installURL
     }
 
@@ -342,6 +373,11 @@ final class DepotDownloader {
         var retries = 0
         var host = ""
         var fetchedBytes: UInt64 = 0
+        var resumeCheck = 0.0
+        var resumeChecksum = 0.0
+        var resumeChecks = 0
+        var resumeHits = 0
+        var resumeCheckedBytes: UInt64 = 0
     }
 
     struct Prepared: Sendable {
@@ -436,7 +472,11 @@ final class DepotDownloader {
     /// A chunk's ID is the SHA-1 of its uncompressed bytes. When a file
     /// already had content (an update, or a resume without a journal), bytes
     /// that already match are kept instead of downloaded again.
-    private nonisolated static func chunkAlreadyPresent(_ chunk: DepotManifest.ChunkEntry, path: String) -> Bool {
+    private nonisolated static func chunkAlreadyPresent(_ chunk: DepotManifest.ChunkEntry, path: String,
+                                                        timing: inout ChunkTiming) -> Bool {
+        let started = ProcessInfo.processInfo.systemUptime
+        timing.resumeChecks += 1
+        defer { timing.resumeCheck += max(0, ProcessInfo.processInfo.systemUptime - started) }
         let length = Int(chunk.uncompressedSize)
         guard chunk.sha.count == Int(CC_SHA1_DIGEST_LENGTH), length > 0,
               length <= ContentDecryptor.maximumChunkBytes else { return false }
@@ -447,8 +487,13 @@ final class DepotDownloader {
         let read = buffer.withUnsafeMutableBytes { pread(fd, $0.baseAddress, length, off_t(chunk.offset)) }
         guard read == length else { return false }
         var digest = [UInt8](repeating: 0, count: Int(CC_SHA1_DIGEST_LENGTH))
+        let hashStarted = ProcessInfo.processInfo.systemUptime
         _ = CC_SHA1(buffer, CC_LONG(length), &digest)
-        return Data(digest) == chunk.sha
+        timing.resumeChecksum += max(0, ProcessInfo.processInfo.systemUptime - hashStarted)
+        timing.resumeCheckedBytes += UInt64(length)
+        let matches = Data(digest) == chunk.sha
+        if matches { timing.resumeHits += 1 }
+        return matches
     }
 
     private nonisolated static func fetchChunk(_ chunk: DepotManifest.ChunkEntry, plan: DepotPlan,
@@ -809,6 +854,33 @@ final class DepotDownloader {
             cdnAuthTokens[cacheKey] = ""
             return ""
         }
+    }
+}
+
+/// CPU time of the entire Mach process, not attribution to one download task.
+/// One core fully occupied for one wall second reports one average core;
+/// concurrent cores can legitimately make this larger than one.
+struct ContentProcessCPUInterval {
+    private let began = Self.readSeconds()
+
+    private static func readSeconds() -> Double? {
+        var usage = rusage()
+        #if os(Linux)
+        let who = Int32(RUSAGE_SELF.rawValue)
+        #else
+        let who = RUSAGE_SELF
+        #endif
+        guard getrusage(who, &usage) == 0 else { return nil }
+        return Double(usage.ru_utime.tv_sec) + Double(usage.ru_utime.tv_usec) / 1000000 +
+               Double(usage.ru_stime.tv_sec) + Double(usage.ru_stime.tv_usec) / 1000000
+    }
+
+    func report(wall: Double) -> String {
+        guard wall.isFinite, wall > 0, let began, let ended = Self.readSeconds(),
+              ended >= began, (ended - began).isFinite, ((ended - began) / wall).isFinite else {
+            return "process-cpu=unavailable"
+        }
+        return String(format: "process-cpu-seconds=%.6fs process-cpu-cores=%.3f", ended - began, (ended - began) / wall)
     }
 }
 

@@ -979,6 +979,20 @@ func packageBuffer(apps: [UInt32], depots: [UInt32]) -> Data {
         require(SteamInstallFiles.buildID(appID: 9000, steamApps: steamApps) == build, "the record's build id")
         require(found.first(where: { $0.id == 9100 })?.installed == true, "the owning app has its own record for the shared depot, as Valve's client requires")
         let events = loggedEvents.joined(separator: "\n")
+        require(events.contains("[steam-install] timing app=9000 completed=1"), "the full install interval includes finalization")
+        require(events.contains("process-cpu-seconds=") && events.contains("process-cpu-cores="), "actual process CPU counters are reported")
+        if phase == "update" {
+            let measurements = loggedEvents.filter { $0.hasPrefix("[steam-depot] timing ") }
+            func sum(_ key: String) -> Double {
+                measurements.reduce(0) { total, line in
+                    let value = line.split(separator: " ").first { $0.hasPrefix(key + "=") }
+                    return total + (value.flatMap { Double($0.dropFirst(key.count + 1)) } ?? 0)
+                }
+            }
+            require(sum("resume-checks") > 0 && sum("resume-hits") > 0 && sum("resume-checked-bytes") > 0,
+                    "the unchanged update chunks are checked and reused with measured byte counts")
+            require(events.contains("resume-check-sum=") && events.contains("resume-sha1-sum="), "on-disk read/check and SHA-1 durations are separated")
+        }
         require(!events.contains("Fixture") && !events.contains("7656119") && !events.contains("tok"), "no name, account or token in the log")
         require(events.contains("[steam-depot] license app=9000 skipped=9004"), "a depot the account neither has a key for nor a license for is left out")
         _ = try await downloader.install(installers[0], steamApps: steamApps, mergeExistingOwnerRecord: true) { _ in }

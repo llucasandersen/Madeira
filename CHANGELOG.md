@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Report measured process CPU time/average cores per depot and whole install, and separate on-disk resume check/SHA-1 timing and bytes. Extend the benchmark reader with whole-install summaries and incomplete-trial exclusion; preserve downloader integrity and scheduling. Host/app gates and device measurements are pending.
 - Add per-Steam-build learned JIT pool sizing with conservative frontier telemetry, two sufficiently long rendered sessions, growth margin, explicit override precedence and persisted interruption fallback. Unknown builds retain their standard pool. Native/host/app and repeated-map device verification are pending. Refresh measured overlay headroom every 250 ms.
 - Correct the callback dispatcher diagnostic to compare the selected dispatcher with the calling thread's registered ntdll. The supplied Teardown warning classified a child as a session thread using a mutable global PEB. Preserve real mismatch detection and the existing dispatch path; sanitizer/native gates are pending.
 - Add measured-headroom reclamation of completed DXMT upload/copy/argument ring buffers and refresh the initializer's completion fence before idle reclamation. Preserve unfinished GPU resources, the newest working block and normal healthy-memory lifetime. Sanitizer and source-build verification are pending; this is absent from delivered update 2.
