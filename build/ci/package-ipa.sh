@@ -27,6 +27,8 @@ APP="$R/build/xcode-derived/Build/Products/Debug-iphoneos/Madeira.app"
 test -f "$APP/Madeira"
 # Desktop OpenGL's runtime libraries are optional in older diagnostic builds.
 if [ -f "$OUT/opengl-staging.json" ]; then
+    test ! -e "$APP/arm64ec-windows/vulkan-1.dll"
+    test ! -e "$APP/arm64ec-windows/winevulkan.dll"
     mkdir -p "$APP/Frameworks"
     ditto "$OUT/opengl-package/x86_64-opengl" "$APP/x86_64-opengl"
     ditto "$OUT/opengl-package/legal" "$APP/legal"
@@ -128,7 +130,7 @@ if opengl_staging.exists():
         if source.suffix != '.dylib':
             assert sha(packaged) == expected, f'packaged OpenGL mismatch: {source}'
     opengl['packaged_sha256'] = {str(p.relative_to(app)): sha(p) for p in
-        [app / 'arm64ec-windows/vulkan-1.dll', app / 'arm64ec-windows/winevulkan.dll',
+        [app / 'x86_64-opengl/vulkan-1.dll', app / 'x86_64-opengl/winevulkan.dll',
          app / 'x86_64-opengl/opengl32.dll', app / 'x86_64-opengl/libgallium_wgl.dll',
          app / 'Frameworks/libvulkan.1.dylib', app / 'Frameworks/libvulkan_kosmickrisp.dylib',
          app / 'Frameworks/madeira-vulkan.json']}

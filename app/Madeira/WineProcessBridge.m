@@ -590,13 +590,30 @@ static void madeira_link_wbem(NSFileManager *fm, NSString *prefix, NSString *sys
 /* The Steam launch root is native explorer.exe; its AMD64 game resolves
  * colliding system DLLs through sysx64. Apply GL links after the ordinary
  * farms have been refreshed, independently of the launch root's bitness. */
+static void madeira_clear_opengl_links(NSFileManager *fm, NSString *prefix)
+{
+    for (NSString *farm in @[@"system32", @"sysx64"]) {
+        NSString *directory = [[prefix stringByAppendingPathComponent:@"drive_c/windows"] stringByAppendingPathComponent:farm];
+        for (NSString *name in @[@"opengl32.dll", @"libgallium_wgl.dll", @"vulkan-1.dll", @"winevulkan.dll"]) {
+            NSString *path = [directory stringByAppendingPathComponent:name];
+            NSString *target = [fm destinationOfSymbolicLinkAtPath:path error:nil];
+            BOOL vulkan = [name isEqualToString:@"vulkan-1.dll"] || [name isEqualToString:@"winevulkan.dll"];
+            if ([target containsString:@"/Madeira.app/x86_64-opengl/"] ||
+                (vulkan && [target containsString:@"/Madeira.app/arm64ec-windows/"])) {
+                [fm removeItemAtPath:path error:nil];
+                dprintf(STDERR_FILENO, "[opengl] removed prior session bundle link: %s/%s\n", farm.UTF8String, name.UTF8String);
+            }
+        }
+    }
+}
+
 static void madeira_link_opengl(NSFileManager *fm, NSString *prefix, NSString *bundle, BOOL root_ec)
 {
     NSArray *farms = root_ec ? @[@"sysx64", @"system32"] : @[@"sysx64"];
     for (NSString *farm in farms) {
         NSString *directory = [[prefix stringByAppendingPathComponent:@"drive_c/windows"] stringByAppendingPathComponent:farm];
         [fm createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
-        for (NSString *name in @[@"opengl32.dll", @"libgallium_wgl.dll"]) {
+        for (NSString *name in @[@"opengl32.dll", @"libgallium_wgl.dll", @"vulkan-1.dll", @"winevulkan.dll"]) {
             NSString *source = [[bundle stringByAppendingPathComponent:@"x86_64-opengl"] stringByAppendingPathComponent:name];
             NSString *destination = [directory stringByAppendingPathComponent:name];
             if (![fm fileExistsAtPath:source]) {
@@ -1368,6 +1385,7 @@ static void *wine_process_thread(void *arg) {
              * supplied by v6 rather than the default v5 DLL. Refresh links on
              * every session, including after an app update. */
             const char *openGL = getenv("MADEIRA_OPENGL");
+            madeira_clear_opengl_links(fm, prefix);
             if (openGL && !strcmp(openGL, "1"))
                 madeira_link_opengl(fm, prefix, bundlePath, use_arm64ec && !is_i386_target);
             madeira_seed_winsxs(fm, prefix, bundlePath, @"amd64", @"arm64ec-windows");

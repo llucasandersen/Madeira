@@ -22,6 +22,9 @@ struct GameCompatibilityProfile: Equatable {
         guard #available(iOS 26.0, *), let bundle = Bundle.main.resourceURL,
               let frameworks = Bundle.main.privateFrameworksURL else { return false }
         return [bundle.appendingPathComponent("x86_64-opengl/opengl32.dll"),
+                bundle.appendingPathComponent("x86_64-opengl/libgallium_wgl.dll"),
+                bundle.appendingPathComponent("x86_64-opengl/vulkan-1.dll"),
+                bundle.appendingPathComponent("x86_64-opengl/winevulkan.dll"),
                 frameworks.appendingPathComponent("libvulkan.1.dylib"),
                 frameworks.appendingPathComponent("libvulkan_kosmickrisp.dylib"),
                 frameworks.appendingPathComponent("madeira-vulkan.json")]

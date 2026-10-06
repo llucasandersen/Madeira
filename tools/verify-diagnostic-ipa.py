@@ -85,11 +85,14 @@ def verify(ipa, provenance, checksum, commit):
                     'Wine D3D9 was replaced during graphics staging')
         if 'source_built_opengl' in report:
             opengl = report['source_built_opengl']
-            expected_names = {'arm64ec-windows/vulkan-1.dll', 'arm64ec-windows/winevulkan.dll',
+            expected_names = {'x86_64-opengl/vulkan-1.dll', 'x86_64-opengl/winevulkan.dll',
                               'x86_64-opengl/opengl32.dll', 'x86_64-opengl/libgallium_wgl.dll',
                               'Frameworks/libvulkan.1.dylib', 'Frameworks/libvulkan_kosmickrisp.dylib',
                               'Frameworks/madeira-vulkan.json'}
             require(set(opengl['packaged_sha256']) == expected_names, 'incomplete desktop OpenGL package')
+            require(prefix + 'arm64ec-windows/vulkan-1.dll' not in names and
+                    prefix + 'arm64ec-windows/winevulkan.dll' not in names,
+                    'OpenGL Vulkan DLLs leaked into the default D3D12 farm')
             for filename, expected in opengl['packaged_sha256'].items():
                 require(hashlib.sha256(archive.read(prefix + filename)).hexdigest() == expected,
                         filename + ' OpenGL provenance mismatch')
