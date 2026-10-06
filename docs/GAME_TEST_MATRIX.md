@@ -1,5 +1,26 @@
 # Game compatibility test matrix
 
+## October 6 RDR2 template correction: device test pending
+
+Log `madeira-log 12.txt` confirms test build 3 retires the old executable and
+maps generation 2 at `0x140000000`. Boot then fails at `copy_child_ntdll`:
+the default ntdll template's pool allocation was reclaimed with the initial
+process. Test build 4 (`df29649`) preserves only that default template's
+containing allocation before initial-process cleanup. Private child copies
+and the launcher's other allocations retain their existing owners.
+
+Fresh native runtime and IPA build 37472164121 passed at `df29649`. Package
+provenance, component hashes, linked preservation marker and all seven USB
+copies passed. Host run 37472160091 remains in progress: Apple job passed,
+Linux job still preparing its compiler/headers; no 84-check pass is claimed.
+The diagnostic IPA is available for phone testing while that gate continues:
+`E:\Madeira-RDR2-Test-4\Madeira-diagnostic-df29649.ipa`, 88,238,956 bytes,
+SHA-256 `a54634968d4eb4151f6c064c2547ab2dfffda761e95cc21962a53fd5136279f5`. Its README explicitly records the pending gate.
+The phone test request is pending. Runtime boot, graphics initialization,
+menu/story gameplay and repeat launch remain unverified; the goal is active.
+This is not a completed release. The imported game stays unchanged, and
+Teardown remains deferred. Do not retransfer the game for this app update.
+
 ## October 5 RDR2 initial-process cleanup follow-up
 
 Phone log `madeira-log 11.txt` confirms test build 2 (`b680d5a`) registers the
@@ -312,7 +333,7 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
 | Teardown, app 1167630 | Automatic D3D12 selection; visible voxels/terrain/tools, audio, level, ten minutes, close and relaunch | Candidate 8 audio works on the phone, but terrain/voxels/tools remain invisible despite active compound replay and nonzero draws | Candidate 9 preserves float texture payloads and adds bounded input captures; all 82 host and graphics/native/app/USB gates pass; visual/ten-minute/relaunch acceptance pending |
-| RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | Game imported; v6 controls load; child-session handoff works, then relaunched image stalls before graphics; whole 128GB folder inspected on E: with no bulk copy | Test build 2 registers the image but fails startup; test build 3 on USB adds initial-process cleanup; startup, renderer/activation/gameplay and repeat launch remain unverified |
+| RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | Game imported; v6 controls load; child-session handoff works, then relaunched image stalls before graphics; whole 128GB folder inspected on E: with no bulk copy | Test build 3 reclaims the required address then fails private runtime boot; test build 4 diagnostic on USB preserves its template; Linux host gate and phone startup/gameplay remain pending |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Supplied session log reaches physical footprint 6141 MB; no three-match survival result on the updated package | Memory pressure confirmed; updated device acceptance pending |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
 | Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |

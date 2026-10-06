@@ -1,5 +1,26 @@
 # Compatibility overhaul: investigation record
 
+## October 6 RDR2 template correction: device test pending
+
+Log `madeira-log 12.txt` confirms test build 3 retires the old executable and
+maps generation 2 at `0x140000000`. Boot then fails at `copy_child_ntdll`:
+the default ntdll template's pool allocation was reclaimed with the initial
+process. Test build 4 (`df29649`) preserves only that default template's
+containing allocation before initial-process cleanup. Private child copies
+and the launcher's other allocations retain their existing owners.
+
+Fresh native runtime and IPA build 37472164121 passed at `df29649`. Package
+provenance, component hashes, linked preservation marker and all seven USB
+copies passed. Host run 37472160091 remains in progress: Apple job passed,
+Linux job still preparing its compiler/headers; no 84-check pass is claimed.
+The diagnostic IPA is available for phone testing while that gate continues:
+`E:\Madeira-RDR2-Test-4\Madeira-diagnostic-df29649.ipa`, 88,238,956 bytes,
+SHA-256 `a54634968d4eb4151f6c064c2547ab2dfffda761e95cc21962a53fd5136279f5`. Its README explicitly records the pending gate.
+The phone test request is pending. Runtime boot, graphics initialization,
+menu/story gameplay and repeat launch remain unverified; the goal is active.
+This is not a completed release. The imported game stays unchanged, and
+Teardown remains deferred. Do not retransfer the game for this app update.
+
 ## October 5 RDR2 initial-process cleanup follow-up
 
 Phone log `madeira-log 11.txt` confirms test build 2 (`b680d5a`) registers the
