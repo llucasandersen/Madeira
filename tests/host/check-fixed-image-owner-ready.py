@@ -30,6 +30,9 @@ static unsigned ios_exe_win_generation, ios_exe_win_retiring_generation;
 static pthread_mutex_t ios_exewin_lock = PTHREAD_MUTEX_INITIALIZER;
 static int ios_retire_trace_armed, ios_retire_trace_fd, ios_retire_trace_lastwr;
 static int unmap_failure, hold_failure, unmaps, holds;
+static size_t host_page_mask = 0x3fff, expected_hold_size = 0x10000;
+static void *ios_exewin_pending_base;
+static size_t ios_exewin_pending_size;
 static void ios_retire_mark(const char *marker) { (void)marker; }
 #define NtCurrentProcess() ((void *)1)
 static unsigned NtUnmapViewOfSection(void *process, void *base) {
@@ -38,7 +41,7 @@ static unsigned NtUnmapViewOfSection(void *process, void *base) {
     return unmap_failure;
 }
 static void *anon_mmap_tryfixed(void *base, size_t size, int protection, int flags) {
-    assert(base == (void *)0x140000000ULL && size == 0x10000);
+    assert(base == (void *)0x140000000ULL && size == expected_hold_size);
     assert(protection == PROT_NONE && flags == MAP_NORESERVE);
     ++holds;
     if (hold_failure) { errno = EEXIST; return MAP_FAILED; }
@@ -46,6 +49,7 @@ static void *anon_mmap_tryfixed(void *base, size_t size, int protection, int fla
 }
 '''
 code += enum + '\nstatic enum ios_exewin_state ios_exewin_st;\n'
+code += function('void ios_exe_win_commit_claim(')
 code += function('void ios_exe_win_note_owner(')
 code += function('static void ios_exe_win_note_dead_peb(')
 code += function('void ios_retire_own_fixed_base_image(')
@@ -79,6 +83,32 @@ static void *owner_callbacks(void *owner) {
 int main(void) {
     void *a = (void *)0x1000, *b = (void *)0x2000;
     unsetenv("MADEIRA_NO_IMAGE_RETIRE");
+    /* Actual RDR2 map sizes: Wine passes 0x73c2000, mmap claims 0x73c4000. */
+    ios_exewin_st = IOS_EXEWIN_CLAIMING;
+    ios_exewin_pending_base = (void *)0x140000000ULL;
+    ios_exewin_pending_size = 0x73c4000;
+    ios_exe_win_commit_claim((void *)0x140000000ULL, 0x73c2000, 1);
+    assert(ios_exewin_st == IOS_EXEWIN_OWNED && ios_exe_win_img_size == 0x73c4000);
+    ios_exe_win_note_owner((void *)0x140000000ULL, a);
+    assert(ios_exe_win_img_peb == a);
+    ios_exewin_st = IOS_EXEWIN_CLAIMING;
+    ios_exewin_pending_base = (void *)0x140000000ULL;
+    ios_exewin_pending_size = 0x8000;
+    ios_exe_win_commit_claim((void *)0x140010000ULL, 0x6000, 1);
+    ios_exe_win_commit_claim((void *)0x140000000ULL, 0xa000, 1);
+    ios_exe_win_commit_claim((void *)0x140000000ULL, ~(size_t)0, 1);
+    assert(ios_exewin_st == IOS_EXEWIN_CLAIMING); /* wrong interval and overflow refuse */
+    expected_hold_size = 0x8000;
+    ios_exe_win_commit_claim((void *)0x140000000ULL, 0x6000, 0);
+    assert(ios_exewin_st == IOS_EXEWIN_HELD_READY && ios_exe_win_held_size == 0x8000);
+    host_page_mask = 0xfff;
+    ios_exewin_st = IOS_EXEWIN_CLAIMING;
+    ios_exewin_pending_base = (void *)0x140000000ULL;
+    ios_exewin_pending_size = 0x6000;
+    ios_exe_win_commit_claim((void *)0x140000000ULL, 0x6000, 1);
+    assert(ios_exewin_st == IOS_EXEWIN_OWNED && ios_exe_win_img_size == 0x6000);
+    host_page_mask = 0x3fff;
+    expected_hold_size = 0x10000;
     own(a, 1);
     ios_exe_win_note_owner((void *)0x140000000ULL, b);
     ios_exe_win_note_dead_peb(b);

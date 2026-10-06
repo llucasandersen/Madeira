@@ -7177,6 +7177,13 @@ void ios_exe_win_commit_claim( void *base, size_t size, int mapped )
     unsigned gen = 0;
     int rolled_back = 0, lost = 0;
 
+    /* map_view reserves host pages, while map_image_view passes the PE's
+     * Windows-page size. Compare the same interval that claim() recorded.
+     * Otherwise a 4KB-aligned image on a 16KB host remains CLAIMING forever,
+     * and its successor cannot reclaim the preferred executable address. */
+    if (size > ~(size_t)0 - host_page_mask) return;
+    size = (size + host_page_mask) & ~(size_t)host_page_mask;
+
     pthread_mutex_lock( &ios_exewin_lock );
     if (ios_exewin_st != IOS_EXEWIN_CLAIMING ||
         base != ios_exewin_pending_base || size != ios_exewin_pending_size)
