@@ -86,9 +86,12 @@ static struct mad_resource addressed;
 static struct mad_resource *mad_resolve_address(struct mad_device *d, UINT64 addr, UINT64 *off) {
  (void)d; *off=addr&255; return addr ? &addressed : NULL; }
 static void mad_list_note_used(struct mad_list *l, struct mad_resource *r) { (void)l; (void)r; }
+static UINT packed_instances[10], packed_vertex_start[10], packed_instance_start[10];
 static void exec_draw(struct mad_exec *e, const struct mad_cmd *c) {
  if(c->kind==MC_DRAW_INDEXED) assert(e->vb[1].res==&addressed && e->vb[1].stride==16 && e->ib==&addressed && e->ib_type==WMTIndexTypeUInt16);
  assert(draws<10); seen_root[draws]=e->root[2];
+ if(c->kind==MC_DRAW) { packed_instances[draws]=c->u.draw.icount;
+ packed_vertex_start[draws]=c->u.draw.vstart; packed_instance_start[draws]=c->u.draw.istart; }
  seen_vertices[draws++]=c->kind==MC_DRAW ? c->u.draw.vcount : c->kind==MC_DRAW_INDEXED ? c->u.drawi.icount : 999; }
 static void exec_dispatch(struct mad_exec *e, const struct mad_cmd *c) { assert(e->croot[2]==123 && c->u.dispatch.x==4); dispatches++; }
 static struct mad_cmd *mad_list_push(struct mad_list *l, enum mad_ck kind) { (void)l; memset(&recorded,0,sizeof recorded); recorded.kind=kind; return &recorded; }
@@ -135,6 +138,19 @@ int main(void) {
  /* Single GPU draw has no CPU wait. */
  sig=(struct mad_cmdsig){.desc={1,16},.args={{.Type=0}}}; UINT before=waits;
  list_ExecuteIndirect(&l,&sig,1,&args,0,NULL,0); exec_indirect(&e,&recorded); assert(waits==before);
+ /* Packed CBV + DRAW records: no stride padding, full 64-bit addresses,
+  * and a zero instance count preserved between two nonempty records. */
+ UINT packed_first=draws;
+ sig=(struct mad_cmdsig){.desc={2,24},.args={{.Type=6,.ConstantBufferView={2}},{.Type=0}}};
+ for(UINT i=0;i<3;i++) { UINT64 address=0x1000177c000ull+256*i;
+ UINT draw[4]={12,i==1?0:i+1,9*i,17+i};
+ memcpy(args.buffer->mem+24*i,&address,8); memcpy(args.buffer->mem+24*i+8,draw,16); }
+ list_ExecuteIndirect(&l,&sig,3,&args,0,NULL,0); exec_indirect(&e,&recorded);
+ assert(draws==packed_first+3 && waits==before+1 && e.root[2]==0);
+ for(UINT i=0;i<3;i++) {
+ assert(seen_root[packed_first+i]==0x1000177c000ull+256*i && seen_vertices[packed_first+i]==12);
+ assert(packed_instances[packed_first+i]==(i==1?0:i+1));
+ assert(packed_vertex_start[packed_first+i]==9*i && packed_instance_start[packed_first+i]==17+i); }
  for(UINT i=0;i<nalloc;i++) { free(allocated[i]->mem); free(allocated[i]); }
  puts("PASS: production compound indirect bindings, count, reset, bounds, GPU wait and recording lifetime");
 }
