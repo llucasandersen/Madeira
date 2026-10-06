@@ -39,6 +39,9 @@ ENV = re.compile(r'\b(getenv|GetEnvironmentVariable[AW]?|env::getEnvVar|madeiraS
 BOOL_READERS = {"madeira_cfg_bool", "MadeiraConfig.bool", "MadeiraConfig.flag", "flag", "envFlag",
                 "madeiraSwitch", "madeira_switch_for_caller", "mad_env_is_zero"}
 INT_READERS = {"madeira_cfg_int", "mad_cfg_int_pe"}
+# Session state exported by a validated library entry, rather than a setting.
+# Users choose the renderer arguments or disable automatic compatibility.
+INTERNAL_ENV = {"MADEIRA_RDR2_DX12"}
 
 # Titles, kinds and fixed choices for options with a dedicated Settings row.
 # "choices" are (value, label); the empty value means "remove the key".
@@ -179,6 +182,8 @@ def scan():
             for pat, is_env in ((CFG, False), (ENV, True)):
                 for m in pat.finditer(txt):
                     reader, name, arg = m.group(1), m.group(2), (m.group(3) or "").strip()
+                    if is_env and name in INTERNAL_ENV:
+                        continue
                     if is_env or reader == "MadeiraConfig.flag":
                         key = "env." + name
                     else:
