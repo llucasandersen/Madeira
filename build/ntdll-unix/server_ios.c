@@ -198,6 +198,7 @@ static unsigned long long ios_proc_generation;
 static _Thread_local BOOL ios_exit_status_known;
 static _Thread_local unsigned ios_exit_status;
 static void *ios_session_peb;
+static BOOL ios_session_teardown_started;
 static BOOL ios_unknown_process_exiting = TRUE;
 
 extern void *ios_jit_current_peb(void);
@@ -3799,6 +3800,19 @@ void process_exit_wrapper( int status )
     }
     else if (ios_session_socket_owner())
     {
+        extern void ios_retire_own_fixed_base_image( void *peb );
+        extern void ios_jit_reclaim_process( void *peb );
+        extern void ios_fd_cache_release( void *peb );
+        extern void ios_subfloor_release_owner( void *owner );
+        extern void ios_exe_win_mark_ready( void *peb );
+        void *dead_peb = ios_session_peb;
+        int owned_fd;
+        BOOL claimed;
+        pthread_mutex_lock( &ios_proc_socket_lock );
+        claimed = !ios_session_teardown_started;
+        ios_session_teardown_started = TRUE;
+        pthread_mutex_unlock( &ios_proc_socket_lock );
+        if (!claimed) { exit( status ); return; }
         /* No slot: this is the session's initial process, the program the app
          * itself handed to __wine_main (WineProcessBridge.m). Its exit status
          * is how the app's library tells a crash from a normal quit. A weak
@@ -3806,7 +3820,26 @@ void process_exit_wrapper( int status )
          * helpers and anything the program starts have a slot and never call it. */
         extern void wine_launched_process_did_exit( int status ) __attribute__((weak));
         if (wine_launched_process_did_exit) wine_launched_process_did_exit( status );
-        close( fd_socket );
+        /* The initial executable can itself be a launcher. Its longjmp leaves
+         * the app session alive, but must not leave the fixed image OWNED.
+         * Follow the child ordering: unmap with a live server connection,
+         * reclaim only allocations tagged with this PEB, then publish ready.
+         * Shared (NULL-owner) runtime copies remain available to children. */
+        ios_retire_own_fixed_base_image( dead_peb );
+        pthread_mutex_lock( &ios_proc_socket_lock );
+        owned_fd = fd_socket;
+        fd_socket = -1;
+        pthread_mutex_unlock( &ios_proc_socket_lock );
+        if (owned_fd >= 0)
+        {
+            ios_fdt_note_close( owned_fd, "exit-session-master", dead_peb );
+            close( owned_fd );
+        }
+        ios_fd_cache_release( dead_peb );
+        ios_subfloor_release_owner( dead_peb );
+        ios_jit_reclaim_process( dead_peb );
+        ios_wow_window_release( dead_peb );
+        ios_exe_win_mark_ready( dead_peb );
     }
 #else
     close( fd_socket );
@@ -4316,6 +4349,7 @@ size_t server_init_process(void)
 
 #ifdef WINE_IOS
     ios_session_peb = ios_jit_current_peb();
+    ios_session_teardown_started = FALSE;
 #endif
     server_pid = -1;
     if (env_socket)

@@ -49,6 +49,8 @@ typedef int BOOL;
 static int fd_socket = -1;
 static BOOL process_exiting;
 static _Thread_local void *owner;
+static _Thread_local unsigned cleanup_stage;
+static int ios_current_fd_socket(void);
 void *ios_jit_current_peb(void) { return owner; }
 static int fail_alloc;
 static void *probe_calloc(size_t n, size_t size) { return fail_alloc ? NULL : calloc(n, size); }
@@ -71,12 +73,31 @@ static void ios_fdt_reg(int fd, int kind, void *peb) { assert(fd >= 0 && kind ==
 static void ios_fdt_note_close(int fd, const char *reason, void *peb) {
     assert(fd >= 0 && reason && peb); atomic_fetch_add(&notes, 1);
 }
-void ios_jit_reclaim_process(void *peb) { assert(peb == owner); atomic_fetch_add(&reclaims, 1); }
-void ios_retire_own_fixed_base_image(void *peb) { assert(peb == owner); atomic_fetch_add(&retires, 1); }
-void ios_fd_cache_release(void *peb) { assert(peb == owner); atomic_fetch_add(&cache_releases, 1); }
-void ios_subfloor_release_owner(void *peb) { assert(peb == owner); atomic_fetch_add(&subfloor_releases, 1); }
-void ios_wow_window_release(void *peb) { assert(peb == owner); atomic_fetch_add(&wow_releases, 1); }
-void ios_exe_win_mark_ready(void *peb) { assert(peb == owner); atomic_fetch_add(&ready, 1); }
+void ios_jit_reclaim_process(void *peb) {
+    assert(peb == owner && cleanup_stage == 3); cleanup_stage = 4;
+    atomic_fetch_add(&reclaims, 1);
+}
+void ios_retire_own_fixed_base_image(void *peb) {
+    assert(peb == owner && (cleanup_stage == 0 || cleanup_stage == 6));
+    assert(fcntl(ios_current_fd_socket(), F_GETFD) >= 0); cleanup_stage = 1;
+    atomic_fetch_add(&retires, 1);
+}
+void ios_fd_cache_release(void *peb) {
+    assert(peb == owner && cleanup_stage == 1 && ios_current_fd_socket() == -1);
+    cleanup_stage = 2; atomic_fetch_add(&cache_releases, 1);
+}
+void ios_subfloor_release_owner(void *peb) {
+    assert(peb == owner && cleanup_stage == 2); cleanup_stage = 3;
+    atomic_fetch_add(&subfloor_releases, 1);
+}
+void ios_wow_window_release(void *peb) {
+    assert(peb == owner && cleanup_stage == 4); cleanup_stage = 5;
+    atomic_fetch_add(&wow_releases, 1);
+}
+void ios_exe_win_mark_ready(void *peb) {
+    assert(peb == owner && cleanup_stage == 5); cleanup_stage = 6;
+    atomic_fetch_add(&ready, 1);
+}
 static void probe_exit(int status) { assert(status == 0); atomic_fetch_add(&exits, 1); }
 #define calloc probe_calloc
 #define exit probe_exit
@@ -209,7 +230,23 @@ int main(void) {
     assert(reclaims == before + 800 && parent_exits == 0); parent_alive();
     owner = NULL; ios_thread_proc_socket = NULL;
     assert(ios_current_fd_socket() == fd_socket); /* initial/foreign bootstrap */
-    owner = ios_session_peb; process_exit_wrapper(0); assert(parent_exits == 1); closed(fd_socket);
+    /* The initial executable is also a pseudo-process: a launcher handoff
+     * must retire its image before socket EOF and publish readiness after
+     * its owner allocations are reclaimed. Concurrent duplicate exits must
+     * not repeat cleanup or close an FD that another process has reused. */
+    int session_fd = fd_socket;
+    before = reclaims;
+    for (unsigned i = 0; i < 8; i++)
+        assert(pthread_create(&peers[i], NULL, exit_peer, ios_session_peb) == 0);
+    for (unsigned i = 0; i < 8; i++) pthread_join(peers[i], NULL);
+    assert(parent_exits == 1 && reclaims == before + 1 && retires == reclaims &&
+           cache_releases == reclaims && subfloor_releases == reclaims &&
+           wow_releases == reclaims && ready == reclaims && notes == reclaims);
+    closed(session_fd); assert(fd_socket == -1);
+    int unrelated_fd = dup(pipefd[1]); assert(unrelated_fd >= 0);
+    owner = ios_session_peb; process_exit_wrapper(0);
+    assert(parent_exits == 1 && reclaims == before + 1 && fcntl(unrelated_fd, F_GETFD) >= 0);
+    close(unrelated_fd);
     assert(lifetime_callbacks == exit_records);
     close(pipefd[1]);
     puts("PASS: >64 child owners, stable per-thread generation after PEB reuse, retired identity, allocation failure, duplicate/concurrent teardown and parent isolation");
