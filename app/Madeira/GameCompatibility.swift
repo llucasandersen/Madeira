@@ -26,7 +26,7 @@ struct GameCompatibilityProfile: Equatable {
     // No profile is needed for PEAK's ordinary D3D11 launch path.
     private static let builtins = [Self(appID: 1167630, revision: 2,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
-        Self(appID: 1174180, revision: 1, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
+        Self(appID: 1174180, revision: 2, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
     func prepare(options: URL) throws -> Bool {
         switch settingsAdapter {
@@ -44,6 +44,20 @@ struct GameCompatibilityProfile: Equatable {
 
     /// Session defaults; explicit game/global settings take precedence.
     func runtimeConfig(user: String?, global: [String: String]) -> String? {
+        if appID == 1174180 {
+            // The device trace's automatic 1 GB budget reaches frames, then
+            // ERR_GFX_D3D_DEFERRED_MEM. Use a 2 GB session budget; the native
+            // budget still trims under real process pressure. Zero means Auto
+            // in the Video memory picker, rather than an explicit 0 MB budget.
+            let lines = (user ?? "").split(separator: "\n")
+            let chosen = lines.compactMap { line -> String? in
+                let parts = line.split(separator: "=", maxSplits: 1)
+                guard parts.count == 2, parts[0].trimmingCharacters(in: .whitespaces) == "vram-mb" else { return nil }
+                return parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            }.last ?? global["vram-mb"]
+            if let chosen, Int(chosen) != 0 { return user }
+            return (user.map { $0 + ($0.hasSuffix("\n") ? "" : "\n") } ?? "") + "vram-mb = 2048\n"
+        }
         guard appID == 1167630 else { return user }
         let key = "msc-uint-volume-loads"
         let explicit = (user ?? "").split(separator: "\n").contains { line in

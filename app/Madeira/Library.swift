@@ -507,7 +507,10 @@ struct LibraryEntry: Codable, Identifiable {
         madeira_set_vsync_locked(effectiveFPSMode)
         // This game's own lines; a launch without any unsets the previous game's.
         do {
-            let compatibility = steamAppID.flatMap {
+            let detectedAppID = steamAppID ?? Self.hostURL(ofWindowsPath: launchWindowsPath).flatMap {
+                RDR2RendererSettings.isGame(executable: $0) ? 1174180 : nil
+            }
+            let compatibility = detectedAppID.flatMap {
                 GameCompatibilityProfile.resolve(appID: $0, enabled: automaticCompatibility != false)
             }
             let preparedConfig = compatibility?.runtimeConfig(user: config, global: MadeiraConfig.all()) ?? config

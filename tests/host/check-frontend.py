@@ -245,6 +245,11 @@ for name in ["common_0.rpf", "shaders_x64.rpf", "bink2w64.dll"] {
 var rdrEntry = LibraryEntry(title: "RDR2", relativePath: rdrFolderName + "/RDR2.exe", bits: 64)
 rdrEntry.arguments = "-dx12"; rdrEntry.configureLaunch()
 expect(env("MADEIRA_RDR2_DX12") == "1", "recognized RDR2 carries its requested DX12 through child launches")
+rdrEntry.applyEnvironment()
+expect(MadeiraConfig.game == "vram-mb = 2048\n", "direct imported RDR2 gets its automatic session memory profile")
+rdrEntry.automaticCompatibility = false; rdrEntry.applyEnvironment()
+expect(MadeiraConfig.game == nil, "RDR2 compatibility opt-out preserves the user's memory configuration")
+rdrEntry.automaticCompatibility = true
 rdrEntry.arguments = "-dx12 -vulkan"; rdrEntry.configureLaunch()
 expect(env("MADEIRA_RDR2_DX12") == nil, "conflicting renderer arguments are not inherited")
 rdrEntry.arguments = "-dx12"; rdrEntry.automaticCompatibility = false; rdrEntry.configureLaunch()

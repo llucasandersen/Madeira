@@ -1,0 +1,30 @@
+name: Desktop OpenGL iOS Metal backend build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  opengl-backend:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install native Mesa shader build tools
+        run: |
+          brew install meson ninja pkg-config llvm libclc spirv-llvm-translator spirv-tools bison
+          python3 -m pip install --break-system-packages mako pyyaml packaging
+      - name: Build pinned Metal4 backend for native tools and iPhone
+        run: bash build/opengl-ios/build-backend.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opengl-ios-backend-results
+          path: |
+            build/ci-output/opengl-ios/**/meson-logs/**
+            build/ci-output/opengl-ios/**/*kosmickrisp*.dylib
+            build/ci-output/opengl-ios/ios-cross.ini
