@@ -49,6 +49,11 @@ available. RDR2 continues to use D3D12.
 
 ## Acceptance still required
 
+Successful Vulkan swapchain submissions advance the front end's combined
+D3D/OpenGL presentation counter. Failed submissions do not dismiss the launch
+screen. This also supplies OpenGL FPS observations; it does not prove that the
+submitted image contains correct game geometry or that it appeared on glass.
+
 An actual iPhone launch must show the backend and supported OpenGL version,
 terrain and tools, stable sandbox gameplay, working audio and a second launch.
 Compiler success and a Mac loader smoke check do not satisfy these gates.

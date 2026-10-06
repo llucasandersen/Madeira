@@ -10,6 +10,7 @@
 
 extern void *madeira_vulkan_layer_acquire(void *hwnd) __attribute__((weak));
 extern void madeira_vulkan_layer_release(void *layer) __attribute__((weak));
+extern void madeira_vulkan_note_present(void) __attribute__((weak));
 
 struct ios_vulkan_surface
 {
@@ -26,7 +27,10 @@ static void surface_destroy(struct client_surface *client)
 /* UIKit/compositor owns placement and visibility. The layer is retained until
  * Vulkan surface destruction, including after its HWND has been detached. */
 static void surface_noop(struct client_surface *client) {}
-static void surface_present(struct client_surface *client, HDC hdc) {}
+static void surface_present(struct client_surface *client, HDC hdc)
+{
+    madeira_vulkan_note_present();
+}
 static const struct client_surface_funcs surface_funcs =
 {
     .destroy = surface_destroy,
@@ -96,7 +100,7 @@ static const struct vulkan_driver_funcs driver_funcs =
 UINT winios_VulkanInit(UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **funcs)
 {
     if (version != WINE_VULKAN_DRIVER_VERSION) return STATUS_INVALID_PARAMETER;
-    if (!madeira_vulkan_layer_acquire || !madeira_vulkan_layer_release)
+    if (!madeira_vulkan_layer_acquire || !madeira_vulkan_layer_release || !madeira_vulkan_note_present)
         return STATUS_NOT_IMPLEMENTED;
     *funcs = &driver_funcs;
     return STATUS_SUCCESS;

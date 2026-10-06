@@ -10,6 +10,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/Metal.h>
 #import <pthread.h>
+#include <stdint.h>
 
 #include "IOSDisplayShim.h"
 
@@ -210,6 +211,23 @@ void *madeira_vulkan_layer_acquire(void *hwnd) {
 
 void madeira_vulkan_layer_release(void *layer) {
     my_view_release_metal_view((macdrv_metal_view)layer);
+}
+
+// Zink presents through Vulkan WSI rather than winemetal. Feed successful
+// submissions into the same launch/FPS observation used for D3D games.
+// Keep both counters monotonic across sessions; the front end snapshots them.
+static uint64_t g_vulkan_present_count;
+extern uint64_t madeira_get_present_count(void);
+
+void madeira_vulkan_note_present(void) {
+    uint64_t count = __atomic_add_fetch(&g_vulkan_present_count, 1, __ATOMIC_RELAXED);
+    if (count == 1 || count % 60 == 0) {
+        fprintf(stderr, "[opengl-vulkan] successful Present #%llu\n", (unsigned long long)count);
+    }
+}
+
+uint64_t madeira_get_game_present_count(void) {
+    return madeira_get_present_count() + __atomic_load_n(&g_vulkan_present_count, __ATOMIC_RELAXED);
 }
 
 const char *madeira_vulkan_library_path(void) {

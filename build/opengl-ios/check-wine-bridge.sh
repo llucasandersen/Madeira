@@ -38,4 +38,6 @@ xcrun nm -g "$OUT"/*.o > "$OUT/symbols.txt"
 grep -q 'winevulkan_unix_call_funcs' "$OUT/symbols.txt"
 grep -q 'winevulkan_unix_call_wow64_funcs' "$OUT/symbols.txt"
 grep -q 'winios_VulkanInit' "$OUT/symbols.txt"
+grep -q 'madeira_get_game_present_count' "$OUT/symbols.txt"
+python3 tests/host/check-vulkan-presentation.py
 echo 'PASS: actual Wine Vulkan thunks, native loader, iOS surfaces and display bridge compile for iPhone'

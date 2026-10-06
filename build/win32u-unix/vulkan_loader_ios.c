@@ -17,5 +17,8 @@ static void *madeira_vulkan_dlopen(const char *name, int flags)
     return dlopen(name, flags);
 }
 
+#include "ntstatus.h"
+#include "ntgdi_private.h"
+#include "vulkan_present_ios.h"
 #define dlopen madeira_vulkan_dlopen
 #include "../../wine/dlls/win32u/vulkan.c"

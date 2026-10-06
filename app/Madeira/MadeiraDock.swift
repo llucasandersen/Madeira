@@ -138,7 +138,7 @@ final class AdaptiveJITBudget: @unchecked Sendable {
             SteamLog.event("[jit-budget] cache-write-failed; standard pool retained")
             return defaultPool
         }
-        session = Session(key: key, chosen: chosen, standard: defaultPool, presents: madeira_get_present_count())
+        session = Session(key: key, chosen: chosen, standard: defaultPool, presents: madeira_get_game_present_count())
         let source = DispatchSource.makeTimerSource(queue: queue)
         source.schedule(deadline: .now() + 1, repeating: 1)
         source.setEventHandler { [weak self] in self?.sample() }
@@ -155,7 +155,7 @@ final class AdaptiveJITBudget: @unchecked Sendable {
         guard var active = session else { return }
         active.peakMB = max(active.peakMB, Int((used + 1048575) / 1048576))
         active.capacityMB = Int(capacity / 1048576)
-        if active.firstPresentAt == nil && madeira_get_present_count() > active.presents {
+        if active.firstPresentAt == nil && madeira_get_game_present_count() > active.presents {
             active.firstPresentAt = ProcessInfo.processInfo.systemUptime
         }
         session = active
@@ -168,7 +168,7 @@ final class AdaptiveJITBudget: @unchecked Sendable {
         timer?.cancel(); timer = nil; session = nil
         var record = disk.records[active.key] ?? AdaptiveJITRecord()
         if completed {
-            let present = madeira_get_present_count()
+            let present = madeira_get_game_present_count()
             record.observe(peak: active.peakMB, capacity: active.capacityMB,
                 seconds: active.firstPresentAt.map { ProcessInfo.processInfo.systemUptime - $0 } ?? 0,
                 frames: present >= active.presents ? present - active.presents : 0)
