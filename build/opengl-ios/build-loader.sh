@@ -22,9 +22,9 @@ cmake -S research/Vulkan-Headers -B "$OUT/headers" -G Ninja \
   -DCMAKE_INSTALL_PREFIX="$OUT/headers-install" -DVULKAN_HEADERS_ENABLE_TESTS=OFF
 cmake --build "$OUT/headers" --target install
 for target in native ios; do
-  args=()
+  args=(-DCMAKE_OSX_SYSROOT=macosx -DCMAKE_OSX_ARCHITECTURES=arm64)
   if [ "$target" = ios ]; then
-    args+=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64)
+    args=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64)
   fi
   cmake -S research/Vulkan-Loader -B "$OUT/$target" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=26.0 \
