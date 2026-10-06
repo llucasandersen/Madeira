@@ -1272,15 +1272,17 @@ static void *wine_process_thread(void *arg) {
             dprintf(STDERR_FILENO, "[WineProc] Symlinked %d DLLs from %s -> sys32\n", linked, bundle_subdir);
             const char *openGL = getenv("MADEIRA_OPENGL");
             if (openGL && !strcmp(openGL, "1") && use_arm64ec && !is_i386_target) {
-                NSString *source = [bundlePath stringByAppendingPathComponent:@"x86_64-opengl/opengl32.dll"];
-                NSString *destination = [sys32Dir stringByAppendingPathComponent:@"opengl32.dll"];
-                if ([fm fileExistsAtPath:source]) {
-                    [fm removeItemAtPath:destination error:nil];
-                    NSError *error = nil;
-                    if (![fm createSymbolicLinkAtPath:destination withDestinationPath:source error:&error]) {
-                        dprintf(STDERR_FILENO, "[opengl] failed to link bundled desktop driver: %s\n", error.localizedDescription.UTF8String);
-                    } else {
-                        dprintf(STDERR_FILENO, "[opengl] native Windows Zink selected for this session; iOS Metal4 Vulkan backend\n");
+                for (NSString *name in @[@"opengl32.dll", @"libgallium_wgl.dll"]) {
+                    NSString *source = [[bundlePath stringByAppendingPathComponent:@"x86_64-opengl"] stringByAppendingPathComponent:name];
+                    NSString *destination = [sys32Dir stringByAppendingPathComponent:name];
+                    if ([fm fileExistsAtPath:source]) {
+                        [fm removeItemAtPath:destination error:nil];
+                        NSError *error = nil;
+                        if (![fm createSymbolicLinkAtPath:destination withDestinationPath:source error:&error]) {
+                            dprintf(STDERR_FILENO, "[opengl] failed to link %s: %s\n", name.UTF8String, error.localizedDescription.UTF8String);
+                        } else {
+                            dprintf(STDERR_FILENO, "[opengl] bundled Windows Zink component linked: %s\n", name.UTF8String);
+                        }
                     }
                 }
             }

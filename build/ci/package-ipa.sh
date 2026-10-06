@@ -25,6 +25,13 @@ xcodebuild -project "$R/app/Madeira.xcodeproj" -scheme Madeira \
     CURRENT_PROJECT_VERSION=100 build 2>&1 | tee "$OUT/xcodebuild.log"
 APP="$R/build/xcode-derived/Build/Products/Debug-iphoneos/Madeira.app"
 test -f "$APP/Madeira"
+# Desktop OpenGL's runtime libraries are optional in older diagnostic builds.
+if [ -f "$OUT/opengl-staging.json" ]; then
+    mkdir -p "$APP/Frameworks"
+    ditto "$OUT/opengl-package/x86_64-opengl" "$APP/x86_64-opengl"
+    ditto "$OUT/opengl-package/legal" "$APP/legal"
+    for file in "$OUT/opengl-package/Frameworks"/*; do cp "$file" "$APP/Frameworks/"; done
+fi
 # BuildStamp already displays/logs MadeiraBuild. Stamp the packaged app before
 # signing so device logs identify the exact source instead of every diagnostic
 # appearing as the same v0.1.3 (100). This contains no signing/account data.
@@ -107,6 +114,25 @@ if controls_staging.exists():
     for name, expected in controls['staged_sha256'].items():
         assert sha(app / 'arm64ec-windows' / name) == expected, f'packaged common controls mismatch: {name}'
     report['source_built_common_controls'] = controls
+opengl_staging = out / 'opengl-staging.json'
+if opengl_staging.exists():
+    opengl = json.loads(opengl_staging.read_text())
+    for source, expected in opengl['staged_sha256'].items():
+        source = Path(source)
+        if source.parts[:3] == ('app', 'Madeira', 'arm64ec-windows'):
+            packaged = app / 'arm64ec-windows' / source.name
+        else:
+            packaged = app / source.parent.name / source.name
+        # Mach-O signatures are written after staging, so their final hashes
+        # are recorded separately. PE images and the ICD manifest must match.
+        if source.suffix != '.dylib':
+            assert sha(packaged) == expected, f'packaged OpenGL mismatch: {source}'
+    opengl['packaged_sha256'] = {str(p.relative_to(app)): sha(p) for p in
+        [app / 'arm64ec-windows/vulkan-1.dll', app / 'arm64ec-windows/winevulkan.dll',
+         app / 'x86_64-opengl/opengl32.dll', app / 'x86_64-opengl/libgallium_wgl.dll',
+         app / 'Frameworks/libvulkan.1.dylib', app / 'Frameworks/libvulkan_kosmickrisp.dylib',
+         app / 'Frameworks/madeira-vulkan.json']}
+    report['source_built_opengl'] = opengl
 (out / 'build-provenance.json').write_text(json.dumps(report, indent=2) + '\n')
 PY
 PACKAGE="$(mktemp -d "$OUT/package.XXXXXX")"

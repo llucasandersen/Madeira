@@ -19,6 +19,14 @@ on:
         description: Successful DXMT ARM64EC source build run with matching Wine/DXMT pins (optional)
         type: string
         default: ''
+      opengl_native_run:
+        description: Successful iOS Metal4 backend and Vulkan loader source run (optional)
+        type: string
+        default: ''
+      opengl_windows_run:
+        description: Successful Windows Zink and Wine Vulkan source run (optional)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -211,7 +219,19 @@ jobs:
         if: inputs.dxmt_source_run != ''
         run: python3 tools/stage-common-controls-artifact.py build/ci-artifacts/common-controls-source
       - name: Build and package diagnostic IPA
-        run: bash build/ci/package-ipa.sh
+        # Component staging runs only when both complete OpenGL halves exist.
+        # The package remains a physical-device candidate until gameplay tests.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENGL_NATIVE_RUN: ${{ inputs.opengl_native_run }}
+          OPENGL_WINDOWS_RUN: ${{ inputs.opengl_windows_run }}
+        run: |
+          set -euo pipefail
+          if [ -n "$OPENGL_NATIVE_RUN" ] || [ -n "$OPENGL_WINDOWS_RUN" ]; then
+            test -n "$OPENGL_NATIVE_RUN" && test -n "$OPENGL_WINDOWS_RUN"
+            python3 tools/stage-opengl-artifacts.py --native-run "$OPENGL_NATIVE_RUN" --windows-run "$OPENGL_WINDOWS_RUN" --repository "$GITHUB_REPOSITORY"
+          fi
+          bash build/ci/package-ipa.sh
       - uses: actions/upload-artifact@v4
         with:
           name: Madeira-diagnostic-IPA

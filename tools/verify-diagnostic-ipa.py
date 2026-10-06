@@ -83,6 +83,18 @@ def verify(ipa, provenance, checksum, commit):
             wine_d3d9 = archive.read(prefix + 'arm64ec-windows/d3d9.dll')
             require(hashlib.sha256(wine_d3d9).hexdigest() == graphics['preserved_wine_d3d9_sha256'],
                     'Wine D3D9 was replaced during graphics staging')
+        if 'source_built_opengl' in report:
+            opengl = report['source_built_opengl']
+            expected_names = {'arm64ec-windows/vulkan-1.dll', 'arm64ec-windows/winevulkan.dll',
+                              'x86_64-opengl/opengl32.dll', 'x86_64-opengl/libgallium_wgl.dll',
+                              'Frameworks/libvulkan.1.dylib', 'Frameworks/libvulkan_kosmickrisp.dylib',
+                              'Frameworks/madeira-vulkan.json'}
+            require(set(opengl['packaged_sha256']) == expected_names, 'incomplete desktop OpenGL package')
+            for filename, expected in opengl['packaged_sha256'].items():
+                require(hashlib.sha256(archive.read(prefix + filename)).hexdigest() == expected,
+                        filename + ' OpenGL provenance mismatch')
+            manifest = json.loads(archive.read(prefix + 'Frameworks/madeira-vulkan.json'))
+            require(manifest['ICD']['library_path'] == './libvulkan_kosmickrisp.dylib', 'unsafe Vulkan ICD path')
     return {'ipa': ipa.name, 'sha256': digest, 'madeira_commit': commit,
             'bundle_identifier': info['CFBundleIdentifier'],
             'version': info['CFBundleShortVersionString'], 'build_number': info['CFBundleVersion'],
