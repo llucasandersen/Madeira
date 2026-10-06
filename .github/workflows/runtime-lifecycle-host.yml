@@ -1,0 +1,31 @@
+name: Madeira runtime lifecycle host checks
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-lifecycle:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Check template lifetime and process teardown
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CC="$(xcrun --find clang)"
+          mkdir -p build/ci-output/runtime-lifecycle
+          python3 tests/host/check-image-reload.py 2>&1 | tee build/ci-output/runtime-lifecycle/image-reload.log
+          python3 tests/host/check-process-socket-ownership.py 2>&1 | tee build/ci-output/runtime-lifecycle/socket-ownership.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-lifecycle-host-results
+          path: build/ci-output/runtime-lifecycle
+          retention-days: 30
