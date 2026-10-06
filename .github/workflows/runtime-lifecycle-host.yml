@@ -20,6 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           export CC="$(xcrun --find clang)"
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           mkdir -p build/ci-output/runtime-lifecycle
           python3 tests/host/check-image-reload.py 2>&1 | tee build/ci-output/runtime-lifecycle/image-reload.log
           python3 tests/host/check-process-socket-ownership.py 2>&1 | tee build/ci-output/runtime-lifecycle/socket-ownership.log
