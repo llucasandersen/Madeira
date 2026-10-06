@@ -2,6 +2,15 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+October 5 candidate-8 phone follow-up: the user confirms working Teardown sound,
+but terrain/voxels/tools remain invisible. The new log has source `88b8218`;
+compound replay works, nonzero geometry draws occur, and foreground summaries
+show no GPU errors or skipped draws. Candidate 9 corrects the converter's
+float-payload default and adds bounded volume-input captures. Native Metal
+payload probe 37392477416 passed on the hosted paravirtual GPU; it does not test
+the converter or this phone. Fresh runtime/graphics/host/IPA gates are pending.
+Teardown visual/sustained/relaunch acceptance and the whole goal remain open.
+
 October 5 candidate-7 follow-up: the source stamp is `8ed43f9` and the 12GB
 arena is installed. The user reaches gameplay but reports invisible voxels,
 terrain and tools, with no audio. The log identifies skipped compound indirect

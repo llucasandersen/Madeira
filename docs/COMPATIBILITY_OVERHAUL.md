@@ -2,6 +2,42 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## October 5 candidate-8 audio passes, geometry remains invisible
+
+The user now reports working Teardown sound and the same missing terrain,
+voxels and tools. The new private `madeira-log 4.txt` identifies source
+`88b8218`; compound indirect replay is active (6/6, 18/18, 9/9 and 2/2
+records in the initial samples). Gameplay summaries report no skipped draws,
+no GPU command-buffer errors and no occlusion queries. Both zero-instance
+draws and nonzero geometry draws occur. The late GPU permission errors follow
+backgrounding and do not explain the missing geometry during foreground play.
+The previous compound-signature diagnosis did not restore visible geometry.
+
+Read-only inspection of the USB shader cache identifies voxel pixel shaders
+that load a float 3D texture, bitcast the result to an integer, and use that
+integer as a palette address; zero denotes empty space. The converter currently
+enables `IRCompatibilityFlagSampleNanToZero`. Replacing float texture payloads
+with zero is incompatible with bit-preserving loads. Candidate 9 disables that
+workaround by default, retains strict NaN/Inf behavior and the explicit config
+override, and updates the settings catalog. The actual cache key includes the
+compatibility flags and the converter source identity; existing shaders must
+reconvert with the new policy. This is a concrete default-policy correction,
+not yet proof that it explains every missing voxel.
+
+Native Metal probe 37392477416 ran on Apple's hosted paravirtual device using
+ordinary MSL with fast math disabled. R32Float reads preserved all ten test
+payloads, including small/subnormal values and NaN payloads; R32Uint controls
+matched exactly. This tests native texture reads, not the Metal Shader Converter
+or the iPhone. Actual converter/device behavior remains required.
+
+The PE renderer also captures a maximum of twelve volume-backed geometry input
+samples per process during existing census intervals: root/table constant
+buffers and small raw atlas regions, including hexadecimal R32Float texels.
+The captures are bounded and contained in the local diagnostic log. No game
+shader cache, disassembly or private phone log is committed or uploaded.
+Fresh native runtime, PE renderer, host and IPA gates are in progress.
+All original acceptance requirements and RDR2 device testing remain pending.
+
 ## October 5 Teardown missing geometry/audio and RDR2 preparation
 
 The latest private phone export has candidate-7 source stamp `8ed43f9` and

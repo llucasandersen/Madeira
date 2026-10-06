@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve float texture bit payloads by default in the shader converter and retain the explicit NaN-to-zero workaround. Add bounded volume draw input captures. Candidate 8's phone result confirms audio but still lacks visible Teardown geometry; candidate 9 and phone acceptance are pending.
+
 - Implement compound D3D12 indirect draws/dispatches with per-record bindings, GPU count handling, bounds checks, binding reset and occlusion continuity. Build and bundle actual Wine XAudio2.9 for Teardown's missing audio dependency. Prepare RDR2 DX12 startup and existing settings without copying its 128GB USB folder. All 81 host checks, graphics/native/app/package and verified USB candidate-8 gates pass; phone gameplay and full final acceptance remain pending.
 
 - Attempt a 12GB FEX-only reservation before the constrained 8GB fallback. Candidate 6's phone log shows the 8GB arena filling during Steam worker startup, `c0000017` terminating the new worker and a Steam startup-event/lock wait blocking game IPC. Preserve the existing arena cap, native ownership and smaller fallbacks. All 80 host checks passed at fcf847a (fixture corrections only), and fresh native/app/package gates passed at 8ed43f9. USB candidate 7 is verified; sustained device gameplay and complete final acceptance remain pending.
