@@ -19,6 +19,19 @@ jobs:
           python-version: '3.14'
       - name: Prepare Linux host compiler and generated Wine headers
         run: |
+          # The Azure mirror previously consumed the whole job downloading
+          # compiler packages. Use Ubuntu's archive directly for this gate.
+          sudo python3 - <<'PY'
+          from pathlib import Path
+          for directory in (Path('/etc/apt/sources.list.d'),):
+              for file in directory.iterdir():
+                  if file.suffix not in ('.sources', '.list'): continue
+                  original = file.read_text()
+                  updated = original.replace('mirror+file:///etc/apt/apt-mirrors.txt', 'https://archive.ubuntu.com/ubuntu')
+                  updated = updated.replace('mirror+file:///etc/apt/apt-mirrors-security.txt', 'https://security.ubuntu.com/ubuntu')
+                  updated = updated.replace('http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu')
+                  if updated != original: file.write_text(updated)
+          PY
           sudo apt-get update
           sudo apt-get install -y bison flex gcc-mingw-w64-x86-64 zlib1g-dev libfreetype-dev libssl-dev liblzma-dev llvm-15-dev clang-15
           python3 -m pip install cryptography

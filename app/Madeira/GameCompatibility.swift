@@ -70,9 +70,10 @@ enum RDR2RendererSettings {
         return existing.isEmpty ? "-dx12" : existing + " -dx12"
     }
     static func requestsD3D12(_ arguments: String) -> Bool {
-        arguments.split(whereSeparator: { $0.isWhitespace }).contains {
-            $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"")).lowercased() == "-dx12"
+        let tokens = arguments.split(whereSeparator: { $0.isWhitespace }).map {
+            $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"")).lowercased()
         }
+        return tokens.contains("-dx12") && !tokens.contains(where: Set(["-dx9", "-dx10", "-dx11", "-vulkan"]).contains)
     }
     enum Failure: Error, LocalizedError {
         case unsupported, unsafePath, changed

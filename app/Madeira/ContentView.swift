@@ -2540,6 +2540,7 @@ struct ContentView: View {
                 profile.applyEnvironment()
                 logStore.log("[launch-route] library profile applied")
             } else {
+                unsetenv("MADEIRA_RDR2_DX12")
                 _ = try? MadeiraConfig.applyGame(nil)   // no library game: no game's own lines
             }
             if let appID = compatibilityAppID,

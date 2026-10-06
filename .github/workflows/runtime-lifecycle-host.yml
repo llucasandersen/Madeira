@@ -24,6 +24,9 @@ jobs:
           mkdir -p build/ci-output/runtime-lifecycle
           python3 tests/host/check-image-reload.py 2>&1 | tee build/ci-output/runtime-lifecycle/image-reload.log
           python3 tests/host/check-process-socket-ownership.py 2>&1 | tee build/ci-output/runtime-lifecycle/socket-ownership.log
+          python3 tests/host/check-rdr2-renderer-handoff.py 2>&1 | tee build/ci-output/runtime-lifecycle/rdr2-renderer.log
+          python3 tests/host/check-game-compatibility.py 2>&1 | tee build/ci-output/runtime-lifecycle/game-compatibility.log
+          python3 tests/host/check-frontend.py 2>&1 | tee build/ci-output/runtime-lifecycle/frontend.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

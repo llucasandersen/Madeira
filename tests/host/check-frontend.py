@@ -234,6 +234,25 @@ game.controllerMode = nil; game.applyEnvironment()
 expect(env("MADEIRA_DINPUT_PAD") == "1", "madeira.cfg's own MADEIRA_DINPUT_PAD is left alone")
 MadeiraConfig.values["env.MADEIRA_DINPUT_PAD"] = nil; unsetenv("MADEIRA_DINPUT_PAD")
 // Library files written before the controller choices decode with none.
+// A real RDR2 folder enables renderer inheritance only for its own launch.
+let rdrFolderName = "renderer-test-" + UUID().uuidString
+let rdrFolder = LibraryEntry.hostDrive.appendingPathComponent(rdrFolderName)
+try FileManager.default.createDirectory(at: rdrFolder, withIntermediateDirectories: true)
+defer { try? FileManager.default.removeItem(at: rdrFolder) }
+for name in ["common_0.rpf", "shaders_x64.rpf", "bink2w64.dll"] {
+    try Data().write(to: rdrFolder.appendingPathComponent(name))
+}
+var rdrEntry = LibraryEntry(title: "RDR2", relativePath: rdrFolderName + "/RDR2.exe", bits: 64)
+rdrEntry.arguments = "-dx12"; rdrEntry.configureLaunch()
+expect(env("MADEIRA_RDR2_DX12") == "1", "recognized RDR2 carries its requested DX12 through child launches")
+rdrEntry.arguments = "-dx12 -vulkan"; rdrEntry.configureLaunch()
+expect(env("MADEIRA_RDR2_DX12") == nil, "conflicting renderer arguments are not inherited")
+rdrEntry.arguments = "-dx12"; rdrEntry.automaticCompatibility = false; rdrEntry.configureLaunch()
+expect(env("MADEIRA_RDR2_DX12") == nil, "automatic compatibility opt-out clears renderer inheritance")
+rdrEntry.automaticCompatibility = true; rdrEntry.configureLaunch(); game.configureLaunch()
+expect(env("MADEIRA_RDR2_DX12") == nil, "the next generic launch clears RDR2 renderer inheritance")
+rdrEntry.configureLaunch(); steamGame.steamStart = nil; steamGame.configureLaunch()
+expect(env("MADEIRA_RDR2_DX12") == nil, "the Dock early return clears renderer inheritance")
 let older = #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","title":"Old","relativePath":"a/b.exe","bits":64,"arguments":"","resolution":"944x656","fpsMode":1,"reducedX87":false,"liveLogs":false,"performance":false,"touchControls":false}"#
 let decodedOld = try? JSONDecoder().decode(LibraryEntry.self, from: Data(older.utf8))
 expect(decodedOld != nil && decodedOld?.controllerMode == nil && decodedOld?.controllerBinds == nil && decodedOld?.padMouseVertical == nil

@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -87,15 +88,17 @@ ULONG process_cookie = 0xdeadbeef;
 
 static char **build_argv( const UNICODE_STRING *cmdline, int reserved )
 {
-    char **argv, *arg, *src, *dst;
+    char **argv, *arg, *src, *dst, *converted;
     int argc, in_quotes = 0, bcount = 0, len = cmdline->Length / sizeof(WCHAR);
 
     if (!(src = malloc( len * 3 + 1 ))) return NULL;
+    converted = src;
     len = ntdll_wcstoumbs( cmdline->Buffer, len, src, len * 3, FALSE );
     src[len++] = 0;
 
     argc = reserved + 2 + len / 2;
     argv = malloc( argc * sizeof(*argv) + len );
+    if (!argv) { free( converted ); return NULL; }
     arg = dst = (char *)(argv + argc);
     argc = reserved;
     while (*src)
@@ -148,8 +151,53 @@ static char **build_argv( const UNICODE_STRING *cmdline, int reserved )
     *dst = 0;
     argv[argc++] = arg;
     argv[argc] = NULL;
+    free( converted );
     return argv;
 }
+
+#ifdef WINE_IOS
+/* Preserve Madeira's requested renderer when RDR2's launcher drops the args.
+ * The caller owns the returned buffer; its original parameters stay intact. */
+static NTSTATUS ios_rdr2_renderer_command( const RTL_USER_PROCESS_PARAMETERS *params, WCHAR **buffer )
+{
+    const char *enabled = getenv( "MADEIRA_RDR2_DX12" );
+    const WCHAR *image = params->ImagePathName.Buffer;
+    static const char expected[] = "rdr2.exe";
+    static const WCHAR suffix[] = {' ', '-', 'd', 'x', '1', '2', 0};
+    size_t count = params->ImagePathName.Length / sizeof(WCHAR), base = 0, i, length;
+    char **argv;
+
+    *buffer = NULL;
+    if (!enabled || strcmp( enabled, "1" ) || !image) return STATUS_SUCCESS;
+    for (i = 0; i < count; i++) if (image[i] == '\\' || image[i] == '/') base = i + 1;
+    if (count - base != sizeof(expected) - 1) return STATUS_SUCCESS;
+    for (i = 0; i < sizeof(expected) - 1; i++)
+    {
+        WCHAR ch = image[base + i];
+        if (ch >= 'A' && ch <= 'Z') ch += 'a' - 'A';
+        if (ch != expected[i]) return STATUS_SUCCESS;
+    }
+    length = params->CommandLine.Length;
+    if (length % sizeof(WCHAR) || (length && !params->CommandLine.Buffer)) return STATUS_INVALID_PARAMETER;
+    if (!(argv = build_argv( &params->CommandLine, 0 ))) return STATUS_NO_MEMORY;
+    for (i = 1; argv[i]; i++)
+    {
+        if (!strcasecmp( argv[i], "-dx9" ) || !strcasecmp( argv[i], "-dx10" ) ||
+            !strcasecmp( argv[i], "-dx11" ) || !strcasecmp( argv[i], "-dx12" ) ||
+            !strcasecmp( argv[i], "-vulkan" ))
+        {
+            free( argv );
+            return STATUS_SUCCESS;
+        }
+    }
+    free( argv );
+    if (length > 0xffff - sizeof(suffix)) return STATUS_INVALID_PARAMETER;
+    if (!(*buffer = malloc( length + sizeof(suffix) ))) return STATUS_NO_MEMORY;
+    if (length) memcpy( *buffer, params->CommandLine.Buffer, length );
+    memcpy( (char *)*buffer + length, suffix, sizeof(suffix) );
+    return STATUS_SUCCESS;
+}
+#endif
 
 
 /***********************************************************************
@@ -1144,6 +1192,10 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
     const PS_ATTRIBUTE *handles_attr = NULL, *jobs_attr = NULL;
     data_size_t handles_size, jobs_size;
     obj_handle_t *handles, *jobs;
+#ifdef WINE_IOS
+    RTL_USER_PROCESS_PARAMETERS renderer_params;
+    WCHAR *renderer_command = NULL;
+#endif
 
     if (thread_flags & THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER)
     {
@@ -1627,6 +1679,18 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
     }
 #endif
 
+#ifdef WINE_IOS
+    if ((status = ios_rdr2_renderer_command( params, &renderer_command ))) return status;
+    if (renderer_command)
+    {
+        renderer_params = *params;
+        renderer_params.CommandLine.Buffer = renderer_command;
+        renderer_params.CommandLine.Length += 6 * sizeof(WCHAR);
+        renderer_params.CommandLine.MaximumLength = renderer_params.CommandLine.Length + sizeof(WCHAR);
+        params = &renderer_params;
+        dprintf( 2, "[rdr2-renderer] preserved requested -dx12 in child command line\n" );
+    }
+#endif
     unixdir = get_unix_curdir( params );
 
     InitializeObjectAttributes( &attr, &path, OBJ_CASE_INSENSITIVE, 0, 0 );
@@ -1638,6 +1702,9 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
             memset( info, 0, sizeof(*info) );
             free( unix_name );
             free( nt_name.Buffer );
+#ifdef WINE_IOS
+            free( renderer_command );
+#endif
             return STATUS_SUCCESS;
         }
         goto done;
@@ -1842,6 +1909,9 @@ done:
     if (socketfd[0] != -1) close( socketfd[0] );
     if (unixdir != -1) close( unixdir );
     free( startup_info );
+#ifdef WINE_IOS
+    free( renderer_command );
+#endif
     free( winedebug );
     free( unix_name );
     free( nt_name.Buffer );

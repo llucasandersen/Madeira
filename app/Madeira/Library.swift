@@ -530,6 +530,7 @@ struct LibraryEntry: Codable, Identifiable {
         // "The game"'s identity and the launch's working folder, for this launch only
         // (the bridge reads and clears them); every other launch starts without them.
         unsetenv("MADEIRA_STEAM_APPID"); unsetenv("MADEIRA_STEAM_APPPATH"); unsetenv("MADEIRA_WORKDIR")
+        unsetenv("MADEIRA_RDR2_DX12")
         if steamAppID != nil {
             // A Steam game through Madeira Dock: Dock has set what starts (ContentView.startDock);
             // the virtual monitor follows this entry's Resolution, as below. "The game" starts
@@ -540,6 +541,14 @@ struct LibraryEntry: Codable, Identifiable {
             }
         }
         let command = desktop == true ? (exe: "explorer.exe", args: launchArguments) : launchCommand
+        // RDR2's launcher restarts the game without its original arguments.
+        // Carry the requested API through that handoff for this game session.
+        if usesLaunchOptions, automaticCompatibility != false,
+           RDR2RendererSettings.requestsD3D12(programArguments),
+           let executable = Self.hostURL(ofWindowsPath: launchWindowsPath),
+           RDR2RendererSettings.isGame(executable: executable) {
+            setenv("MADEIRA_RDR2_DX12", "1", 1)
+        }
         setenv("MADEIRA_EXE", command.exe, 1)
         setenv("MADEIRA_ARGS", command.args, 1)
         if desktop == true || runsInDesktop { setenv("MADEIRA_DESKTOP", "1", 1) } else { unsetenv("MADEIRA_DESKTOP") }
