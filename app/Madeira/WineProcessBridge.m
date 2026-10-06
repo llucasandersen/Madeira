@@ -1380,14 +1380,15 @@ static void *wine_process_thread(void *arg) {
                 }
             }
 
-            /* AMD64 manifests require the EC farm's side-by-side assemblies.
-             * RDR2 imports comctl32 ordinal 345 (TaskDialogIndirect), which is
-             * supplied by v6 rather than the default v5 DLL. Refresh links on
-             * every session, including after an app update. */
+            // Use bundled desktop OpenGL for sessions whose game profile selects it.
             const char *openGL = getenv("MADEIRA_OPENGL");
             madeira_clear_opengl_links(fm, prefix);
             if (openGL && !strcmp(openGL, "1"))
                 madeira_link_opengl(fm, prefix, bundlePath, use_arm64ec && !is_i386_target);
+            /* AMD64 manifests require the EC farm's side-by-side assemblies.
+             * RDR2 imports comctl32 ordinal 345 (TaskDialogIndirect), which is
+             * supplied by v6 rather than the default v5 DLL. Refresh links on
+             * every session, including after an app update. */
             madeira_seed_winsxs(fm, prefix, bundlePath, @"amd64", @"arm64ec-windows");
 
             /* WoW64: the i386 farm, syswow64\wbem and the x86 side-by-side
