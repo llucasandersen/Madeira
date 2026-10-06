@@ -20,7 +20,9 @@ assert name == 'comctl32_v6.dll'
 source = artifact / 'modules' / name
 assert hashlib.sha256(source.read_bytes()).hexdigest() == digest
 metadata = json.loads((artifact / 'pe-metadata.jsonl').read_text())
-assert metadata['machine'] == '0xa641' and metadata['sha256'] == digest
+# Wine's ARM64EC builtins use an AMD64 PE header plus CHPE metadata,
+# matching the existing DXMT staging convention.
+assert metadata['machine'] == '0x8664' and metadata['pe_magic'] == '0x20b' and metadata['sha256'] == digest
 shutil.copyfile(source, root / 'app/Madeira/arm64ec-windows' / name)
 report = {'run_id': run['id'], 'madeira_commit': run['head_sha'], 'wine_commit': wine,
           'staged_sha256': {name: digest}}
