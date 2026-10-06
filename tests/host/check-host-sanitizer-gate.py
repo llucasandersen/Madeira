@@ -4,6 +4,7 @@
 # Madeira Converter Exception: see LICENSE-EXCEPTION.md
 """Exercise actual CI status propagation with recovering sanitizer diagnostics."""
 from pathlib import Path
+import ast
 import json
 import shutil
 import subprocess
@@ -16,7 +17,10 @@ with tempfile.TemporaryDirectory(prefix='madeira-host-gate-') as name:
     (root / 'build/ci').mkdir(parents=True)
     (root / 'tests/host').mkdir(parents=True)
     shutil.copy2(runner, root / 'build/ci/host-regressions.py')
-    for name in ['check-jit-network.py', 'check-steam-cloud.py', 'check-depot-network-metrics.py', 'check-depot-native-control.py', 'check-mach-stp-alias.py']:
+    inventory = next(node.value for node in ast.parse(runner.read_text()).body
+                     if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name)
+                     and target.id == 'apple_checks' for target in node.targets))
+    for name in ast.literal_eval(inventory):
         (root / 'tests/host' / name).write_text('pass\n')
     for name, output, code in [
         ('check-a-clean.py', 'PASS: clean', 0),
