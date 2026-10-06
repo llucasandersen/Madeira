@@ -7,6 +7,7 @@ cd "$R"
 bash build/ci/fetch-mingw.sh
 export PATH="$(brew --prefix bison)/bin:$R/toolchains/llvm-mingw-20260421-ucrt-macos-universal/bin:$PATH"
 export CC="$(xcrun --find clang)"
+export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 mkdir -p wine/build-macos
 (cd wine/build-macos && ../configure --enable-archs=aarch64 --without-x --disable-tests)
 make -C wine/build-macos -j4 include/all

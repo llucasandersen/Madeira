@@ -10,15 +10,33 @@ import FoundationXML
 /// Unknown applications use the generic launch path. Each adapter owns only
 /// its documented settings, rather than supplying guessed command-line flags.
 struct GameCompatibilityProfile: Equatable {
-    enum Renderer: String { case d3d11, d3d12 }
+    enum Renderer: String { case d3d11, d3d12, opengl }
     enum SettingsAdapter { case teardownRegistry, rdr2System }
     let appID: Int
     let revision: Int
     let preferredRenderer: Renderer
     let settingsAdapter: SettingsAdapter
 
-    static func resolve(appID: Int, enabled: Bool = true) -> Self? {
+    static var bundledDesktopOpenGL: Bool {
+#if os(iOS)
+        guard #available(iOS 26.0, *), let bundle = Bundle.main.resourceURL,
+              let frameworks = Bundle.main.privateFrameworksURL else { return false }
+        return [bundle.appendingPathComponent("x86_64-opengl/opengl32.dll"),
+                frameworks.appendingPathComponent("libvulkan.1.dylib"),
+                frameworks.appendingPathComponent("libvulkan_kosmickrisp.dylib"),
+                frameworks.appendingPathComponent("madeira-vulkan.json")]
+            .allSatisfy { FileManager.default.fileExists(atPath: $0.path) }
+#else
+        return false
+#endif
+    }
+
+    static func resolve(appID: Int, enabled: Bool = true,
+                        openGLAvailable: Bool = bundledDesktopOpenGL) -> Self? {
         guard enabled else { return nil }
+        if appID == 1167630, openGLAvailable {
+            return Self(appID: appID, revision: 3, preferredRenderer: .opengl, settingsAdapter: .teardownRegistry)
+        }
         return builtins.first { $0.appID == appID }
     }
 
@@ -30,7 +48,7 @@ struct GameCompatibilityProfile: Equatable {
 
     func prepare(options: URL) throws -> Bool {
         switch settingsAdapter {
-        case .teardownRegistry: return try TeardownRendererSettings.prepare(file: options)
+        case .teardownRegistry: return try TeardownRendererSettings.prepare(file: options, useOpenGL: preferredRenderer == .opengl)
         case .rdr2System: return try RDR2RendererSettings.prepare(file: options)
         }
     }
@@ -59,6 +77,18 @@ struct GameCompatibilityProfile: Equatable {
             return (user.map { $0 + ($0.hasSuffix("\n") ? "" : "\n") } ?? "") + "vram-mb = 2048\n"
         }
         guard appID == 1167630 else { return user }
+        if preferredRenderer == .opengl {
+            let overrides = (user ?? "").split(separator: "\n").compactMap { line -> String? in
+                let parts = line.split(separator: "=", maxSplits: 1)
+                guard parts.count == 2, parts[0].trimmingCharacters(in: .whitespaces) == "env.WINEDLLOVERRIDES" else { return nil }
+                return parts[1].trimmingCharacters(in: .whitespaces)
+            }.last ?? global["env.WINEDLLOVERRIDES"] ?? ""
+            // Preserve the user's other DLL policies; this profile owns only
+            // selection of the bundled native desktop OpenGL DLL.
+            let merged = overrides.isEmpty ? "opengl32=n,b" : overrides + ";opengl32=n,b"
+            return (user.map { $0 + ($0.hasSuffix("\n") ? "" : "\n") } ?? "") +
+                "env.MADEIRA_OPENGL = 1\nenv.WINEDLLOVERRIDES = " + merged + "\n"
+        }
         let key = "msc-uint-volume-loads"
         let explicit = (user ?? "").split(separator: "\n").contains { line in
             let parts = line.split(separator: "=", maxSplits: 1)
@@ -199,6 +229,14 @@ enum TeardownRendererSettings {
     }
 
     static func selectingD3D12(_ data: Data) throws -> Data {
+        try selectingRenderer(data, useOpenGL: false)
+    }
+
+    static func selectingOpenGL(_ data: Data) throws -> Data {
+        try selectingRenderer(data, useOpenGL: true)
+    }
+
+    private static func selectingRenderer(_ data: Data, useOpenGL: Bool) throws -> Data {
         guard data.count <= 1_048_576, let text = String(data: data, encoding: .utf8),
               !text.contains("<!DOCTYPE"), !text.contains("<!ENTITY"),
               !text.contains("<![CDATA[") else { throw Failure.unsupported }
@@ -214,7 +252,7 @@ enum TeardownRendererSettings {
         let ignoredPattern = try NSRegularExpression(pattern: #"<!--[\s\S]*?-->|<\?[\s\S]*?\?>"#)
         let withoutIgnoredMarkup = ignoredPattern.stringByReplacingMatches(in: text,
             range: NSRange(location: 0, length: source.length), withTemplate: "")
-        var edits: [NSRange] = []
+        var edits: [(NSRange, String)] = []
         for node in ["gfxapi", "d3d12support"] {
             let pattern = "<" + node + #"\s+value\s*=\s*(["'])([01])\1\s*/>"#
             let regex = try NSRegularExpression(pattern: pattern)
@@ -224,18 +262,20 @@ enum TeardownRendererSettings {
                 range: NSRange(location: 0, length: (withoutIgnoredMarkup as NSString).length)) == 1 else {
                 throw Failure.unsupported
             }
-            edits.append(matches[0].range(at: 2))
+            if !useOpenGL || node == "gfxapi" {
+                edits.append((matches[0].range(at: 2), useOpenGL ? "0" : "1"))
+            }
         }
         let result = NSMutableString(string: text)
-        for range in edits.sorted(by: { $0.location > $1.location }) {
-            result.replaceCharacters(in: range, with: "1")
+        for (range, value) in edits.sorted(by: { $0.0.location > $1.0.location }) {
+            result.replaceCharacters(in: range, with: value)
         }
         return Data((result as String).utf8)
     }
 
     /// Called only while Wine is stopped. Keep the original alongside the
     /// settings, and refuse symbolic links instead of editing another prefix.
-    static func prepare(file: URL) throws -> Bool {
+    static func prepare(file: URL, useOpenGL: Bool = false) throws -> Bool {
         let fm = FileManager.default
         let parent = file.deletingLastPathComponent()
         guard parent.standardizedFileURL == parent.resolvingSymlinksInPath().standardizedFileURL,
@@ -246,7 +286,7 @@ enum TeardownRendererSettings {
         // versioned registry before the engine has created its own file.
         guard fm.fileExists(atPath: file.path) else { return false }
         let original = try Data(contentsOf: file)
-        let updated = try selectingD3D12(original)
+        let updated = try selectingRenderer(original, useOpenGL: useOpenGL)
         guard updated != original else { return false }
         let backup = parent.appendingPathComponent("options.xml.madeira-renderer-backup")
         guard backup.standardizedFileURL == backup.resolvingSymlinksInPath().standardizedFileURL else {

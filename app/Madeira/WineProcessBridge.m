@@ -801,6 +801,10 @@ static void *wine_process_thread(void *arg) {
          * thread_ios.c — default QoS costs tens of ms of sleep leeway). */
         pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
         LOG("Wine process thread started");
+        // An automatic OpenGL profile overrides only its session's DLL choice.
+        const char *previousOverrides = getenv("WINEDLLOVERRIDES");
+        NSString *openGLPreviousOverrides = previousOverrides ? [NSString stringWithUTF8String:previousOverrides] : nil;
+        unsetenv("MADEIRA_OPENGL");
 
         /* ml588: seeding itself now happens in wineserver_start(), BEFORE the
          * server loads the registry. Kept here as a safety net for any path
@@ -1266,6 +1270,20 @@ static void *wine_process_thread(void *arg) {
             }
             LOG("Symlinked %d DLLs from %{public}s to %{public}s", linked, bundle_subdir, sys32Dir.UTF8String);
             dprintf(STDERR_FILENO, "[WineProc] Symlinked %d DLLs from %s -> sys32\n", linked, bundle_subdir);
+            const char *openGL = getenv("MADEIRA_OPENGL");
+            if (openGL && !strcmp(openGL, "1") && use_arm64ec && !is_i386_target) {
+                NSString *source = [bundlePath stringByAppendingPathComponent:@"x86_64-opengl/opengl32.dll"];
+                NSString *destination = [sys32Dir stringByAppendingPathComponent:@"opengl32.dll"];
+                if ([fm fileExistsAtPath:source]) {
+                    [fm removeItemAtPath:destination error:nil];
+                    NSError *error = nil;
+                    if (![fm createSymbolicLinkAtPath:destination withDestinationPath:source error:&error]) {
+                        dprintf(STDERR_FILENO, "[opengl] failed to link bundled desktop driver: %s\n", error.localizedDescription.UTF8String);
+                    } else {
+                        dprintf(STDERR_FILENO, "[opengl] native Windows Zink selected for this session; iOS Metal4 Vulkan backend\n");
+                    }
+                }
+            }
             madeira_link_wbem(fm, prefix, @"system32", dllSource);
 
             // X3 mixed-mode: also link NON-COLLIDING files from the other
@@ -1656,6 +1674,11 @@ static void *wine_process_thread(void *arg) {
         unsetenv("MADEIRA_DINPUT_PAD");        /* ml1240 */
         unsetenv("MADEIRA_FEX_AVX"); unsetenv("MADEIRA_FRAMEGEN");   /* ml1184 */
         unsetenv("MADEIRA_RDR2_DX12");
+        if (getenv("MADEIRA_OPENGL")) {
+            if (openGLPreviousOverrides) setenv("WINEDLLOVERRIDES", openGLPreviousOverrides.UTF8String, 1);
+            else unsetenv("WINEDLLOVERRIDES");
+        }
+        unsetenv("MADEIRA_OPENGL");
 
         // Stop wineserver to prevent CPU spin (iOS kills for excessive CPU)
         dprintf(STDERR_FILENO, "[WineProc] stopping wineserver...\n");

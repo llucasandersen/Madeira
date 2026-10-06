@@ -37,6 +37,8 @@ ninja -C "$OUT/zink" -j4
 find "$OUT/zink" -name '*.dll' -print
 test -s "$OUT/zink/src/gallium/targets/libgl-gdi/opengl32.dll"
 # Build the Windows-facing Vulkan loader and ICD from the tracked Wine source.
+export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+export CC="$(xcrun --find clang)"
 mkdir -p wine/build-arm64ec
 (cd wine/build-arm64ec && ../configure --enable-archs=arm64ec --without-x --disable-tests)
 DEST="$OUT/wine" bash build/wine-pe/build-modules.sh vulkan-1 winevulkan
