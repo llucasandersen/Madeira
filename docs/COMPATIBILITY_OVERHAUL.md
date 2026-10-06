@@ -1,5 +1,44 @@
 # Compatibility overhaul: investigation record
 
+## October 5 RDR2 initial-process cleanup follow-up
+
+Phone log `madeira-log 11.txt` confirms test build 2 (`b680d5a`) registers the
+preferred image as OWNED and binds the original process PEB. The original
+RDR2 process exits normally, but the initial-process branch of
+`process_exit_wrapper` only reports its status and closes the server socket.
+It skips the image retirement and owner reclamation performed for children.
+The old image remains mapped at `0x140000000`; the relaunched image is still
+at `0xe40000000`. No graphics device or presents occur after two minutes.
+Loader critical-section timeout records also remain; gameplay has not started.
+
+The initial-process branch now claims teardown once, retires its own fixed
+image while its server connection is live, closes only its master descriptor,
+releases owner caches/windows, reclaims owner pool allocations and publishes
+image readiness. Shared NULL-owner runtime copies survive. The production
+socket ownership harness checks this order with real descriptors, concurrent
+duplicate initial-process exits and unrelated descriptor reuse, in addition
+to its existing child ownership and generation cases under ASan/UBSan/TSan.
+This follows the existing child teardown model; peer-thread quiescence and
+other loader/activation defects are not established as solved by host tests.
+
+All 84 distinct host checks pass at `f5fbc36` in
+[37410965039](https://github.com/llucasandersen/Madeira/actions/runs/37410965039).
+Fresh native runtime and IPA build/signing/package
+[37410967290](https://github.com/llucasandersen/Madeira/actions/runs/37410967290)
+pass at the same source. Graphics/Common-Controls artifacts are unchanged
+from verified 37404589105. IPA provenance and component hashes, controls CHPE
+metadata and ordinal 345, and all seven USB copies are verified. Rebuilt audio
+matches the previous binary after excluding COFF/debug build timestamps.
+Test build 3 is on
+`E:\Madeira-RDR2-Test-3\Madeira-diagnostic-f5fbc36.ipa`, 88,239,804 bytes,
+SHA-256 `acc7a261eaf1f786aa6e9bae47ebb10ad59062da34ed4bee460bc1768a79e55d`.
+
+Install as an update using the same signing identity. Keep the imported game
+folder, `env.MADEIRA_WAIT_CHILDREN = 1`, automatic compatibility and JIT, then
+launch RDR2.exe. Phone startup, graphics initialization, menu/story gameplay,
+audio/input, sustained play and repeat launch remain pending. RDR2 is not
+declared playable or complete. Teardown remains deferred and unresolved.
+
 ## October 5 RDR2 launcher handoff and fixed image claim
 
 The latest phone log (`madeira-log 10.txt`) confirms that
