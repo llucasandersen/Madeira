@@ -1,5 +1,24 @@
 # Compatibility overhaul: investigation record
 
+## October 6 combined RDR2 memory and Teardown OpenGL test build
+
+Test build 6 at source `d4aa1dc` is verified on USB:
+`E:\Madeira-RDR2-Teardown-Test-6\Madeira-diagnostic-d4aa1dc.ipa`.
+All 86 distinct host checks pass in run 37540738773 without sanitizer
+diagnostics; fresh native runtime and signed app packaging pass in 37540738924.
+The updated Wine Vulkan iPhone bridge and presentation regression pass in
+37540738727. Package provenance and all nine USB file hashes pass.
+
+The RDR2 intro error is `ERR_GFX_D3D_DEFERRED_MEM`, confirmed by the supplied
+exit file and user report. The candidate increases the automatic video-memory
+budget to 2 GB while retaining pressure trimming. The root cause and Story
+gameplay remain unconfirmed. Teardown receives the source-built desktop
+OpenGL candidate on iOS 26, including successful Vulkan submission accounting
+for launch/FPS observers. Terrain/tools, sound, stability and repeat launch
+still require the user's iPhone tests. See [the current matrix](GAME_TEST_MATRIX.md)
+for the exact hash, component evidence and acceptance gates. No bulk game
+copies or game-file modifications were made. The goal is not complete.
+
 ## October 6 RDR2 test build 5 delivery
 
 The latest phone log is still test build 3 (`madeira-log 12.txt`). It reaches

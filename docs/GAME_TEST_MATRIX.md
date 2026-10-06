@@ -1,5 +1,38 @@
 # Game compatibility test matrix
 
+## October 6 combined test build 6 delivery
+
+The combined RDR2 memory and Teardown desktop OpenGL candidate is verified on
+USB at `E:\Madeira-RDR2-Teardown-Test-6\Madeira-diagnostic-d4aa1dc.ipa`.
+Source is `d4aa1dcbec439c41718ecdb125f7e60ec9ee7bc6`; size is 95,950,798 bytes;
+SHA-256 is `2b20f7992229923daf6e8f995dd83454c98647d0eb2dbedacabe777c487d5d5f`.
+
+All 86 distinct host checks pass at this source in
+[37540738773](https://github.com/llucasandersen/Madeira/actions/runs/37540738773),
+with zero raw/effective exits and no sanitizer diagnostics. The updated native
+Vulkan bridge compiles for iPhone and its failed-present/concurrent-counter
+regression passes in
+[37540738727](https://github.com/llucasandersen/Madeira/actions/runs/37540738727).
+Fresh runtime compilation, app build, signing and packaging pass in
+[37540738924](https://github.com/llucasandersen/Madeira/actions/runs/37540738924).
+The previously passed pinned graphics and OpenGL components are verified by
+source comparison and staging hashes. The final IPA includes all seven OpenGL
+runtime files; package/provenance checks and all nine USB file hashes pass.
+XAudio2 matches the working test 5 component apart from rebuild timestamps.
+
+RDR2's Auto video-memory setting receives a 2,048 MB budget, retaining native
+pressure trimming and explicit nonzero choices. Recognized direct imports
+receive the profile. Teardown's automatic profile selects the bundled OpenGL
+candidate on iOS 26. Successful Vulkan submissions update launch/FPS observers;
+failed submissions cannot dismiss the launch screen. This proves submission
+accounting, not correct images on the phone.
+
+Re-sign and install as an update with the existing signing account/App ID
+prefix, then enable JIT. Test RDR2 through the intro into Story; test Teardown
+terrain, tools, sound, stable gameplay and repeat launches. Export full logs
+with the new source stamp. Both gameplay outcomes and the overall goal remain
+unconfirmed. Game archives remain unchanged on E:, without bulk copies to F:.
+
 ## October 6 intro memory error and Teardown OpenGL work
 
 The new RDR2 phone log is test build 5. It passes the previous child-runtime
