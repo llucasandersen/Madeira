@@ -1,0 +1,35 @@
+name: Windows offline shader analysis tool
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tool:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch the pinned LLVM source used by the app
+        shell: pwsh
+        run: |
+          git init toolchains/llvm-analysis
+          git -C toolchains/llvm-analysis remote add origin https://github.com/llvm/llvm-project.git
+          git -C toolchains/llvm-analysis fetch --depth 1 origin 8dfdcc7b7bf66834a761bd8de445840ef68e4d1a
+          git -C toolchains/llvm-analysis checkout --detach FETCH_HEAD
+          if ((git -C toolchains/llvm-analysis rev-parse HEAD) -ne '8dfdcc7b7bf66834a761bd8de445840ef68e4d1a') { throw 'LLVM revision mismatch' }
+      - name: Compile the production shader rewrite as a local Windows tool
+        shell: pwsh
+        run: |
+          cmake -S build/shader-analysis -B build/shader-analysis-output -A x64 -DLLVM_SOURCE="$pwd/toolchains/llvm-analysis"
+          if ($LASTEXITCODE) { throw 'configure failed' }
+          cmake --build build/shader-analysis-output --config Release --target shader-volume-rewrite --parallel 4
+          if ($LASTEXITCODE) { throw 'build failed' }
+          New-Item -ItemType Directory -Path build/ci-output/shader-analysis -Force
+          Copy-Item build/shader-analysis-output/Release/shader-volume-rewrite.exe build/ci-output/shader-analysis/
+          git rev-parse HEAD | Set-Content -Encoding utf8 build/ci-output/shader-analysis/source.txt
+          (Get-FileHash build/ci-output/shader-analysis/shader-volume-rewrite.exe -Algorithm SHA256).Hash.ToLower() | Set-Content -Encoding utf8 build/ci-output/shader-analysis/tool.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-offline-shader-analysis
+          path: build/ci-output/shader-analysis
+          retention-days: 30
