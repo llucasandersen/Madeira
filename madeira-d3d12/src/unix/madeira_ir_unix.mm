@@ -1363,7 +1363,7 @@ static int mad_ags_enabled(void)
 }
 
 /* The converter's compatibility flags: D3D12 guarantees the Metal Shader
- * Converter gives only on request. Each is on by default and can be turned off
+ * Converter gives only on request. Most are on by default and can be turned off
  * in madeira.cfg for an A/B run; the DXIL cache keys on the result, so a
  * change re-converts once.
  * - ml932, always: IRCompatibilityFlagForceTextureArray (see the comment at
@@ -1388,9 +1388,11 @@ static int mad_ags_enabled(void)
  * - msc-sampler-lod-bias: apply D3D12_SAMPLER_DESC::MipLODBias. Metal samplers
  *   have no LOD bias; the runtime already writes it into every sampler
  *   descriptor's metadata, but the converted shader reads it only with this flag.
- * - msc-sample-nan-zero: a texture sample that comes back NaN reads 0. A
- *   filtered read across NaN texels is NaN on Metal, and a NaN that reaches a
- *   temporal resolve stays in its history and spreads as dark specks.
+ * - msc-sample-nan-zero: opt-in workaround for NaNs spreading through filtered
+ *   temporal history. OFF by default: texture loads can carry integer payloads
+ *   through float formats and asuint(), including NaN and subnormal bit patterns.
+ *   Replacing a loaded value with zero destroys that data. Teardown's voxel
+ *   shaders use this contract; ordinary D3D12 loads must preserve it.
  * - msc-position-inf-nan: a vertex position of +-Inf becomes NaN, which Metal
  *   discards like D3D does. Particle systems kill particles by writing an
  *   infinite position; kept as Inf, Metal can rasterise a sliver instead. */
@@ -1401,7 +1403,7 @@ static uint32_t mad_ir_compat_flags(void) {
         int inv = madeira_cfg_int("msc-position-invariance", 1) ? 1 : 0;
         int nan = madeira_cfg_int("msc-strict-nan", 1) ? 1 : 0;
         int lod = madeira_cfg_int("msc-sampler-lod-bias", 1) ? 1 : 0;
-        int snz = madeira_cfg_int("msc-sample-nan-zero", 1) ? 1 : 0;
+        int snz = madeira_cfg_int("msc-sample-nan-zero", 0) ? 1 : 0;
         int pin = madeira_cfg_int("msc-position-inf-nan", 1) ? 1 : 0;
         int f = (int)IRCompatibilityFlagForceTextureArray |
                 (bc ? (int)IRCompatibilityFlagBoundsCheck : 0) |

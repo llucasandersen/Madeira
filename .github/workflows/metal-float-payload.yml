@@ -1,0 +1,30 @@
+name: Metal float texture payload probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Execute native Metal payload probe
+        shell: bash
+        run: |
+          mkdir -p build/ci-output
+          swiftc tests/native/metal-float-payload.swift -o build/ci-output/metal-float-payload
+          set +e
+          build/ci-output/metal-float-payload > build/ci-output/metal-float-payload.log 2>&1
+          status=$?
+          cat build/ci-output/metal-float-payload.log
+          if [ "$status" = 77 ]; then
+            echo "Hosted runner has no Metal GPU; device probe remains required."
+            exit 0
+          fi
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metal-float-payload-result
+          path: build/ci-output/metal-float-payload.log

@@ -3592,8 +3592,72 @@ static void exec_capture_cs(struct mad_exec *e, const struct mad_cmd *c) {
  * base-pass draw, a direct indexed base-pass draw, a direct scene-depth draw.
  * For each: the indirect args (or the first indices), the first vertices of
  * stream 0 and 1, and the first 64 bytes of every root CBV. */
+/* Geometry backed by a volume texture needs different inputs from the older
+ * fixed-size UE capture cases. At most two draws per census interval and twelve
+ * per process: root CBVs, the table's CBVs, and raw atlas texels. */
+static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c) {
+    struct mad_device *d = e->q->device;
+    static unsigned total;
+    unsigned i, k, bit, found = 0;
+    char lab[160];
+    if (total >= 12 || !e->rs || !e->srv || !e->srv->cpu || e->nrt < 2 || d->cap_total >= 2000) return;
+    bit = !(g_cap_kinds & (1u << 15)) ? 15 : !(g_cap_kinds & (1u << 16)) ? 16 : 0;
+    if (!bit) return;
+    for (i = 0; i < e->rs->nparams && i < MAD_ROOT_PARAM_MAX && !found; i++) {
+        UINT64 va = e->root[i]; unsigned idx;
+        if (e->rs->params[i].type != MADEIRA_IR_PARAM_TABLE || va < e->srv->gpu_address ||
+            va >= e->srv->gpu_address + (UINT64)e->srv->count * sizeof(struct mad_descriptor)) continue;
+        idx = (unsigned)((va - e->srv->gpu_address) / sizeof(struct mad_descriptor));
+        for (k = 0; k < mad_table_count(e->rs, i, 64) && idx + k < e->srv->count; k++) {
+            const struct mad_descriptor *de = &e->srv->cpu[idx + k]; int xv = -1;
+            struct mad_resource *r = de->texture_view_id && !(de->metadata >> 63) ? mad_texture_of_view(d, de->texture_view_id, &xv) : NULL;
+            if (r && r->tex_type == WMTTextureType3D) { found = 1; break; }
+        }
+    }
+    if (!found) return;
+    g_cap_kinds |= 1u << bit; total++;
+    d3d12_log("[volume-input] sample %u list#%u pso=%p kind=%u vertices=%u instances=%u root-params=%u\n",
+              total, g_list_seq, e->pso, c->kind,
+              c->kind == MC_DRAW ? c->u.draw.vcount : c->kind == MC_DRAW_INDEXED ? c->u.drawi.icount : 0,
+              c->kind == MC_DRAW ? c->u.draw.icount : c->kind == MC_DRAW_INDEXED ? c->u.drawi.inst : 0, e->rs->nparams);
+    for (i = 0; i < e->rs->nparams && i < MAD_ROOT_PARAM_MAX; i++) {
+        UINT64 va = e->root[i], off = 0; unsigned idx;
+        struct mad_resource *r;
+        if (e->rs->params[i].type == MADEIRA_IR_PARAM_CBV) {
+            r = mad_resolve_address(d, va, &off);
+            snprintf(lab, sizeof lab, "volume%u rootCBV p%u va=%llx offset=%llu", total, i, (unsigned long long)va, (unsigned long long)off);
+            d3d12_log("[volume-input] %s resolved=%s\n", lab, r ? "yes" : "NO");
+            for (k = 0; k < 240; k += 64) {
+                snprintf(lab, sizeof lab, "volume%u rootCBV p%u +%u", total, i, k);
+                exec_capture_bytes(e, lab, r, off + k, 64, 15);
+            }
+        }
+        if (e->rs->params[i].type != MADEIRA_IR_PARAM_TABLE || va < e->srv->gpu_address ||
+            va >= e->srv->gpu_address + (UINT64)e->srv->count * sizeof(struct mad_descriptor)) continue;
+        idx = (unsigned)((va - e->srv->gpu_address) / sizeof(struct mad_descriptor));
+        for (k = 0; k < mad_table_count(e->rs, i, 64) && idx + k < e->srv->count; k++) {
+            const struct mad_descriptor *de = &e->srv->cpu[idx + k]; int xv = -1;
+            if (!de->texture_view_id && de->gpu_va && k < 4) {
+                off = 0; r = mad_resolve_address(d, de->gpu_va, &off);
+                snprintf(lab, sizeof lab, "volume%u table p%u[%u] va=%llx size=%llu", total, i, k,
+                         (unsigned long long)de->gpu_va, (unsigned long long)(de->metadata & 0xffffffffu));
+                exec_capture_bytes(e, lab, r, off, 64, 15);
+            }
+            r = de->texture_view_id && !(de->metadata >> 63) ? mad_texture_of_view(d, de->texture_view_id, &xv) : NULL;
+            if (!r || r->tex_type != WMTTextureType3D) continue;
+            snprintf(lab, sizeof lab, "volume%u atlas p%u[%u] dx%u metal%u %ux%ux%u mip%u", total, i, k,
+                     (unsigned)r->desc.Format, (unsigned)r->tex_pf, r->width, r->height, r->tex_depth,
+                     xv >= 0 ? r->xview[xv].lvl0 : 0);
+            d3d12_log("[volume-input] %s view-format=%u\n", lab, xv >= 0 ? r->xview[xv].pf : (UINT)r->tex_pf);
+            exec_capture_region(e, lab, r, 0, 0, 0, 0, 4, 1, 1);
+            exec_capture_texels(e, lab, r, r->tex_depth / 2, 0);
+            break;
+        }
+    }
+}
 static void exec_capture_draw(struct mad_exec *e, const struct mad_cmd *c) {
     struct mad_device *d = e->q->device;
+    exec_capture_volume_draw(e, c);
     char lab[160]; unsigned i;
     int indirect = (c->kind == MC_DRAW_INDIRECT || c->kind == MC_DRAW_INDEXED_INDIRECT);
     int scene_depth = e->depth && e->depth->width == 736 && e->nrt == 0;
@@ -3719,6 +3783,7 @@ static void mad_capture_flush(struct mad_device *d) {
                 default: break;
                 }
                 n += snprintf(line + n, sizeof line - n, " (%.4g %.4g %.4g %.4g)", c[0], c[1], c[2], c[3]);
+                if (pf == 55) { UINT raw; memcpy(&raw, q, 4); n += snprintf(line + n, sizeof line - n, " raw=%08x", raw); }
             }
             break; }
         case 15: { const float *f = (const float *)p; const UINT *u = (const UINT *)p;
