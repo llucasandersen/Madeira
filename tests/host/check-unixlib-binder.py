@@ -67,6 +67,14 @@ wg = [b for b in branches if 'strstr(match, "winegstreamer")' in b.split("\n")[0
 assert len(wg) == 1, len(wg)
 assert "funcs_wow64 = (const void *)winegstreamer_unix_call_wow64_funcs;" in wg[0], wg[0]
 branches = [b for b in branches if b is not wg[0]]
+# Native Vulkan is a new 64-bit path. Its unported PTR32 thunks must not be
+# exposed to Madeira's guest window, even though upstream builds a wow table.
+vulkan = [b for b in branches if 'strstr(match, "winevulkan")' in b.split("\n")[0]]
+assert len(vulkan) == 1, len(vulkan)
+assert "funcs64 = (const void *)winevulkan_unix_call_funcs;" in vulkan[0], vulkan[0]
+assert "funcs_wow64 = NULL;" in vulkan[0], vulkan[0]
+assert "winevulkan_unix_call_wow64_funcs" not in vulkan[0], vulkan[0]
+branches = [b for b in branches if b is not vulkan[0]]
 # dnsapi's branch is new too (#70: upstream dnsapi has no unix side on iOS); same rule.
 dns = [b for b in branches if 'strstr(match, "dnsapi")' in b.split("\n")[0]]
 assert len(dns) == 1, len(dns)
