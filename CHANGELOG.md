@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Candidate 10 fails Teardown visual acceptance, including with bounds checking off. Inspect the exported native shader cache locally: voxel fragment variants contain integer Metal 3D texture reads. The latest run stops before GPU input capture starts; voxel data and binding diagnosis remains open. No final release is established.
+
 - Candidate 9 still has invisible Teardown terrain and tools on the phone; audio works. Add an opt-in DXIL pass for raw integer volume loads declared as float, with Teardown session defaults, explicit overrides, separate cache keys and R32Float/UINT view aliases. Extend bounded captures to distinct PSOs and raw R8Uint values. All 83 host checks pass at b5f91cc (test fixture follow-up only); graphics, converter/app/signing/package gates pass at 0a3f3c8. USB candidate 10 is verified. Phone visual acceptance and the complete goal remain open.
 
 - Preserve float texture bit payloads by default in the shader converter and retain the explicit NaN-to-zero workaround. Add bounded volume draw input captures. Candidate 8's phone result confirms audio but still lacks visible Teardown geometry. All 82 host checks and graphics/native/app/signing/package gates pass at dcde6b1; USB candidate 9 is verified. Phone visual/sustained/relaunch acceptance and the complete goal remain open.

@@ -13,8 +13,12 @@ reused from verified 37392506691. Local/USB checks pass:
 87,614,225 bytes, SHA-256
 `a3ead869ad0b6a7dd526621d7ad73861aa2e6eb1cabc4baf0c898ab9b0c3c245`.
 Visible world/tools, sustained play and relaunch acceptance remain pending.
-The agreed bounds-check-off test has no reported outcome yet. RDR2 has not
-been tested on the phone and the complete goal remains open.
+Candidate 10 fails visual acceptance on the phone. Setting
+`msc-bounds-check = 0` does not restore terrain or tools. The latest gameplay
+log confirms source `0a3f3c8`, bounds checking off and cache hits throughout.
+The copied cache contains voxel fragment shaders with integer 3D reads and
+bounds checking off. The remaining voxel data/binding failure is unresolved.
+RDR2 has not been tested on the phone and the complete goal remains open.
 The [candidate-10 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.10)
 has the exact app source tag and all six public/USB asset sizes and digests match.
 

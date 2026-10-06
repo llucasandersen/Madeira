@@ -4,6 +4,23 @@ This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility
 
 ## October 5 candidate-9 visuals fail; integer volume candidate 10
 
+Candidate-10 phone follow-up: terrain and tools remain invisible, including
+with `msc-bounds-check = 0`. Private `madeira-log.prev 6.txt` confirms app source
+`0a3f3c8`, bounds checking off and exclusively cached shader conversions. The
+run ends around present 1200, before bounded volume input captures start at
+present 1500. Absence of rewrite messages in this log does not establish a
+failed rewrite.
+
+The user subsequently exported the native shader cache. Local inspection of
+878 entries finds 704 current-format entries and 174 older-format entries.
+The bounds-off voxel fragment variants contain integer Metal 3D texture reads;
+their emitted code no longer bitcasts float texture loads to voxel IDs. This
+confirms conversion reached the cache, but does not prove which draw used each
+entry or that the bound volumes contain voxel data. GPU input capture remains
+needed to distinguish missing data, descriptor bindings and vertex inputs.
+Private cache files and disassemblies stay on the USB drive. No new visual fix
+or final IPA is established by this investigation.
+
 The user still sees roads, boundary geometry, cables and hit particles, but no
 terrain or tools. Private `madeira-log 5.txt` confirms source `dcde6b1` and the
 new converter policy: sampled NaN-to-zero is off. Foreground summaries have
@@ -26,7 +43,7 @@ The previous capture selected the same two PSOs repeatedly and printed R8Uint
 as normalized floats. Candidate 10 captures twelve distinct PSOs, instance
 starts and up to eight volume inputs per draw, and prints raw R8Uint IDs.
 Zero texels from the earlier formatting are not proof of empty voxel data.
-The user agreed to test bounds checking off; no result has arrived yet.
+The user tested bounds checking off; it did not restore the missing geometry.
 
 Host workflow 37397386359 passes all 83 distinct checks at `b5f91cc`, with
 zero raw/effective exits and no sanitizer diagnostics. The preceding workflow
