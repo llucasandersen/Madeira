@@ -50,6 +50,8 @@ static int fd_socket = -1;
 static BOOL process_exiting;
 static _Thread_local void *owner;
 static _Thread_local unsigned cleanup_stage;
+static void *pLdrInitializeThunk = (void *)0x12340000;
+static atomic_uint template_keeps;
 static int ios_current_fd_socket(void);
 void *ios_jit_current_peb(void) { return owner; }
 static int fail_alloc;
@@ -97,6 +99,10 @@ void ios_wow_window_release(void *peb) {
 void ios_exe_win_mark_ready(void *peb) {
     assert(peb == owner && cleanup_stage == 5); cleanup_stage = 6;
     atomic_fetch_add(&ready, 1);
+}
+void ios_jit_keep_child_template(void *module) {
+    assert(module == pLdrInitializeThunk && cleanup_stage == 0);
+    atomic_fetch_add(&template_keeps, 1);
 }
 static void probe_exit(int status) { assert(status == 0); atomic_fetch_add(&exits, 1); }
 #define calloc probe_calloc
@@ -239,13 +245,13 @@ int main(void) {
     for (unsigned i = 0; i < 8; i++)
         assert(pthread_create(&peers[i], NULL, exit_peer, ios_session_peb) == 0);
     for (unsigned i = 0; i < 8; i++) pthread_join(peers[i], NULL);
-    assert(parent_exits == 1 && reclaims == before + 1 && retires == reclaims &&
+    assert(parent_exits == 1 && template_keeps == 1 && reclaims == before + 1 && retires == reclaims &&
            cache_releases == reclaims && subfloor_releases == reclaims &&
            wow_releases == reclaims && ready == reclaims && notes == reclaims);
     closed(session_fd); assert(fd_socket == -1);
     int unrelated_fd = dup(pipefd[1]); assert(unrelated_fd >= 0);
     owner = ios_session_peb; process_exit_wrapper(0);
-    assert(parent_exits == 1 && reclaims == before + 1 && fcntl(unrelated_fd, F_GETFD) >= 0);
+    assert(parent_exits == 1 && template_keeps == 1 && reclaims == before + 1 && fcntl(unrelated_fd, F_GETFD) >= 0);
     close(unrelated_fd);
     assert(lifetime_callbacks == exit_records);
     close(pipefd[1]);

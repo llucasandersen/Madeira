@@ -3800,6 +3800,7 @@ void process_exit_wrapper( int status )
     }
     else if (ios_session_socket_owner())
     {
+        extern void ios_jit_keep_child_template( void *module_addr );
         extern void ios_retire_own_fixed_base_image( void *peb );
         extern void ios_jit_reclaim_process( void *peb );
         extern void ios_fd_cache_release( void *peb );
@@ -3813,6 +3814,10 @@ void process_exit_wrapper( int status )
         ios_session_teardown_started = TRUE;
         pthread_mutex_unlock( &ios_proc_socket_lock );
         if (!claimed) { exit( status ); return; }
+        /* Future children need the default ntdll template even after their
+         * initial launcher has exited. Preserve its allocation, not the
+         * launcher's executable, emulator or other module allocations. */
+        ios_jit_keep_child_template( pLdrInitializeThunk );
         /* No slot: this is the session's initial process, the program the app
          * itself handed to __wine_main (WineProcessBridge.m). Its exit status
          * is how the app's library tells a crash from a normal quit. A weak

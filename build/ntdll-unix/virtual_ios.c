@@ -10034,6 +10034,42 @@ static void clear_arm64ec_range( const void *addr, size_t size );
  * (size=0 → matches nothing; pe_base=NULL → slot reusable); anon RWX
  * aliases (FEX CodeBuffers) in freed ranges are cleared; EC bitmap bits
  * are cleared so a reused range starts with a clean call-routing slate. */
+/* The default ntdll mapping is the template for future private child copies.
+ * Its mapping owner is NULL, but its allocation was made by the initial PEB.
+ * Promote only that allocation to session lifetime before reclaiming the
+ * initial process; its .data must remain a template, never a child's state. */
+void ios_jit_keep_child_template( void *module_addr )
+{
+    uintptr_t pool = (uintptr_t)ios_jit_rx_base_global;
+    size_t off = 0, need = 0;
+    int i, kept = 0;
+    if (!module_addr || !pool) return;
+    pthread_mutex_lock( &ios_pool_lock );
+    for (i = 0; i < ios_jit_mapping_count; i++)
+    {
+        const struct ios_jit_mapping *m = &ios_jit_mappings[i];
+        uintptr_t base = (uintptr_t)m->pe_base, address = (uintptr_t)module_addr;
+        if (!base || !m->size || m->owner_peb || m->unmapped || address < base ||
+            address - base >= m->size || (uintptr_t)m->jit_base < pool) continue;
+        off = (uintptr_t)m->jit_base - pool;
+        need = m->size;
+        break;
+    }
+    if (need)
+        for (i = 0; i < ios_pool_ledger_count; i++)
+            if (off >= ios_pool_ledger[i].off &&
+                off - ios_pool_ledger[i].off <= ios_pool_ledger[i].size &&
+                need <= ios_pool_ledger[i].size - (off - ios_pool_ledger[i].off))
+            {
+                ios_pool_ledger[i].peb = NULL;
+                kept = 1;
+                break;
+            }
+    pthread_mutex_unlock( &ios_pool_lock );
+    dprintf( 2, "[child-ntdll] session template %p pool off=%#lx size=%#lx kept=%d\n",
+             module_addr, (unsigned long)off, (unsigned long)need, kept );
+}
+
 void ios_jit_reclaim_process( void *peb )
 {
     size_t total = 0;

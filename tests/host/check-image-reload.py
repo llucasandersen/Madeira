@@ -109,8 +109,10 @@ static pthread_mutex_t ios_pool_lock = PTHREAD_MUTEX_INITIALIZER;
 struct ios_pool_alloc { size_t off; size_t size; void *peb; };
 static struct ios_pool_alloc ios_pool_ledger[4];
 static int ios_pool_ledger_count;
+static void *ios_jit_rx_base_global = (void *)0x300000000ULL;
 '''
 code += function(native, 'static int ios_pool_ledger_holds(')
+code += function(native, 'void ios_jit_keep_child_template(')
 code += function(native, 'static int ios_image_reload_mode(void)')
 code += function(native, 'static void ios_jit_note_image_unmapped(')
 code += function(native, 'static int ios_jit_reload_choice(')
@@ -142,6 +144,40 @@ int main(int argc, char **argv)
     const uintptr_t base = (uintptr_t)new_view;      /* the PE base of both loads */
     int mode = ios_image_reload_mode();
     assert(mode == mode_expect);
+
+    /* Initial RDR2 exits before Launcher.exe starts the real game. The
+     * default ntdll mapping is NULL-owned but its allocation was parent-owned.
+     * Preserve the containing allocation, including its align/trampoline pages,
+     * while retaining the executable and private child allocation owners. */
+    ios_pool_ledger_count = 3;
+    ios_pool_ledger[0] = (struct ios_pool_alloc){ 0x4000, 0x134000, parent };
+    ios_pool_ledger[1] = (struct ios_pool_alloc){ 0x200000, 0x73c8000, parent };
+    ios_pool_ledger[2] = (struct ios_pool_alloc){ 0x8000000, 0x134000, child };
+    ios_jit_mapping_count = 2;
+    ios_jit_mappings[0] = (struct ios_jit_mapping){ .pe_base = (void *)0xfbfd0000ULL,
+        .jit_base = (void *)0x300007000ULL, .size = 0x130000 };
+    ios_jit_mappings[1] = (struct ios_jit_mapping){ .pe_base = (void *)0xfbfd0000ULL,
+        .jit_base = (void *)0x308003000ULL, .size = 0x130000, .owner_peb = child };
+    ios_jit_keep_child_template((void *)0xfbfd2ea0ULL);
+    assert(ios_pool_ledger[0].peb == NULL && ios_pool_ledger[1].peb == parent &&
+           ios_pool_ledger[2].peb == child);
+    assert(ios_pool_ledger_holds(0x7000, 0x130000, NULL));
+    assert(!ios_pool_ledger_holds(0x7000, 0x130000, parent));
+    ios_jit_keep_child_template((void *)0xfbfd2ea0ULL); /* repeated preservation */
+    assert(ios_pool_ledger[0].peb == NULL && ios_pool_ledger[2].peb == child);
+    ios_pool_ledger[0].peb = parent;
+    ios_jit_mappings[0].unmapped = 1;
+    ios_jit_keep_child_template((void *)0xfbfd2ea0ULL);
+    assert(ios_pool_ledger[0].peb == parent); /* private copy is never promoted */
+    ios_jit_mappings[0].unmapped = 0;
+    ios_jit_mappings[0].size = 0x134000; /* spills beyond containing allocation */
+    ios_jit_keep_child_template((void *)0xfbfd2ea0ULL);
+    assert(ios_pool_ledger[0].peb == parent);
+    ios_jit_keep_child_template(NULL);
+    ios_jit_keep_child_template((void *)0x1234);
+    assert(ios_pool_ledger[0].peb == parent && ios_pool_ledger[2].peb == child);
+    memset(ios_jit_mappings, 0, sizeof(ios_jit_mappings));
+    ios_jit_mapping_count = 0;
 
     /* ledger: dxgi's range (data-align page + image + tramps) for the child, a neighbour for the parent */
     ios_pool_ledger_count = 2;
