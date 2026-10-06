@@ -319,7 +319,12 @@ extern "C" int madeira_uint_volumes_rewrite(const void *, size_t, void **, size_
 // msc-uint-volume-loads: opt-in for integer volumes accessed through float
 // declarations followed only by asuint(). Ordinary float sampling is rejected.
 static int mad_uint_volumes_enabled(void) {
-    return madeira_cfg_int("msc-uint-volume-loads", 0) ? 1 : 0;
+    int enabled = madeira_cfg_int("msc-uint-volume-loads", 0) ? 1 : 0;
+    static int reported;
+    if (!__atomic_exchange_n(&reported, 1, __ATOMIC_RELAXED))
+        fprintf(stderr, "[madeira-ir] uint-volume policy=%s game-config=%s\n", enabled ? "on" : "off",
+                getenv("MADEIRA_CFG_GAME") ? "present" : "absent");
+    return enabled;
 }
 
 extern "C" int madeira_sm5_resolve_ia(const void *bc, size_t bclen,
@@ -1542,6 +1547,11 @@ extern "C" int madeira_ir_convert_impl(struct madeira_ir_convert_args *a) {
         }
         if (hit) {
             int st = mad_dxc_deliver(hit, a);
+            if (st == MADEIRA_IR_OK && !strncmp(a->ret_note, "uint-volume:", 12)) {
+                static unsigned reported;
+                if (__atomic_fetch_add(&reported, 1, __ATOMIC_RELAXED) < 32)
+                    dprintf(2, "[madeira-ir] cached conversion: %s\n", a->ret_note);
+            }
             if (st == MADEIRA_IR_BUFFER_TOO_SMALL && dxc_slot) mad_dxc_slot_put(dxc_key, dxc_check, hit, hit_len);
             else free(hit);
             return st;
@@ -1654,6 +1664,7 @@ extern "C" int madeira_ir_convert_impl(struct madeira_ir_convert_args *a) {
             int vr = madeira_uint_volumes_rewrite(src, src_len, &volume_buf, &volume_len, note, sizeof note);
             if (vr == 1) {
                 src = (const uint8_t *)volume_buf; src_len = volume_len;
+                snprintf(dxc_note, sizeof dxc_note, "uint-volume: %.114s", note);
                 if (a->out_buf || dxc_slot) dprintf(2, "[madeira-ir] uint-volume: %s\n", note);
             } else if (vr < 0) {
                 dprintf(2, "[madeira-ir] uint-volume rewrite failed; original preserved\n");

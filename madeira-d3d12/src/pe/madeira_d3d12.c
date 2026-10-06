@@ -680,6 +680,7 @@ struct mad_pso {
     int lazy_cs;                                    /* compute pipeline built at its first dispatch (mad_cpso_realize) */
     SRWLOCK rlock;                                  /* serialises this pipeline's lazy build (zero = SRWLOCK_INIT) */
     char vs_name[64], ps_name[64];                  /* ml879: for the draw dump */
+    UINT32 vs_digest[4], ps_digest[4];              /* DXBC header identities for bounded input diagnostics */
     char blend[400];                                /* ml1106/ml1107: every RT's blend state for the draw dump */
     UINT root_off[MAD_ROOT_PARAM_MAX]; int has_root_off; /* ml882: offsets from the converter's reflection */
     UINT static_off; int has_static_off;                  /* ml923: the implicit static-sampler table slot */
@@ -3621,6 +3622,9 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
               c->kind == MC_DRAW ? c->u.draw.vcount : c->kind == MC_DRAW_INDEXED ? c->u.drawi.icount : 0,
               c->kind == MC_DRAW ? c->u.draw.icount : c->kind == MC_DRAW_INDEXED ? c->u.drawi.inst : 0,
               c->kind == MC_DRAW ? c->u.draw.istart : c->kind == MC_DRAW_INDEXED ? c->u.drawi.istart : 0, e->rs->nparams);
+    d3d12_log("[volume-input] vs-digest=%08x:%08x:%08x:%08x ps-digest=%08x:%08x:%08x:%08x\n",
+              e->pso->vs_digest[0], e->pso->vs_digest[1], e->pso->vs_digest[2], e->pso->vs_digest[3],
+              e->pso->ps_digest[0], e->pso->ps_digest[1], e->pso->ps_digest[2], e->pso->ps_digest[3]);
     for (i = 0; i < e->rs->nparams && i < MAD_ROOT_PARAM_MAX; i++) {
         UINT64 va = e->root[i], off = 0; unsigned idx;
         struct mad_resource *r;
@@ -3650,8 +3654,9 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
                      (unsigned)r->desc.Format, (unsigned)r->tex_pf, r->width, r->height, r->tex_depth,
                      xv >= 0 ? r->xview[xv].lvl0 : 0);
             d3d12_log("[volume-input] %s view-format=%u\n", lab, xv >= 0 ? r->xview[xv].pf : (UINT)r->tex_pf);
-            exec_capture_region(e, lab, r, 0, 0, 0, 0, 4, 1, 1);
-            exec_capture_texels(e, lab, r, r->tex_depth / 2, 0);
+            { UINT level = xv >= 0 ? r->xview[xv].lvl0 : 0;
+              exec_capture_region(e, lab, r, 0, level, 0, 0, 4, 1, 1);
+              exec_capture_texels(e, lab, r, (r->tex_depth >> level) / 2, level); }
             volumes++;
         }
     }
@@ -3863,6 +3868,9 @@ static void exec_draw(struct mad_exec *e, const struct mad_cmd *c) {
         static unsigned said; if (said++ < 4) d3d12_log("[madeira-d3d12] indirect draw on a geometry-shader pipeline is not implemented; skipped\n");
         MAD_SKIP(e); return;
     }
+    { static int early_volume = -1;
+      if (early_volume < 0) early_volume = mad_cfg_int_pe("msc-uint-volume-loads", 0) ? 1 : 0;
+      if (early_volume && !g_census_on) exec_capture_volume_draw(e, c); }
     if (g_census_on) { exec_capture_draw(e, c); exec_desc_check(e, e->rs, e->root, e->pso->vs_name); }   /* ml910/ml913 */
     if (!exec_begin_render(e)) { MAD_SKIP(e); return; }
     g_dump_tables = 0;
@@ -10127,6 +10135,10 @@ static HRESULT STDMETHODCALLTYPE device_CreateGraphicsPipelineState(ID3D12Device
     p = calloc(1, sizeof *p);
     if (!p) return E_OUTOFMEMORY;
     p->vtbl = &g_pso_vtbl; p->refs = 1; p->iid = &IID_ID3D12PipelineState; p->name = "PipelineState";
+    if (desc->VS.pShaderBytecode && desc->VS.BytecodeLength >= 20 && !memcmp(desc->VS.pShaderBytecode, "DXBC", 4))
+        memcpy(p->vs_digest, (const char *)desc->VS.pShaderBytecode + 4, 16);
+    if (desc->PS.pShaderBytecode && desc->PS.BytecodeLength >= 20 && !memcmp(desc->PS.pShaderBytecode, "DXBC", 4))
+        memcpy(p->ps_digest, (const char *)desc->PS.pShaderBytecode + 4, 16);
     if (desc->HS.pShaderBytecode || desc->DS.pShaderBytecode) { p->has_tess = 1; InterlockedIncrement(&g_tess_psos); }   /* ml1050 */
 
     {
