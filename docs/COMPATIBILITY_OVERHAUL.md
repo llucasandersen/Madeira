@@ -1,5 +1,31 @@
 # Compatibility overhaul: investigation record
 
+## October 6 test build 7: OpenGL routing and RDR2 renderer isolation
+
+Test 7 at source `5887d28` is verified on USB:
+`E:\Madeira-RDR2-Teardown-Test-7\Madeira-diagnostic-5887d28.ipa`.
+All 87 exact-source host checks and six targeted Mac checks pass without
+sanitizer diagnostics (37546112592 and 37546113080). App build, signing and
+packaging pass in 37546112953; reused native runtime inputs match 37540738924.
+Package provenance, seven OpenGL runtime hashes and nine USB file hashes pass.
+
+The longer test 6 phone log stalls without RDR2 game presents near 2.2 GB
+footprint after discovering newly global Vulkan PE DLLs, with native faults
+and internal game exit. It does not prove RAM exhaustion. The new candidate
+confines Vulkan PE dependencies to OpenGL sessions and removes prior
+bundle-owned links. RDR2 retains its D3D12 launch and 2 GB Auto video-memory
+budget. This setting does not raise iOS's reported 6 GB process allowance;
+the minimum-memory warning may remain.
+
+Teardown's log proves its AMD64 child loaded the Wine GL-absent stub through
+`sysx64` under a native Steam root. The corrected setup links all four bundled
+GL/Vulkan DLLs there after normal farm seeding; ARM64EC roots also receive
+`system32` links. Tests cover reinstall refresh, switching back to D3D12 and
+preserving user files. The later suitable-pixel-format error was reported
+without a new log. Actual OpenGL context creation, terrain/tools and stable
+gameplay still require phone testing, as does RDR2 Story progression. The goal
+is not complete. See [the matrix](GAME_TEST_MATRIX.md) for hashes and evidence.
+
 ## October 6 combined RDR2 memory and Teardown OpenGL test build
 
 Test build 6 at source `d4aa1dc` is verified on USB:

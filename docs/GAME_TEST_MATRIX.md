@@ -1,5 +1,51 @@
 # Game compatibility test matrix
 
+## October 6 combined test build 7 delivery
+
+Verified on USB: `E:\Madeira-RDR2-Teardown-Test-7\Madeira-diagnostic-5887d28.ipa`.
+Source: `5887d285908e0e490934439967e1db259c7fb277`; size: 95,951,300 bytes;
+SHA-256: `ebcb2f77f40a107c6d13aec5e2866d54ffbe0e45e6be4a530eff492c67625a73`.
+
+Test 6's supplied RDR2 log (`madeira-log 14.txt`) runs for about 130 seconds
+without game presents. Its footprint stalls near 2,175 MB, below the reported
+6,144 MB process allowance. The new globally staged Vulkan PE DLLs load before
+native faults and internal child exits; the waiting wrapper remains alive.
+This run does not establish RAM exhaustion or the exact fault mechanism.
+The phone reports 11,694 MB physical RAM. The 2,048 MB setting is video memory,
+not the total process allowance; the Windows minimum-memory warning can remain.
+
+Teardown's supplied log (`madeira-log.prev 15.txt`) selects OpenGL but its
+AMD64 child loads the old Wine GL-absent stub through `sysx64` under a native
+Steam root. The later pixel-format error is a user report without a new log.
+Test 7 links all four GL/Vulkan PE components into the AMD64 child farm after
+normal seeding, and also into `system32` for ARM64EC roots. Vulkan PE DLLs are
+confined to the OpenGL package and linked only for OpenGL sessions. Prior
+bundle-owned links are cleaned, including old global Vulkan links; user files
+are preserved. This restores RDR2's prior D3D12 dependency setup. Both changes
+remain candidates pending phone acceptance.
+
+All 87 distinct checks pass at the exact IPA source in
+[37546112592](https://github.com/llucasandersen/Madeira/actions/runs/37546112592),
+with zero raw/effective exits and no sanitizer diagnostics. All six targeted
+Mac checks pass in
+[37546113080](https://github.com/llucasandersen/Madeira/actions/runs/37546113080),
+including executed Foundation prefix routing, reinstall cleanup and user-file
+preservation. App compilation, signing and packaging pass in
+[37546112953](https://github.com/llucasandersen/Madeira/actions/runs/37546112953).
+Native runtime inputs match the reused successful run 37540738924; unchanged
+graphics source remains 37404589105. Native OpenGL source remains 37538235752,
+Windows components 37537462947, and the updated iPhone Vulkan bridge compile
+and presentation regression 37540738727. Package provenance, all seven OpenGL
+runtime component hashes, and all nine USB file hashes pass. XAudio2 matches
+the working test 5 component apart from rebuild timestamps.
+
+Fully close Madeira, re-sign and install using the same account/App ID prefix,
+enable JIT, and keep Automatic compatibility enabled with RDR2 video memory
+on Auto. Test RDR2 through the intro into Story, then Teardown terrain, tools,
+sound and repeat launch. Export source-stamped logs. Gameplay is unconfirmed
+and the goal remains unfinished. Game archives remain on E: without bulk copies
+to F: or game-file modifications.
+
 ## October 6 combined test build 6 delivery
 
 The combined RDR2 memory and Teardown desktop OpenGL candidate is verified on

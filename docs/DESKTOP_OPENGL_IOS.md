@@ -34,7 +34,7 @@ window. Older iOS versions retain the existing renderer profile.
 
 Both source workflows must pass before `stage-opengl-artifacts.py` accepts
 their artifacts. It checks the component source and Wine pins, copies the
-native loader/ICD and the two Windows GL DLLs, and supplies a relative ICD
+native loader/ICD and all four Windows GL/Vulkan DLLs, and supplies a relative ICD
 manifest and upstream licenses. The IPA build signs the native libraries and
 records their final hashes. Package verification requires all seven runtime
 files and checks those hashes.
@@ -46,6 +46,22 @@ preserved. The original settings backup remains. A missing or unsupported
 settings file is not replaced with a guessed schema. The native OpenGL DLL
 policy and prefix links apply to that session. Compatibility opt-out remains
 available. RDR2 continues to use D3D12.
+
+All four PE components (`opengl32.dll`, `libgallium_wgl.dll`, `vulkan-1.dll`
+and `winevulkan.dll`) are packaged in `x86_64-opengl`, outside the default
+ARM64EC DLL farm. After ordinary prefix farms are seeded, OpenGL sessions
+link them into `sysx64`, including AMD64 games started by native Steam roots.
+ARM64EC roots also receive the links in `system32`. Every session first clears
+prior bundle-owned GL/Vulkan links, including old global Vulkan links and
+dangling links after reinstall. User files and unrelated links are preserved.
+This prevents RDR2's D3D12 sessions from discovering the newly bundled Vulkan
+PE components through the default farm.
+
+Test 6's phone log showed Teardown selecting OpenGL but loading the Wine
+GL-absent stub through `sysx64`. The user's later report of no suitable pixel
+format is consistent with that path; that particular run has no supplied log.
+Test 7 corrects the links. Context creation and correct images still require
+phone acceptance.
 
 ## Acceptance still required
 
