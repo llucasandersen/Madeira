@@ -1,13 +1,48 @@
 # Game compatibility test matrix
 
+## October 5 RDR2 launcher handoff and fixed image claim
+
+The latest phone log (`madeira-log 10.txt`) confirms that
+`env.MADEIRA_WAIT_CHILDREN = 1` keeps the launcher session alive. The original
+RDR2 process exits normally and Launcher.exe starts another RDR2.exe. That
+process stalls before a graphics device is created. The game is already
+imported; 58GB remaining free space does not require another transfer.
+
+The preferred image claim is recorded with host-page size `0x73c4000`, while
+the mapping commit receives Windows-page size `0x73c2000`. Exact size matching
+leaves the claim in CLAIMING, without an owner available for retirement. The
+second image maps at `0xe40000000` instead of `0x140000000`; this executable
+has no relocation directory. The native commit helper now rounds the size to
+host page boundaries, with overflow rejection, before matching the interval.
+The production helper test covers these exact values, 4KB/16KB hosts, wrong
+intervals, rollback, overflow and owner readiness under sanitizers.
+
+All 84 distinct host checks pass at `b680d5a` in
+[37408456325](https://github.com/llucasandersen/Madeira/actions/runs/37408456325).
+Fresh native runtime and app/signing/package build
+[37408458321](https://github.com/llucasandersen/Madeira/actions/runs/37408458321)
+passes at the same source. Unchanged graphics and Common-Controls artifacts
+come from verified 37404589105 at `4916501`. IPA provenance, source/component
+hashes, controls CHPE metadata and ordinal 345, and all seven USB file copies
+are verified. Test build 2 is on
+`E:\Madeira-RDR2-Test-2\Madeira-diagnostic-b680d5a.ipa`, 88,239,821 bytes,
+SHA-256 `ba013cc3967435f023063dd080243ae035f9e55a5f905fa4eb4e75afd5fbe00c`.
+
+Install as an update with the same signing identity, keep the imported game
+folder and `env.MADEIRA_WAIT_CHILDREN = 1`, enable JIT and launch RDR2.exe.
+No game archives were copied to F: or modified. This fixes the identified
+claim bookkeeping defect; successful phone startup, graphics initialization,
+menu/story gameplay, audio/input, sustained play and repeat launch remain
+unverified. Teardown's visual issue remains deferred and unresolved.
+
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
 ## October 5 current priority: direct RDR2 import
 
 The user deferred Teardown and requested RDR2. The current E: folder has
 276 files totaling 128,167,940,440 bytes; no game archives were copied to F:.
-The latest phone log (`madeira-log 7.txt`) reports 59GB free, insufficient
-for the full folder. Earlier folder and storage observations below are historical.
+The earlier pre-import log (`madeira-log 7.txt`) reported 59GB free.
+The game is now imported; earlier folder and storage observations below are historical.
 The current AMD64 executable has no relocations and occupies 121,378,816
 bytes at 0x140000000, within the existing protected 128MiB image window.
 Its standard direct imports resolve in the game folder or existing Wine farm,
@@ -29,8 +64,8 @@ Source/module hashes, packaged controls, update identity and USB copy hashes
 pass. The private standard import/export audit on E: has no remaining checked
 export gaps when Common-Controls v6 assembly redirection is applied.
 Local game DLLs were checked for presence; their activation paths were not
-changed or validated. The first iPhone launch remains pending. This static
-dependency repair does not establish menu or story gameplay.
+changed or validated. Phone follow-up confirms the v6 DLL loads; the
+startup stall and next test are recorded above. No menu/story pass is established.
 
 Candidate 9 phone follow-up: terrain and tools remain invisible; audio works.
 `madeira-log 5.txt` confirms `dcde6b1` and NaN-to-zero off. Candidate 10 adds
@@ -48,7 +83,7 @@ Candidate 10 fails visual acceptance on the phone. Setting
 log confirms source `0a3f3c8`, bounds checking off and cache hits throughout.
 The copied cache contains voxel fragment shaders with integer 3D reads and
 bounds checking off. The remaining voxel data/binding failure is unresolved.
-RDR2 has not been tested on the phone and the complete goal remains open.
+RDR2 phone startup attempts are recorded above; the complete goal remains open.
 The [candidate-10 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.10)
 has the exact app source tag and all six public/USB asset sizes and digests match.
 
@@ -238,7 +273,7 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
 | Teardown, app 1167630 | Automatic D3D12 selection; visible voxels/terrain/tools, audio, level, ten minutes, close and relaunch | Candidate 8 audio works on the phone, but terrain/voxels/tools remain invisible despite active compound replay and nonzero draws | Candidate 9 preserves float texture payloads and adds bounded input captures; all 82 host and graphics/native/app/USB gates pass; visual/ten-minute/relaunch acceptance pending |
-| RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | No phone run or generated settings; static direct dependencies are present; whole 128GB folder inspected on E: with no bulk copy | Initial DX12 argument/settings preparation is packaged; renderer/activation/gameplay unverified; latest logged 60GB free is insufficient for import |
+| RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | Game imported; v6 controls load; child-session handoff works, then relaunched image stalls before graphics; whole 128GB folder inspected on E: with no bulk copy | Test build 2 on USB fixes the host-page claim mismatch; successful startup, renderer/activation/gameplay and repeat launch remain unverified |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Supplied session log reaches physical footprint 6141 MB; no three-match survival result on the updated package | Memory pressure confirmed; updated device acceptance pending |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
 | Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |

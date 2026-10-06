@@ -1,5 +1,40 @@
 # Compatibility overhaul: investigation record
 
+## October 5 RDR2 launcher handoff and fixed image claim
+
+The latest phone log (`madeira-log 10.txt`) confirms that
+`env.MADEIRA_WAIT_CHILDREN = 1` keeps the launcher session alive. The original
+RDR2 process exits normally and Launcher.exe starts another RDR2.exe. That
+process stalls before a graphics device is created. The game is already
+imported; 58GB remaining free space does not require another transfer.
+
+The preferred image claim is recorded with host-page size `0x73c4000`, while
+the mapping commit receives Windows-page size `0x73c2000`. Exact size matching
+leaves the claim in CLAIMING, without an owner available for retirement. The
+second image maps at `0xe40000000` instead of `0x140000000`; this executable
+has no relocation directory. The native commit helper now rounds the size to
+host page boundaries, with overflow rejection, before matching the interval.
+The production helper test covers these exact values, 4KB/16KB hosts, wrong
+intervals, rollback, overflow and owner readiness under sanitizers.
+
+All 84 distinct host checks pass at `b680d5a` in
+[37408456325](https://github.com/llucasandersen/Madeira/actions/runs/37408456325).
+Fresh native runtime and app/signing/package build
+[37408458321](https://github.com/llucasandersen/Madeira/actions/runs/37408458321)
+passes at the same source. Unchanged graphics and Common-Controls artifacts
+come from verified 37404589105 at `4916501`. IPA provenance, source/component
+hashes, controls CHPE metadata and ordinal 345, and all seven USB file copies
+are verified. Test build 2 is on
+`E:\Madeira-RDR2-Test-2\Madeira-diagnostic-b680d5a.ipa`, 88,239,821 bytes,
+SHA-256 `ba013cc3967435f023063dd080243ae035f9e55a5f905fa4eb4e75afd5fbe00c`.
+
+Install as an update with the same signing identity, keep the imported game
+folder and `env.MADEIRA_WAIT_CHILDREN = 1`, enable JIT and launch RDR2.exe.
+No game archives were copied to F: or modified. This fixes the identified
+claim bookkeeping defect; successful phone startup, graphics initialization,
+menu/story gameplay, audio/input, sustained play and repeat launch remain
+unverified. Teardown's visual issue remains deferred and unresolved.
+
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
 ## October 5 candidate-9 visuals fail; integer volume candidate 10
@@ -145,8 +180,8 @@ match the verified USB files.
 ## October 5 RDR2 priority change
 
 The user deferred Teardown. Inspection of the replacement RDR2 folder stays
-on E: (276 files, 128,167,940,440 bytes). The latest phone export reports 59GB
-free; transfer requires enough additional storage for the full game.
+on E: (276 files, 128,167,940,440 bytes). The earlier pre-import export reported 59GB
+free. The current game is already imported; keep that complete folder.
 The new executable has no relocation directory and fits the existing
 128MiB protected preferred-image window. Static export checking found a
 specific loader dependency: comctl32 ordinal 345, TaskDialogIndirect. The
@@ -169,7 +204,7 @@ checksum, provenance, component staging reports and installation/test README.
 IPA size: 88,239,176 bytes. SHA-256:
 `a8ac9a4a732abf458d9d934c0c4f21567f4b9433a8c33c6a3e096d1d6c237677`.
 The complete game stays on E: and is unchanged. Device gameplay is unverified;
-the latest logged free storage is still insufficient for a complete import.
+the game has since been imported and phone startup follow-up is recorded above.
 
 ## October 5 Teardown missing geometry/audio and earlier RDR2 preparation
 
