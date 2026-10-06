@@ -85,6 +85,7 @@ struct mad_dxc_env {
     const char *build_stamp;    /* this service's build: its parameter mapping is code */
     uint32_t ags_rewrite;       /* ml1149 rewrite enabled */
     uint32_t compat_flags;      /* compatibility flags handed to the compiler */
+    uint32_t uint_volumes;      /* opt-in raw integer-volume lowering */
 };
 
 static inline void mad_dxc_key(const struct madeira_ir_convert_args *a,
@@ -103,6 +104,7 @@ static inline void mad_dxc_key(const struct madeira_ir_convert_args *a,
     mad_dxc_hstr(&s, env->build_stamp, 64);
     mad_dxc_hu32(&s, env->ags_rewrite);
     mad_dxc_hu32(&s, env->compat_flags);
+    mad_dxc_hu32(&s, env->uint_volumes);
 
     mad_dxc_hu64(&s, a->dxil_len);
     if (a->dxil && a->dxil_len) mad_dxc_hadd(&s, (const void *)(uintptr_t)a->dxil, (size_t)a->dxil_len);

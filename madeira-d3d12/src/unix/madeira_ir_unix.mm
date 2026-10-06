@@ -314,6 +314,13 @@ static void mad_air_entry_name(const unsigned char *b, size_t len, char *out, si
 /* ml1149: madeira_ags.cpp (LLVM 15, plain C++ like the IA resolver). */
 extern "C" int madeira_ags_rewrite(const void *bc, size_t len, void **out, size_t *out_len,
                                    char *note, size_t note_cap);
+extern "C" int madeira_uint_volumes_rewrite(const void *, size_t, void **, size_t *, char *, size_t);
+
+// msc-uint-volume-loads: opt-in for integer volumes accessed through float
+// declarations followed only by asuint(). Ordinary float sampling is rejected.
+static int mad_uint_volumes_enabled(void) {
+    return madeira_cfg_int("msc-uint-volume-loads", 0) ? 1 : 0;
+}
 
 extern "C" int madeira_sm5_resolve_ia(const void *bc, size_t bclen,
                                       const struct madeira_ir_input_layout *L,
@@ -1491,6 +1498,7 @@ extern "C" int madeira_ir_convert_impl(struct madeira_ir_convert_args *a) {
     IRMetalLibBinary *lib = NULL;
     IRShaderReflection *refl = NULL;
     void *ags_buf = NULL;   /* ml1149: rewritten container, borrowed by `input` */
+    void *volume_buf = NULL;
     int status = MADEIRA_IR_COMPILE_FAILED;
     const char *entry = (const char *)(uintptr_t)a->entry_point;
     IRShaderStage stage = IRShaderStageInvalid;
@@ -1523,6 +1531,7 @@ extern "C" int madeira_ir_convert_impl(struct madeira_ir_convert_args *a) {
         env.build_stamp = MAD_SC_BUILD;
         env.ags_rewrite = (uint32_t)mad_ags_enabled();
         env.compat_flags = mad_ir_compat_flags();
+        env.uint_volumes = (uint32_t)mad_uint_volumes_enabled();
         mad_dxc_key(a, &env, &dxc_key, &dxc_check);
         if (dxc_slot) hit = mad_dxc_slot_take(dxc_key, dxc_check, &hit_len);
         if (!hit && dxc_disk) {
@@ -1639,8 +1648,18 @@ extern "C" int madeira_ir_convert_impl(struct madeira_ir_convert_args *a) {
             dprintf(2, "[madeira-ir] ml1149 AGS %s: %s%s\n", nm + 4, note,
                     rc < 0 ? " -- converting the original, which the converter will refuse" : "");
         }
-        input = rc == 1 ? g_ir.IRObjectCreateFromDXIL((const uint8_t *)ags_buf, ags_len, IRBytecodeOwnershipNone)
-                        : g_ir.IRObjectCreateFromDXIL(src, src_len, IRBytecodeOwnershipNone);
+        if (rc == 1) { src = (const uint8_t *)ags_buf; src_len = ags_len; }
+        if (mad_uint_volumes_enabled()) {
+            size_t volume_len = 0;
+            int vr = madeira_uint_volumes_rewrite(src, src_len, &volume_buf, &volume_len, note, sizeof note);
+            if (vr == 1) {
+                src = (const uint8_t *)volume_buf; src_len = volume_len;
+                if (a->out_buf || dxc_slot) dprintf(2, "[madeira-ir] uint-volume: %s\n", note);
+            } else if (vr < 0) {
+                dprintf(2, "[madeira-ir] uint-volume rewrite failed; original preserved\n");
+            }
+        }
+        input = g_ir.IRObjectCreateFromDXIL(src, src_len, IRBytecodeOwnershipNone);
     }
     if (!input) { status = MADEIRA_IR_BAD_DXIL; goto done; }
 
@@ -1909,6 +1928,7 @@ done:
     free(irr);
     free(irp);
     free(ags_buf);
+    free(volume_buf);
     free(dxc_blob);
     free(lib_bytes);
     free(lib2_bytes);

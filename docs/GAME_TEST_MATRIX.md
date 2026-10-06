@@ -2,6 +2,13 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+Candidate 9 phone follow-up: terrain and tools remain invisible; audio works.
+`madeira-log 5.txt` confirms `dcde6b1` and NaN-to-zero off. Candidate 10 adds
+integer volume lowering with Teardown session defaults and explicit overrides.
+Host/graphics/app/package/USB gates and visible world/tools, sustained play and
+relaunch acceptance remain pending. The agreed bounds-check-off test has no
+reported outcome yet.
+
 October 5 candidate-8 phone follow-up: the user confirms working Teardown sound,
 but terrain/voxels/tools remain invisible. The new log has source `88b8218`;
 compound replay works, nonzero geometry draws occur, and foreground summaries

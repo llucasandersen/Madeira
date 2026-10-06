@@ -20,7 +20,7 @@ jobs:
       - name: Prepare Linux host compiler and generated Wine headers
         run: |
           sudo apt-get update
-          sudo apt-get install -y bison flex gcc-mingw-w64-x86-64 zlib1g-dev libfreetype-dev libssl-dev liblzma-dev
+          sudo apt-get install -y bison flex gcc-mingw-w64-x86-64 zlib1g-dev libfreetype-dev libssl-dev liblzma-dev llvm-15-dev clang-15
           python3 -m pip install cryptography
           mkdir -p wine/build-macos
           cd wine/build-macos

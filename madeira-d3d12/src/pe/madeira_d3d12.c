@@ -3593,16 +3593,16 @@ static void exec_capture_cs(struct mad_exec *e, const struct mad_cmd *c) {
  * For each: the indirect args (or the first indices), the first vertices of
  * stream 0 and 1, and the first 64 bytes of every root CBV. */
 /* Geometry backed by a volume texture needs different inputs from the older
- * fixed-size UE capture cases. At most two draws per census interval and twelve
- * per process: root CBVs, the table's CBVs, and raw atlas texels. */
+ * fixed-size UE capture cases. At most twelve distinct PSOs per process:
+ * root CBVs, the table's CBVs, and up to eight raw volume inputs per draw. */
 static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c) {
     struct mad_device *d = e->q->device;
     static unsigned total;
-    unsigned i, k, bit, found = 0;
+    static const void *seen[12];
+    unsigned i, k, found = 0, volumes = 0;
     char lab[160];
     if (total >= 12 || !e->rs || !e->srv || !e->srv->cpu || e->nrt < 2 || d->cap_total >= 2000) return;
-    bit = !(g_cap_kinds & (1u << 15)) ? 15 : !(g_cap_kinds & (1u << 16)) ? 16 : 0;
-    if (!bit) return;
+    for (i = 0; i < total; i++) if (seen[i] == e->pso) return;
     for (i = 0; i < e->rs->nparams && i < MAD_ROOT_PARAM_MAX && !found; i++) {
         UINT64 va = e->root[i]; unsigned idx;
         if (e->rs->params[i].type != MADEIRA_IR_PARAM_TABLE || va < e->srv->gpu_address ||
@@ -3615,11 +3615,12 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
         }
     }
     if (!found) return;
-    g_cap_kinds |= 1u << bit; total++;
-    d3d12_log("[volume-input] sample %u list#%u pso=%p kind=%u vertices=%u instances=%u root-params=%u\n",
+    seen[total++] = e->pso;
+    d3d12_log("[volume-input] sample %u list#%u pso=%p kind=%u vertices=%u instances=%u instance-start=%u root-params=%u\n",
               total, g_list_seq, e->pso, c->kind,
               c->kind == MC_DRAW ? c->u.draw.vcount : c->kind == MC_DRAW_INDEXED ? c->u.drawi.icount : 0,
-              c->kind == MC_DRAW ? c->u.draw.icount : c->kind == MC_DRAW_INDEXED ? c->u.drawi.inst : 0, e->rs->nparams);
+              c->kind == MC_DRAW ? c->u.draw.icount : c->kind == MC_DRAW_INDEXED ? c->u.drawi.inst : 0,
+              c->kind == MC_DRAW ? c->u.draw.istart : c->kind == MC_DRAW_INDEXED ? c->u.drawi.istart : 0, e->rs->nparams);
     for (i = 0; i < e->rs->nparams && i < MAD_ROOT_PARAM_MAX; i++) {
         UINT64 va = e->root[i], off = 0; unsigned idx;
         struct mad_resource *r;
@@ -3644,14 +3645,14 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
                 exec_capture_bytes(e, lab, r, off, 64, 15);
             }
             r = de->texture_view_id && !(de->metadata >> 63) ? mad_texture_of_view(d, de->texture_view_id, &xv) : NULL;
-            if (!r || r->tex_type != WMTTextureType3D) continue;
+            if (!r || r->tex_type != WMTTextureType3D || volumes >= 8) continue;
             snprintf(lab, sizeof lab, "volume%u atlas p%u[%u] dx%u metal%u %ux%ux%u mip%u", total, i, k,
                      (unsigned)r->desc.Format, (unsigned)r->tex_pf, r->width, r->height, r->tex_depth,
                      xv >= 0 ? r->xview[xv].lvl0 : 0);
             d3d12_log("[volume-input] %s view-format=%u\n", lab, xv >= 0 ? r->xview[xv].pf : (UINT)r->tex_pf);
             exec_capture_region(e, lab, r, 0, 0, 0, 0, 4, 1, 1);
             exec_capture_texels(e, lab, r, r->tex_depth / 2, 0);
-            break;
+            volumes++;
         }
     }
 }
@@ -3762,7 +3763,7 @@ static void mad_capture_flush(struct mad_device *d) {
                 const unsigned char *q = d->cap[i].nt ? p + t * bpp : p + (t * 4 + t) * bpp;   /* sequential, or texels (0,0) (1,1) (2,2) (3,3) */
                 float c[4] = { 0, 0, 0, 0 };
                 if (n > (int)sizeof line - 80) { d3d12_log("%s\n", line); n = snprintf(line, sizeof line, "[cap-data] %s +%u:", d->cap[i].label, t); }   /* ml924: continue on a new line */
-                if (pf == 53 || pf == 54 || pf == 103) {   /* ml924: integer formats */
+                if (pf == 13 || pf == 53 || pf == 54 || pf == 103) {   /* raw UINT formats, including R8 voxel IDs */
                     UINT u[2] = { 0, 0 }; memcpy(u, q, bpp);
                     if (bpp == 8) n += snprintf(line + n, sizeof line - n, " (%u %u)", u[0], u[1]); else n += snprintf(line + n, sizeof line - n, " %u", u[0]);
                     continue;
@@ -3779,7 +3780,7 @@ static void mad_capture_flush(struct mad_device *d) {
                 case 70: case 71: c[0] = q[0] / 255.f; c[1] = q[1] / 255.f; c[2] = q[2] / 255.f; c[3] = q[3] / 255.f; break;
                 case 80: case 81: c[0] = q[2] / 255.f; c[1] = q[1] / 255.f; c[2] = q[0] / 255.f; c[3] = q[3] / 255.f; break;
                 case 110: { const USHORT *h = (const USHORT *)q; unsigned j; for (j = 0; j < 4; j++) c[j] = h[j] / 65535.f; break; }
-                case 10: case 13: c[0] = q[0] / 255.f; break;
+                case 10: c[0] = q[0] / 255.f; break;
                 default: break;
                 }
                 n += snprintf(line + n, sizeof line - n, " (%.4g %.4g %.4g %.4g)", c[0], c[1], c[2], c[3]);
@@ -8916,6 +8917,12 @@ static void STDMETHODCALLTYPE device_CreateShaderResourceView(ID3D12Device *This
         {   /* ml918: the view's format (typeless -> typed, sRGB/linear) and Shader4ComponentMapping */
             enum WMTPixelFormat pf = 0; int vd = 0, stencil_view = 0; UINT swz = 0, c, m = desc->Shader4ComponentMapping;
             if (desc->Format != DXGI_FORMAT_UNKNOWN && !r->is_depth && mad_map_texture_format(desc->Format, 0, &pf, &vd) && !vd && pf != r->tex_pf) { /* keep pf */ } else pf = 0;
+            /* Raw volume mode uses integer shader loads. A float payload volume
+             * needs a UINT view preserving its bits; existing UINT textures
+             * already match. Normalized formats and other dimensions retain
+             * their declared views. */
+            if (want == WMTTextureType3D && (pf ? pf : r->tex_pf) == WMTPixelFormatR32Float &&
+                mad_cfg_int_pe("msc-uint-volume-loads", 0)) pf = WMTPixelFormatR32Uint;
             /* ml1101: a STENCIL shader view (X24_TYPELESS_G8 / X32_TYPELESS_G8X24) of a
              * depth-stencil texture. It used to stay a depth view, so a shader
              * sampling a stencil mask read depth. Metal returns the stencil in R;

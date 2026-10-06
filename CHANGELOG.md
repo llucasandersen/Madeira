@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Candidate 9 still has invisible Teardown terrain and tools on the phone; audio works. Add an opt-in DXIL pass for raw integer volume loads declared as float, with Teardown session defaults, explicit overrides, separate cache keys and R32Float/UINT view aliases. Extend bounded captures to distinct PSOs and raw R8Uint values. Candidate 10 build, host gates and physical acceptance are pending.
+
 - Preserve float texture bit payloads by default in the shader converter and retain the explicit NaN-to-zero workaround. Add bounded volume draw input captures. Candidate 8's phone result confirms audio but still lacks visible Teardown geometry. All 82 host checks and graphics/native/app/signing/package gates pass at dcde6b1; USB candidate 9 is verified. Phone visual/sustained/relaunch acceptance and the complete goal remain open.
 
 - Implement compound D3D12 indirect draws/dispatches with per-record bindings, GPU count handling, bounds checks, binding reset and occlusion continuity. Build and bundle actual Wine XAudio2.9 for Teardown's missing audio dependency. Prepare RDR2 DX12 startup and existing settings without copying its 128GB USB folder. All 81 host checks, graphics/native/app/package and verified USB candidate-8 gates pass; phone gameplay and full final acceptance remain pending.

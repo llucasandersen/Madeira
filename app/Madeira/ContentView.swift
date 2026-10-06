@@ -2492,7 +2492,7 @@ struct ContentView: View {
     /// Debugger stays attached during PE loading so mprotect_exec can use BRK
     /// to prepare code pages. Detach happens after Wine finishes + recovery.
     /// `profile` is a library entry whose launch profile applies to this run.
-    private func runWineFullSequence(profile: LibraryEntry? = nil) {
+    private func runWineFullSequence(profile: LibraryEntry? = nil, compatibilityAppID: Int? = nil) {
         guard jit_check_debugged() else {
             logStore.log("JIT not enabled. Press 'Enable JIT' first.", level: .error)
             if profile != nil { LibraryModel.shared.launchFailed() }
@@ -2541,6 +2541,19 @@ struct ContentView: View {
                 logStore.log("[launch-route] library profile applied")
             } else {
                 _ = try? MadeiraConfig.applyGame(nil)   // no library game: no game's own lines
+            }
+            if let appID = compatibilityAppID,
+               let compatibility = GameCompatibilityProfile.resolve(appID: appID,
+                   enabled: profile?.automaticCompatibility != false) {
+                do {
+                    let runtime = compatibility.runtimeConfig(user: profile?.config, global: MadeiraConfig.all())
+                    let pairs = try MadeiraConfig.applyGame(runtime)
+                    if !pairs.isEmpty {
+                        logStore.log("[game-cfg] " + pairs.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))
+                    }
+                } catch {
+                    logStore.log("[game-cfg] compatibility config could not be written: \(error.localizedDescription)")
+                }
             }
 
             // Step 1: Allocate JIT pool (BRK suspends entire process)
@@ -3278,7 +3291,7 @@ struct ContentView: View {
                 if let profile { library.begin(profile, dock: game) }
                 else { library.begin(.dockSession(title: game.name, width: width, height: height), remember: false, dock: game) }
             }
-            runWineFullSequence(profile: profile)
+            runWineFullSequence(profile: profile, compatibilityAppID: game.id)
         }
     }
 

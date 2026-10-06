@@ -24,7 +24,7 @@ struct GameCompatibilityProfile: Equatable {
 
     // Teardown 2.1.0: supplied options.xml and a real D3D12 device trace.
     // No profile is needed for PEAK's ordinary D3D11 launch path.
-    private static let builtins = [Self(appID: 1167630, revision: 1,
+    private static let builtins = [Self(appID: 1167630, revision: 2,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
         Self(appID: 1174180, revision: 1, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
@@ -40,6 +40,18 @@ struct GameCompatibilityProfile: Equatable {
         case .teardownRegistry: return userFolder.appendingPathComponent("AppData/Local/Teardown/options.xml")
         case .rdr2System: return userFolder.appendingPathComponent("Documents/Rockstar Games/Red Dead Redemption 2/Settings/system.xml")
         }
+    }
+
+    /// Session defaults; explicit game/global settings take precedence.
+    func runtimeConfig(user: String?, global: [String: String]) -> String? {
+        guard appID == 1167630 else { return user }
+        let key = "msc-uint-volume-loads"
+        let explicit = (user ?? "").split(separator: "\n").contains { line in
+            let parts = line.split(separator: "=", maxSplits: 1)
+            return parts.count == 2 && parts[0].trimmingCharacters(in: .whitespaces) == key
+        }
+        guard !explicit, global[key] == nil else { return user }
+        return key + " = 1\n" + (user ?? "")
     }
 }
 

@@ -2,6 +2,34 @@
 
 This is the evidence ledger for the iPhone 17 Pro Max / iOS 26.6.2 compatibility work. It records what has been verified and keeps hypotheses separate from fixes. The acceptance tests in [GAME_TEST_MATRIX.md](GAME_TEST_MATRIX.md) remain required.
 
+## October 5 candidate-9 visuals fail; integer volume candidate 10
+
+The user still sees roads, boundary geometry, cables and hit particles, but no
+terrain or tools. Private `madeira-log 5.txt` confirms source `dcde6b1` and the
+new converter policy: sampled NaN-to-zero is off. Foreground summaries have
+12,957 retired command buffers with zero errors, null CBVs or visibility
+fallbacks. Compound replay completes the sampled records. Audio remains good.
+
+The captured 3D texture is DXGI R8_UINT / Metal R8Uint (1252x128x1252).
+Read-only shader analysis finds float-declared 3D loads immediately bitcast to
+voxel IDs, alongside compute writers using RWTexture3D<uint>. Candidate 10
+lowers only resources whose loads are exclusively bitcast to integer values;
+floating point math, sampling or unknown handle uses reject the resource.
+It updates integer load instructions and resource metadata/types together.
+Teardown enables `msc-uint-volume-loads` for its session; explicit game/global
+settings win and disabling automatic compatibility removes this default.
+Other games keep it off. R32Float 3D raw payloads get R32Uint read aliases in
+this mode; already integer volumes retain their format. The mode and converter
+source identity distinguish shader cache entries.
+
+The previous capture selected the same two PSOs repeatedly and printed R8Uint
+as normalized floats. Candidate 10 captures twelve distinct PSOs, instance
+starts and up to eight volume inputs per draw, and prints raw R8Uint IDs.
+Zero texels from the earlier formatting are not proof of empty voxel data.
+The user agreed to test bounds checking off; no result has arrived yet.
+Production LLVM regression, graphics build, app packaging and phone visual
+acceptance remain pending. This is a specific candidate, not a confirmed fix.
+
 ## October 5 candidate-8 audio passes, geometry remains invisible
 
 The user now reports working Teardown sound and the same missing terrain,

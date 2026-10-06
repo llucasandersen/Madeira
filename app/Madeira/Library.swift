@@ -507,7 +507,11 @@ struct LibraryEntry: Codable, Identifiable {
         madeira_set_vsync_locked(effectiveFPSMode)
         // This game's own lines; a launch without any unsets the previous game's.
         do {
-            let pairs = try MadeiraConfig.applyGame(config)
+            let compatibility = steamAppID.flatMap {
+                GameCompatibilityProfile.resolve(appID: $0, enabled: automaticCompatibility != false)
+            }
+            let preparedConfig = compatibility?.runtimeConfig(user: config, global: MadeiraConfig.all()) ?? config
+            let pairs = try MadeiraConfig.applyGame(preparedConfig)
             if !pairs.isEmpty {
                 LogStore.shared.log("[game-cfg] " + pairs.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))
             }
