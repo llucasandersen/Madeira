@@ -5,9 +5,18 @@ Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extende
 Candidate 9 phone follow-up: terrain and tools remain invisible; audio works.
 `madeira-log 5.txt` confirms `dcde6b1` and NaN-to-zero off. Candidate 10 adds
 integer volume lowering with Teardown session defaults and explicit overrides.
-Host/graphics/app/package/USB gates and visible world/tools, sustained play and
-relaunch acceptance remain pending. The agreed bounds-check-off test has no
-reported outcome yet.
+All 83 host checks pass in 37397386359 at `b5f91cc` (host fixture follow-up only;
+identical production code). Graphics 37396683612 and fresh converter/app/
+signing/package 37396758237 pass at `0a3f3c8`. Unchanged native runtime is
+reused from verified 37392506691. Local/USB checks pass:
+`E:\Madeira-Compatibility-Update-10\Madeira-diagnostic-0a3f3c8.ipa`,
+87,614,225 bytes, SHA-256
+`a3ead869ad0b6a7dd526621d7ad73861aa2e6eb1cabc4baf0c898ab9b0c3c245`.
+Visible world/tools, sustained play and relaunch acceptance remain pending.
+The agreed bounds-check-off test has no reported outcome yet. RDR2 has not
+been tested on the phone and the complete goal remains open.
+The [candidate-10 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.10)
+has the exact app source tag and all six public/USB asset sizes and digests match.
 
 October 5 candidate-8 phone follow-up: the user confirms working Teardown sound,
 but terrain/voxels/tools remain invisible. The new log has source `88b8218`;

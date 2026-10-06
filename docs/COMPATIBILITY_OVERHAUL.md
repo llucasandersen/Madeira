@@ -27,8 +27,38 @@ as normalized floats. Candidate 10 captures twelve distinct PSOs, instance
 starts and up to eight volume inputs per draw, and prints raw R8Uint IDs.
 Zero texels from the earlier formatting are not proof of empty voxel data.
 The user agreed to test bounds checking off; no result has arrived yet.
-Production LLVM regression, graphics build, app packaging and phone visual
-acceptance remain pending. This is a specific candidate, not a confirmed fix.
+
+Host workflow 37397386359 passes all 83 distinct checks at `b5f91cc`, with
+zero raw/effective exits and no sanitizer diagnostics. The preceding workflow
+37396683601 correctly rejected stale launch-signature assertions and missing
+frontend fixture dependencies. The follow-up changes only host fixtures;
+production code is identical to app/graphics source `0a3f3c8`. The actual LLVM
+pass is compiled and exercised under ASan/UBSan with scalar and float4 bindless
+inputs, shared metadata, status uses, float/2D rejection, typed declarations,
+idempotence and every truncated input. Actual LibraryEntry tests cover the
+Teardown default, explicit game/global overrides, opt-out and the next game's
+config reset.
+
+Graphics workflow 37396683612 passes; authenticated source identity and all
+module checksums match. Renderer source SHA-256 is
+`70b2fb47b2cc281770f5be14ca7c0d544ce5442ba753a4b3e59fd9a21fc3bfc7`.
+IPA workflow 37396758237 freshly compiles `madeira_uint_volumes` and the shader
+converter (identity `19675c13086f5739`), then passes app build, strict macOS
+codesign and packaging. Unchanged native runtime is reused from verified
+37392506691; LLVM/FEX artifacts retain their previously verified pins.
+
+Local and all six USB file checks pass at
+`E:\Madeira-Compatibility-Update-10\Madeira-diagnostic-0a3f3c8.ipa`,
+87,614,225 bytes, SHA-256
+`a3ead869ad0b6a7dd526621d7ad73861aa2e6eb1cabc4baf0c898ab9b0c3c245`.
+The same app identity and tested XAudio2.9 component are retained. Phone visual,
+sustained play and relaunch acceptance are still pending. The complete goal
+and RDR2 gameplay acceptance remain open.
+
+The [candidate-10 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.10)
+has the exact app source tag. All six public asset sizes and SHA-256 digests
+match the verified USB files. Private game shaders and phone logs were not
+included in the release.
 
 ## October 5 candidate-8 audio passes, geometry remains invisible
 
