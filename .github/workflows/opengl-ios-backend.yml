@@ -2,6 +2,11 @@ name: Desktop OpenGL iOS Metal backend build
 
 on:
   workflow_dispatch:
+    inputs:
+      reuse_backend_run:
+        description: Successful identical Metal backend run to reuse (optional)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -19,7 +24,38 @@ jobs:
           brew install meson ninja pkg-config llvm libclc spirv-llvm-translator spirv-tools bison
           python3 -m pip install --break-system-packages mako pyyaml packaging
       - name: Build pinned Metal4 backend for native tools and iPhone
+        if: inputs.reuse_backend_run == ''
         run: bash build/opengl-ios/build-backend.sh
+      - name: Reuse verified identical Metal backend
+        if: inputs.reuse_backend_run != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKEND_RUN: ${{ inputs.reuse_backend_run }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BACKEND_RUN" > backend-run.json
+          python3 - <<'PY'
+          import json, subprocess
+          run = json.load(open('backend-run.json'))
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          subprocess.run(['git', 'fetch', '--depth', '1', 'origin', run['head_sha']], check=True)
+          changes = subprocess.check_output(['git', 'diff', '--name-only', run['head_sha'], 'HEAD', '--',
+              'build/opengl-ios/build-backend.sh', 'build/opengl-ios/patch-device.py',
+              'build/opengl-ios/fetch-mesa.py'], text=True)
+          assert not changes, changes
+          PY
+          gh run download "$BACKEND_RUN" -R "$GITHUB_REPOSITORY" -n opengl-ios-backend-results -D build/ci-artifacts/reused-opengl
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          root = Path('build/ci-artifacts/reused-opengl')
+          for target in ['native', 'ios']:
+              candidates = [p for p in root.rglob('libvulkan_kosmickrisp.dylib') if target in p.parts]
+              assert len(candidates) == 1, candidates
+              out = Path('build/ci-output/opengl-ios') / target / 'src/kosmickrisp/vulkan'
+              out.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(candidates[0], out / candidates[0].name)
+          PY
       - name: Build native and iOS Vulkan loader and check actual ICD dispatch
         run: bash build/opengl-ios/build-loader.sh
       - uses: actions/upload-artifact@v4

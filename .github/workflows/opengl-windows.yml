@@ -2,6 +2,11 @@ name: Desktop OpenGL Windows translation build
 
 on:
   workflow_dispatch:
+    inputs:
+      build_windows:
+        description: Build Windows Zink and PE interfaces as well as native bridge
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -32,6 +37,7 @@ jobs:
             build/ci-output/opengl-wine-bridge/symbols.txt
             wine/build-macos/config.log
   opengl-windows:
+    if: inputs.build_windows
     runs-on: macos-26
     timeout-minutes: 60
     env:

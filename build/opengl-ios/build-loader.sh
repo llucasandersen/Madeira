@@ -16,7 +16,7 @@ fetch() {
   test "$(git -C "$directory" rev-parse HEAD)" = "$pin"
 }
 fetch Vulkan-Loader f703f919c30c5b67958d35d40a4297cb3823ed78
-fetch Vulkan-Headers a26ccc6bb1ec512a6a587271a626185a08213500
+fetch Vulkan-Headers 9a0f3099c8a9607a7c0f3127d8abfdc19a93e8c5
 OUT="$R/build/ci-output/opengl-loader"
 cmake -S research/Vulkan-Headers -B "$OUT/headers" -G Ninja \
   -DCMAKE_INSTALL_PREFIX="$OUT/headers-install" -DVULKAN_HEADERS_ENABLE_TESTS=OFF
