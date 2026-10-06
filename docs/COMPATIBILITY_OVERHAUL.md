@@ -1,8 +1,37 @@
 # Compatibility overhaul: investigation record
 
+## RDR2 launcher renderer handoff — 2026-10-06
+
+The latest device log starts RDR2 with `-dx12`, but Launcher.exe restarts
+`RDR2.exe` without arguments. Preserve the requested renderer in the actual
+child Windows command line before startup serialization and Unix argument
+construction. Enable inheritance only for a recognized RDR2 library entry
+with automatic compatibility and an unambiguous DX12 request. Explicit child
+renderer arguments win; unrelated executables and subsequent sessions clear
+the policy. Caller process parameters remain unchanged and temporary buffers
+are released. The actual Wine command parser now checks allocation failure
+and frees its conversion scratch buffer.
+
+Production source `e159c2c`: five targeted Mac checks pass in
+[37481321943](https://github.com/llucasandersen/Madeira/actions/runs/37481321943),
+at `34a527f` with a frontend fixture correction and identical production source.
+Actual native helper/Wine parser checks pass under ASan/UBSan; template and
+process cleanup also pass TSan. Library environment isolation and explicit
+renderer opt-out pass. Full 85-check workflow `37481326596` and fresh native
+runtime/IPA `37481013995` remain pending. The first targeted run passed four
+checks but found fixture contamination in the fifth; the fixture was isolated.
+Previous full run `37472160091` timed out downloading compiler packages from
+the Azure Ubuntu mirror, before Linux tests began; its six Apple checks
+passed. The replacement workflow uses Ubuntu's archive directly.
+
+This renderer argument loss is separate from the observed private-ntdll
+startup failure addressed in test build 4. No device gameplay acceptance has
+been obtained, and neither fix establishes playability yet. Game archives
+remain unchanged on E:; Teardown remains deferred.
+
 ## October 6 targeted runtime host evidence
 
-The full host run 37472160091 remains active in Linux environment preparation.
+The full host run 37472160091 later timed out during compiler package downloads, before Linux tests started.
 To validate the two changed runtime paths independently, macOS ARM64 run
 [37477610396](https://github.com/llucasandersen/Madeira/actions/runs/37477610396) passes
 the production template helper/image-reload harness and the process socket
@@ -1709,25 +1738,3 @@ using Madeira `980371c` and FEX `259f3ba7f`. The app build and device run are
 still pending; this component build does not establish gameplay compatibility.
 
 The loader fix needs a test against the exact failing SDL3 PE, host loader tests and a signed device run showing Steam stays alive and creates the game process. Gameplay, DXMT, input, sound, Steam authentication and repeat launch checks follow that. Teardown, Ravenfield, Bomber Crew and download acceptance checks are tracked separately in the matrix. No root cause or fix is claimed for those yet.
-# RDR2 launcher renderer handoff — 2026-10-06
-
-The latest device log starts RDR2 with `-dx12`, but Launcher.exe restarts
-`RDR2.exe` without arguments. Preserve the requested renderer in the actual
-child Windows command line before startup serialization and Unix argument
-construction. Enable inheritance only for a recognized RDR2 library entry
-with automatic compatibility and an unambiguous DX12 request. Explicit child
-renderer arguments win; unrelated executables and subsequent sessions clear
-the policy. Caller process parameters remain unchanged and temporary buffers
-are released. The actual Wine command parser now checks allocation failure
-and frees its conversion scratch buffer.
-
-Source `e159c2c`: targeted Mac checks `37481003406`, full 85-check workflow
-`37481008384`, fresh native runtime/IPA `37481013995` are pending.
-Previous full run `37472160091` timed out downloading compiler packages from
-the Azure Ubuntu mirror, before Linux tests began; its six Apple checks
-passed. The replacement workflow uses Ubuntu's archive directly.
-
-This renderer argument loss is separate from the observed private-ntdll
-startup failure addressed in test build 4. No device gameplay acceptance has
-been obtained, and neither fix establishes playability yet. Game archives
-remain unchanged on E:; Teardown remains deferred.
