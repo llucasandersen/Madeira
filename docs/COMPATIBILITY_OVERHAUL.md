@@ -159,6 +159,18 @@ The existing direct RDR2 launch adapter adds `-dx12` and preserves explicit
 renderer choices. Missing system.xml is not fabricated. Builds and physical
 launch/story acceptance remain pending; no gameplay success is claimed.
 
+RDR2 test build 1 delivery: 84 host checks pass in 37405316787 at `83ae131`
+(fixture follow-up only). Graphics/common-controls 37404589105 passes at
+`4916501`; IPA/signing 37405134953 passes at `028c48b` (staging header-check
+follow-up only). Actual v6 DLL CHPE metadata and TaskDialogIndirect ordinal
+345 are verified, and its direct dependencies resolve in the unchanged farm.
+Seven verified files are on `E:\Madeira-RDR2-Test-1`, including the IPA,
+checksum, provenance, component staging reports and installation/test README.
+IPA size: 88,239,176 bytes. SHA-256:
+`a8ac9a4a732abf458d9d934c0c4f21567f4b9433a8c33c6a3e096d1d6c237677`.
+The complete game stays on E: and is unchanged. Device gameplay is unverified;
+the latest logged free storage is still insufficient for a complete import.
+
 ## October 5 Teardown missing geometry/audio and earlier RDR2 preparation
 
 The latest private phone export has candidate-7 source stamp `8ed43f9` and

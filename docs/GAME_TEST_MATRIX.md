@@ -17,8 +17,20 @@ The new candidate builds pinned Wine comctl32_v6, stages it with authenticated
 artifact hashes, and seeds the AMD64 side-by-side store every session.
 The x86 assembly store remains separate. Default direct launch adds `-dx12`
 and existing settings receive the backed-up DX12 API edit.
-Build/host/package gates and the first iPhone launch remain pending. This
-static dependency repair does not establish menu or story gameplay.
+RDR2 test build 1 is verified on USB:
+`E:\Madeira-RDR2-Test-1\Madeira-diagnostic-028c48b.ipa`, 88,239,176 bytes,
+SHA-256 `a8ac9a4a732abf458d9d934c0c4f21567f4b9433a8c33c6a3e096d1d6c237677`.
+All 84 distinct host checks pass in 37405316787 at `83ae131`; the follow-up
+changes only a test fixture. Graphics and controls build 37404589105 passes
+at `4916501`. The DLL has ARM64EC CHPE metadata and a real TaskDialogIndirect
+export at ordinal 345. IPA build/signing 37405134953 passes at `028c48b`,
+whose only difference from graphics source is the staging header check.
+Source/module hashes, packaged controls, update identity and USB copy hashes
+pass. The private standard import/export audit on E: has no remaining checked
+export gaps when Common-Controls v6 assembly redirection is applied.
+Local game DLLs were checked for presence; their activation paths were not
+changed or validated. The first iPhone launch remains pending. This static
+dependency repair does not establish menu or story gameplay.
 
 Candidate 9 phone follow-up: terrain and tools remain invisible; audio works.
 `madeira-log 5.txt` confirms `dcde6b1` and NaN-to-zero off. Candidate 10 adds
