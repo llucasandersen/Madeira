@@ -3602,14 +3602,14 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
     static const void *seen[12];
     unsigned i, k, found = 0, volumes = 0;
     char lab[160];
-    if (total >= 12 || !e->rs || !e->srv || !e->srv->cpu || e->nrt < 2 || d->cap_total >= 2000) return;
+    if (total >= 12 || !e->pso || !e->rs || !e->srv || !e->srv->cpu || e->nrt < 2 || d->cap_total >= 2000) return;
     for (i = 0; i < total; i++) if (seen[i] == e->pso) return;
     for (i = 0; i < e->rs->nparams && i < MAD_ROOT_PARAM_MAX && !found; i++) {
         UINT64 va = e->root[i]; unsigned idx;
         if (e->rs->params[i].type != MADEIRA_IR_PARAM_TABLE || va < e->srv->gpu_address ||
             va >= e->srv->gpu_address + (UINT64)e->srv->count * sizeof(struct mad_descriptor)) continue;
         idx = (unsigned)((va - e->srv->gpu_address) / sizeof(struct mad_descriptor));
-        for (k = 0; k < mad_table_count(e->rs, i, 64) && idx + k < e->srv->count; k++) {
+        for (k = 0; k < mad_table_count(e->rs, i, 4096) && idx + k < e->srv->count; k++) {
             const struct mad_descriptor *de = &e->srv->cpu[idx + k]; int xv = -1;
             struct mad_resource *r = de->texture_view_id && !(de->metadata >> 63) ? mad_texture_of_view(d, de->texture_view_id, &xv) : NULL;
             if (r && r->tex_type == WMTTextureType3D) { found = 1; break; }
@@ -3640,7 +3640,7 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
         if (e->rs->params[i].type != MADEIRA_IR_PARAM_TABLE || va < e->srv->gpu_address ||
             va >= e->srv->gpu_address + (UINT64)e->srv->count * sizeof(struct mad_descriptor)) continue;
         idx = (unsigned)((va - e->srv->gpu_address) / sizeof(struct mad_descriptor));
-        for (k = 0; k < mad_table_count(e->rs, i, 64) && idx + k < e->srv->count; k++) {
+        for (k = 0; k < mad_table_count(e->rs, i, 4096) && idx + k < e->srv->count; k++) {
             const struct mad_descriptor *de = &e->srv->cpu[idx + k]; int xv = -1;
             if (!de->texture_view_id && de->gpu_va && k < 4) {
                 off = 0; r = mad_resolve_address(d, de->gpu_va, &off);
@@ -3853,6 +3853,13 @@ static void exec_draw(struct mad_exec *e, const struct mad_cmd *c) {
     static unsigned said_nopso, said_trunc;
     struct mad_device *dev = e->q->device;
 
+    /* Capture culled records too: their root bindings and argument counts are
+     * needed to distinguish an empty indirect record from an empty volume.
+     * Do not realize a lazy pipeline merely to inspect its inputs. */
+    { static int early_volume = -1;
+      if (early_volume < 0) early_volume = mad_cfg_int_pe("msc-uint-volume-loads", 0) ? 1 : 0;
+      if (early_volume || g_census_on) exec_capture_volume_draw(e, c); }
+
     /* ml1094: InstanceCount 0 draws NOTHING in D3D12; it was promoted to 1 below
      * (Astra). An engine that zeroes the count of a culled draw would have drawn
      * one instance of it. Not a skip: there is nothing to draw. */
@@ -3868,9 +3875,6 @@ static void exec_draw(struct mad_exec *e, const struct mad_cmd *c) {
         static unsigned said; if (said++ < 4) d3d12_log("[madeira-d3d12] indirect draw on a geometry-shader pipeline is not implemented; skipped\n");
         MAD_SKIP(e); return;
     }
-    { static int early_volume = -1;
-      if (early_volume < 0) early_volume = mad_cfg_int_pe("msc-uint-volume-loads", 0) ? 1 : 0;
-      if (early_volume && !g_census_on) exec_capture_volume_draw(e, c); }
     if (g_census_on) { exec_capture_draw(e, c); exec_desc_check(e, e->rs, e->root, e->pso->vs_name); }   /* ml910/ml913 */
     if (!exec_begin_render(e)) { MAD_SKIP(e); return; }
     g_dump_tables = 0;

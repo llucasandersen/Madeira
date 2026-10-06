@@ -21,6 +21,23 @@ needed to distinguish missing data, descriptor bindings and vertex inputs.
 Private cache files and disassemblies stay on the USB drive. No new visual fix
 or final IPA is established by this investigation.
 
+The longer follow-up run (`madeira-log 7.txt`) reaches more than 6600 presents.
+The user reports some geometry near water, with terrain, character and tools
+still missing. It captures four volume-using PSOs, primarily the shared shadow
+volume and auxiliary geometry. The runtime reports over five million elided
+zero-instance draws; the captures run after that elision and inspect only the
+first 64 table entries, so they cannot identify the culled voxel inputs or
+bindless volume slots beyond that range. This count alone is not evidence that
+the runtime incorrectly culled the objects. No occlusion queries were begun.
+Diagnostics now inspect inputs before zero-instance elision, preserve original
+shader digests and cover a bounded 4096-entry table window. These changes do
+not override instance counts or constitute a rendering fix.
+
+The production LLVM-15 pass was built as a verified local Windows tool in
+workflow 37401322003. Running it privately on all 410 extracted game shaders
+returns 65 rewritten and 345 unchanged, with no parse/verification failures.
+The voxel fragment variants are rewritten. Outputs stay on the USB drive.
+
 The user still sees roads, boundary geometry, cables and hit particles, but no
 terrain or tools. Private `madeira-log 5.txt` confirms source `dcde6b1` and the
 new converter policy: sampled NaN-to-zero is off. Foreground summaries have
