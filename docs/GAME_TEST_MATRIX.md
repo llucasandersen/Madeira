@@ -1,5 +1,37 @@
 # Game compatibility test matrix
 
+## October 6 intro memory error and Teardown OpenGL work
+
+The new RDR2 phone log is test build 5. It passes the previous child-runtime
+startup failure, creates D3D12 and presents frames. The user reports an
+out-of-memory error while loading the intro. The supplied `exit_file.dat`
+confirms `ERR_GFX_D3D_DEFERRED_MEM`. The log shows a 6,144 MB process limit,
+about 4,879 MB peak footprint, and an automatic video-memory budget falling
+from 1,024 MB to 768 MB. No successful Story gameplay is established.
+
+The candidate applies a 2,048 MB video-memory budget when RDR2's setting is
+Auto, including a recognized direct import. Explicit nonzero settings and the
+native pressure trim remain. No unprovided `system.xml` is fabricated. This
+is a candidate for the observed error, not a proven root-cause conclusion.
+
+Five targeted Mac checks pass in
+[37537646486](https://github.com/llucasandersen/Madeira/actions/runs/37537646486).
+The complete regression run and fresh combined IPA are still being built.
+
+The user resumed Teardown work and requested desktop OpenGL. The source-built
+Windows Zink DLLs and native Wine bridge pass in
+[37537462947](https://github.com/llucasandersen/Madeira/actions/runs/37537462947).
+The iOS Metal4 backend, Khronos Vulkan loader and actual Mac loader/ICD
+dispatch pass in
+[37538235752](https://github.com/llucasandersen/Madeira/actions/runs/37538235752).
+Component staging also passes locally. The [OpenGL candidate](DESKTOP_OPENGL_IOS.md)
+still requires iPhone feature and gameplay checks, including terrain, tools,
+sound and repeat launch. Teardown is no longer deferred.
+
+The final combined IPA has not yet been delivered to USB. Game archives remain
+on E: and are not part of the app build. The goal remains unfinished until
+physical-device acceptance.
+
 ## October 6 RDR2 test build 5 delivery
 
 The latest phone log is still test build 3 (`madeira-log 12.txt`). It reaches
