@@ -203,6 +203,35 @@ static void my_view_release_metal_view(macdrv_metal_view v) {
     if (v) CFBridgingRelease((CFTypeRef)v);
 }
 
+// Vulkan uses the same HWND-to-layer mapping and ownership as DXMT.
+void *madeira_vulkan_layer_acquire(void *hwnd) {
+    return (void *)my_view_create_metal_view((macdrv_view)hwnd, NULL);
+}
+
+void madeira_vulkan_layer_release(void *layer) {
+    my_view_release_metal_view((macdrv_metal_view)layer);
+}
+
+const char *madeira_vulkan_library_path(void) {
+    static char *loaderPath;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        @autoreleasepool {
+            if (@available(iOS 26.0, *)) {
+                NSString *frameworks = NSBundle.mainBundle.privateFrameworksPath;
+                NSString *loader = [frameworks stringByAppendingPathComponent:@"libvulkan.1.dylib"];
+                NSString *manifest = [frameworks stringByAppendingPathComponent:@"madeira-vulkan.json"];
+                if ([[NSFileManager defaultManager] fileExistsAtPath:loader] &&
+                    [[NSFileManager defaultManager] fileExistsAtPath:manifest]) {
+                    setenv("VK_DRIVER_FILES", manifest.fileSystemRepresentation, 0);
+                    loaderPath = strdup(loader.fileSystemRepresentation);
+                }
+            }
+        }
+    });
+    return loaderPath;
+}
+
 static void my_on_main_thread(dispatch_block_t b) {
     if ([NSThread isMainThread]) b();
     else dispatch_async(dispatch_get_main_queue(), b);

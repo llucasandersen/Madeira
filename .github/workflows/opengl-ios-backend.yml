@@ -20,6 +20,8 @@ jobs:
           python3 -m pip install --break-system-packages mako pyyaml packaging
       - name: Build pinned Metal4 backend for native tools and iPhone
         run: bash build/opengl-ios/build-backend.sh
+      - name: Build native and iOS Vulkan loader and check actual ICD dispatch
+        run: bash build/opengl-ios/build-loader.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -31,3 +33,9 @@ jobs:
             build/ci-output/opengl-ios/*/exports.txt
             build/ci-output/opengl-ios/*/dependencies.txt
             build/ci-output/opengl-ios/*/deployment.txt
+            build/ci-output/opengl-loader/**/*.dylib
+            build/ci-output/opengl-loader/*/exports.txt
+            build/ci-output/opengl-loader/*/dependencies.txt
+            build/ci-output/opengl-loader/*/deployment.txt
+            build/ci-output/opengl-loader/loader-smoke.txt
+            build/ci-output/opengl-loader/**/CMakeConfigureLog.yaml

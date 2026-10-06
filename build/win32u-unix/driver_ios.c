@@ -61,6 +61,8 @@ extern void winios_pWindowPosChanged( HWND hwnd, HWND insert_after, HWND owner_h
                                       const struct window_rects *new_rects, struct window_surface *surface ) __attribute__((weak));
 
 static struct user_driver_funcs winios_user_driver;
+extern UINT winios_VulkanInit(UINT version, void *vulkan_handle,
+                             const struct vulkan_driver_funcs **funcs);
 
 /* Direct mode (no virtual desktop) has no compositor to draw the Windows
  * cursor, so the app draws the program's own cursor over the game view while a
@@ -1996,6 +1998,7 @@ static void load_display_driver(void)
                         "(MADEIRA_GAME_WINDOWS=0 hides them)\n" );
         }
         winios_user_driver.pUpdateDisplayDevices = winios_UpdateDisplayDevices;
+        winios_user_driver.pVulkanInit = winios_VulkanInit;
         __wine_set_user_driver( &winios_user_driver, WINE_GDI_DRIVER_VERSION );
 #else
         __wine_set_user_driver( &null_user_driver, WINE_GDI_DRIVER_VERSION );

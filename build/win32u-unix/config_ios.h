@@ -17,6 +17,7 @@
 #undef SONAME_LIBFONTCONFIG
 #undef SONAME_LIBEGL
 #undef SONAME_LIBVULKAN
+#define SONAME_LIBVULKAN "madeira-vulkan-ios"
 #undef SONAME_LIBGNUTLS
 
 #endif

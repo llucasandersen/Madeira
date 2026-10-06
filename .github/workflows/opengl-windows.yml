@@ -7,6 +7,30 @@ permissions:
   contents: read
 
 jobs:
+  wine-ios-bridge:
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retrieve tracked Wine source
+        run: git submodule update --init --depth 1 wine
+      - name: Install build utilities
+        run: brew install bison
+      - name: Compile actual Vulkan ABI, loader and surface bridge for iPhone
+        run: |
+          set -o pipefail
+          mkdir -p build/ci-output/opengl-wine-bridge
+          bash build/opengl-ios/check-wine-bridge.sh 2>&1 | tee build/ci-output/opengl-wine-bridge/build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opengl-wine-ios-bridge-results
+          path: |
+            build/ci-output/opengl-wine-bridge/build.log
+            build/ci-output/opengl-wine-bridge/symbols.txt
+            wine/build-macos/config.log
   opengl-windows:
     runs-on: macos-26
     timeout-minutes: 60

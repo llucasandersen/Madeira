@@ -121,10 +121,15 @@ for src in $WINE_SRC/dlls/win32u/*.c $WINE_SRC/dlls/win32u/dibdrv/*.c; do
                 -I"$REPO_ROOT/research/freetype/include"
             continue
             ;;
+        vulkan)
+            compile_one "$BUILD_DIR/vulkan_loader_ios.c" "vulkan"
+            continue
+            ;;
     esac
 
     compile_one "$src" "$name"
 done
+compile_one "$BUILD_DIR/vulkan_surface_ios.c" "vulkan_surface_ios"
 
 echo ""
 echo "Results: $SUCCEEDED succeeded, $FAILED failed"

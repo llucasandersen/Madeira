@@ -32,7 +32,7 @@ meson setup "$OUT/zink" "$SOURCE" --cross-file "$OUT/windows-cross.ini" --buildt
   -Dplatforms=windows -Dgallium-drivers=zink -Dvulkan-drivers= \
   -Dopengl=true -Dgles1=disabled -Dgles2=disabled -Degl=disabled -Dglx=disabled \
   -Dllvm=disabled -Dzlib=disabled -Dzstd=disabled -Dxmlconfig=disabled \
-  -Dshared-glapi=false -Dbuild-tests=false -Dtools=
+  -Dshared-glapi=disabled -Dbuild-tests=false -Dtools=
 ninja -C "$OUT/zink" -j4
 find "$OUT/zink" -name '*.dll' -print
 test -s "$OUT/zink/src/gallium/targets/libgl-gdi/opengl32.dll"
