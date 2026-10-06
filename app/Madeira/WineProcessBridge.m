@@ -587,6 +587,33 @@ static void madeira_link_wbem(NSFileManager *fm, NSString *prefix, NSString *sys
             linked, sizeof(wbem) / sizeof(wbem[0]));
 }
 
+/* The Steam launch root is native explorer.exe; its AMD64 game resolves
+ * colliding system DLLs through sysx64. Apply GL links after the ordinary
+ * farms have been refreshed, independently of the launch root's bitness. */
+static void madeira_link_opengl(NSFileManager *fm, NSString *prefix, NSString *bundle, BOOL root_ec)
+{
+    NSArray *farms = root_ec ? @[@"sysx64", @"system32"] : @[@"sysx64"];
+    for (NSString *farm in farms) {
+        NSString *directory = [[prefix stringByAppendingPathComponent:@"drive_c/windows"] stringByAppendingPathComponent:farm];
+        [fm createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
+        for (NSString *name in @[@"opengl32.dll", @"libgallium_wgl.dll"]) {
+            NSString *source = [[bundle stringByAppendingPathComponent:@"x86_64-opengl"] stringByAppendingPathComponent:name];
+            NSString *destination = [directory stringByAppendingPathComponent:name];
+            if (![fm fileExistsAtPath:source]) {
+                dprintf(STDERR_FILENO, "[opengl] missing bundled component: %s\n", source.UTF8String);
+                continue;
+            }
+            [fm removeItemAtPath:destination error:nil];
+            NSError *error = nil;
+            if (![fm createSymbolicLinkAtPath:destination withDestinationPath:source error:&error]) {
+                dprintf(STDERR_FILENO, "[opengl] failed to link %s/%s: %s\n", farm.UTF8String, name.UTF8String, error.localizedDescription.UTF8String);
+            } else {
+                dprintf(STDERR_FILENO, "[opengl] bundled Windows Zink component linked: %s/%s\n", farm.UTF8String, name.UTF8String);
+            }
+        }
+    }
+}
+
 static void madeira_link_syswow64_wbem(NSFileManager *fm, NSString *prefix, NSString *bundle)
 {
     madeira_link_wbem(fm, prefix, @"syswow64", [bundle stringByAppendingPathComponent:@"i386-windows"]);
@@ -1270,22 +1297,6 @@ static void *wine_process_thread(void *arg) {
             }
             LOG("Symlinked %d DLLs from %{public}s to %{public}s", linked, bundle_subdir, sys32Dir.UTF8String);
             dprintf(STDERR_FILENO, "[WineProc] Symlinked %d DLLs from %s -> sys32\n", linked, bundle_subdir);
-            const char *openGL = getenv("MADEIRA_OPENGL");
-            if (openGL && !strcmp(openGL, "1") && use_arm64ec && !is_i386_target) {
-                for (NSString *name in @[@"opengl32.dll", @"libgallium_wgl.dll"]) {
-                    NSString *source = [[bundlePath stringByAppendingPathComponent:@"x86_64-opengl"] stringByAppendingPathComponent:name];
-                    NSString *destination = [sys32Dir stringByAppendingPathComponent:name];
-                    if ([fm fileExistsAtPath:source]) {
-                        [fm removeItemAtPath:destination error:nil];
-                        NSError *error = nil;
-                        if (![fm createSymbolicLinkAtPath:destination withDestinationPath:source error:&error]) {
-                            dprintf(STDERR_FILENO, "[opengl] failed to link %s: %s\n", name.UTF8String, error.localizedDescription.UTF8String);
-                        } else {
-                            dprintf(STDERR_FILENO, "[opengl] bundled Windows Zink component linked: %s\n", name.UTF8String);
-                        }
-                    }
-                }
-            }
             madeira_link_wbem(fm, prefix, @"system32", dllSource);
 
             // X3 mixed-mode: also link NON-COLLIDING files from the other
@@ -1356,6 +1367,9 @@ static void *wine_process_thread(void *arg) {
              * RDR2 imports comctl32 ordinal 345 (TaskDialogIndirect), which is
              * supplied by v6 rather than the default v5 DLL. Refresh links on
              * every session, including after an app update. */
+            const char *openGL = getenv("MADEIRA_OPENGL");
+            if (openGL && !strcmp(openGL, "1"))
+                madeira_link_opengl(fm, prefix, bundlePath, use_arm64ec && !is_i386_target);
             madeira_seed_winsxs(fm, prefix, bundlePath, @"amd64", @"arm64ec-windows");
 
             /* WoW64: the i386 farm, syswow64\wbem and the x86 side-by-side

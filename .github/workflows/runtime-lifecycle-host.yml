@@ -27,6 +27,7 @@ jobs:
           python3 tests/host/check-rdr2-renderer-handoff.py 2>&1 | tee build/ci-output/runtime-lifecycle/rdr2-renderer.log
           python3 tests/host/check-game-compatibility.py 2>&1 | tee build/ci-output/runtime-lifecycle/game-compatibility.log
           python3 tests/host/check-frontend.py 2>&1 | tee build/ci-output/runtime-lifecycle/frontend.log
+          python3 tests/host/check-opengl-prefix.py 2>&1 | tee build/ci-output/runtime-lifecycle/opengl-prefix.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
