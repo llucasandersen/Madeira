@@ -142,7 +142,24 @@ The [candidate-9 prerelease](https://github.com/llucasandersen/Madeira/releases/
 targets the exact app source; all six uploaded asset sizes and SHA-256 digests
 match the verified USB files.
 
-## October 5 Teardown missing geometry/audio and RDR2 preparation
+## October 5 RDR2 priority change
+
+The user deferred Teardown. Inspection of the replacement RDR2 folder stays
+on E: (276 files, 128,167,940,440 bytes). The latest phone export reports 59GB
+free; transfer requires enough additional storage for the full game.
+The new executable has no relocation directory and fits the existing
+128MiB protected preferred-image window. Static export checking found a
+specific loader dependency: comctl32 ordinal 345, TaskDialogIndirect. The
+embedded game manifest requests AMD64 Common-Controls 6.0, but the baseline
+IPA omits Wine's comctl32_v6 and only seeds x86 side-by-side assemblies.
+The new build stages pinned Wine version 6 controls and seeds AMD64 assembly
+identities with ARM64EC DLL links. Production seeder tests exercise both
+architectures, missing DLL refusal and bundle-link refresh after reinstall.
+The existing direct RDR2 launch adapter adds `-dx12` and preserves explicit
+renderer choices. Missing system.xml is not fabricated. Builds and physical
+launch/story acceptance remain pending; no gameplay success is claimed.
+
+## October 5 Teardown missing geometry/audio and earlier RDR2 preparation
 
 The latest private phone export has candidate-7 source stamp `8ed43f9` and
 the 12GB arena `[0xb30000000,0xe30000000)`. The user reaches gameplay with

@@ -101,6 +101,12 @@ if d3d12_staging.exists():
         assert sha(app / 'arm64ec-windows' / name) == expected, f'packaged D3D12 mismatch: {name}'
     report['source_built_d3d12'] = graphics
     report['unchanged_PE_components'] = 'tracked upstream binaries except rebuilt ntdll, Dock, XAudio2.9, four DXMT graphics DLLs and three Madeira D3D12 DLLs; complete clean PE rebuild pending'
+controls_staging = out / 'common-controls-staging.json'
+if controls_staging.exists():
+    controls = json.loads(controls_staging.read_text())
+    for name, expected in controls['staged_sha256'].items():
+        assert sha(app / 'arm64ec-windows' / name) == expected, f'packaged common controls mismatch: {name}'
+    report['source_built_common_controls'] = controls
 (out / 'build-provenance.json').write_text(json.dumps(report, indent=2) + '\n')
 PY
 PACKAGE="$(mktemp -d "$OUT/package.XXXXXX")"

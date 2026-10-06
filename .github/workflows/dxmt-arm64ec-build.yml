@@ -27,6 +27,13 @@ jobs:
           name: DXMT-ARM64EC-source-build
           path: build/ci-output/dxmt-arm64ec
           retention-days: 30
+      - name: Build Wine ARM64EC version 6 common controls
+        run: bash build/wine-pe/build-common-controls.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Wine-Common-Controls-source-build
+          path: build/ci-output/common-controls
+          retention-days: 30
       - name: Build Madeira D3D12 DLLs and guest test executables
         run: OUT="$PWD/build/ci-output/madeira-d3d12/modules" bash build/madeira-d3d12/build-pe.sh
       - name: Record Madeira D3D12 output hashes and metadata

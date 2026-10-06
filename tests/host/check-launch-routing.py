@@ -49,8 +49,13 @@ i386_branch = exe[exe.index("} else if (is_i386_target) {"):]
 assert i386_branch.index('"C:\\\\windows\\\\syswow64\\\\%s"') < i386_branch.index("} else {"), exe
 assert 'snprintf(exe_path, sizeof(exe_path), "C:\\\\windows\\\\system32\\\\%s", madeira_exe);' in exe
 sxs = function(src, "static void madeira_seed_winsxs_x86(")
-assert "x86_%s_%s_%s_none_deadbeef" in sxs and 'processorArchitecture=\\"x86\\"' in sxs
+assert '@"x86", @"i386-windows"' in sxs
 assert "arm64" not in sxs and "amd64" not in sxs, "only x86 assemblies are written"
+store = function(src, "static void madeira_seed_winsxs(")
+assert '@"%@_%s_%s_%s_none_deadbeef"' in store and 'processorArchitecture=\\"%@\\"' in store
+assert '[bundle stringByAppendingPathComponent:farm]' in store
+assert 'madeira_seed_winsxs(fm, prefix, bundlePath, @"amd64", @"arm64ec-windows");' in thread
+assert '"comctl32.dll", "comctl32_v6.dll"' in store
 print("PASS: non-i386 targets keep the upstream core choice and exe path; the i386 farm, wbem and winsxs come with the farm")
 
 # ---- Part B: the machine probe

@@ -50,6 +50,13 @@ def verify(ipa, provenance, checksum, commit):
             data = archive.read(prefix + 'arm64ec-windows/' + filename)
             require(hashlib.sha256(data).hexdigest() == report[key], filename + ' provenance mismatch')
             require(marker in data, filename + ' diagnostic marker missing')
+        controls = report.get('source_built_common_controls')
+        if controls is not None:
+            require(set(controls['staged_sha256']) == {'comctl32_v6.dll'}, 'unexpected common controls inventory')
+            require(any(controls['wine_commit'] + ' wine' in line for line in report['submodules']), 'common controls Wine pin mismatch')
+            for filename, expected in controls['staged_sha256'].items():
+                require(hashlib.sha256(archive.read(prefix + 'arm64ec-windows/' + filename)).hexdigest() == expected,
+                        filename + ' source build mismatch')
         graphics = report.get('source_built_dxmt')
         if 'xaudio2_9_sha256' in report:
             require(hashlib.sha256(archive.read(prefix + 'arm64ec-windows/xaudio2_9.dll')).hexdigest()

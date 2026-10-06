@@ -200,6 +200,16 @@ jobs:
       - name: Verify and stage source-built D3D12 DLLs
         if: inputs.dxmt_source_run != ''
         run: python3 tools/stage-d3d12-artifact.py build/ci-artifacts/d3d12-source
+      - uses: actions/download-artifact@v4
+        if: inputs.dxmt_source_run != ''
+        with:
+          name: Wine-Common-Controls-source-build
+          run-id: ${{ inputs.dxmt_source_run }}
+          github-token: ${{ github.token }}
+          path: build/ci-artifacts/common-controls-source
+      - name: Verify and stage source-built version 6 common controls
+        if: inputs.dxmt_source_run != ''
+        run: python3 tools/stage-common-controls-artifact.py build/ci-artifacts/common-controls-source
       - name: Build and package diagnostic IPA
         run: bash build/ci/package-ipa.sh
       - uses: actions/upload-artifact@v4

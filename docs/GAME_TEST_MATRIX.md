@@ -2,6 +2,24 @@
 
 Target device: iPhone18,2, iOS 26.6.2, Memory+ active, StikDebug JIT, no extended virtual address entitlement. Record the exact IPA SHA-256, device build, game build, Steam client file hashes, Madeira log and repeat count for each run. A blank result is not a pass.
 
+## October 5 current priority: direct RDR2 import
+
+The user deferred Teardown and requested RDR2. The current E: folder has
+276 files totaling 128,167,940,440 bytes; no game archives were copied to F:.
+The latest phone log (`madeira-log 7.txt`) reports 59GB free, insufficient
+for the full folder. Earlier folder and storage observations below are historical.
+The current AMD64 executable has no relocations and occupies 121,378,816
+bytes at 0x140000000, within the existing protected 128MiB image window.
+Its standard direct imports resolve in the game folder or existing Wine farm,
+except comctl32 ordinal 345: TaskDialogIndirect belongs to version 6.
+Its embedded manifest explicitly requests AMD64 Common-Controls 6.0.
+The new candidate builds pinned Wine comctl32_v6, stages it with authenticated
+artifact hashes, and seeds the AMD64 side-by-side store every session.
+The x86 assembly store remains separate. Default direct launch adds `-dx12`
+and existing settings receive the backed-up DX12 API edit.
+Build/host/package gates and the first iPhone launch remain pending. This
+static dependency repair does not establish menu or story gameplay.
+
 Candidate 9 phone follow-up: terrain and tools remain invisible; audio works.
 `madeira-log 5.txt` confirms `dcde6b1` and NaN-to-zero off. Candidate 10 adds
 integer volume lowering with Teardown session defaults and explicit overrides.
