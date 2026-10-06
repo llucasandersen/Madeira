@@ -28,3 +28,6 @@ jobs:
             build/ci-output/opengl-ios/**/meson-logs/**
             build/ci-output/opengl-ios/**/*kosmickrisp*.dylib
             build/ci-output/opengl-ios/ios-cross.ini
+            build/ci-output/opengl-ios/*/exports.txt
+            build/ci-output/opengl-ios/*/dependencies.txt
+            build/ci-output/opengl-ios/*/deployment.txt

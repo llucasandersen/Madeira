@@ -16,7 +16,7 @@ export CC="$(xcrun --find clang)" CXX="$(xcrun --find clang++)" OBJC="$(xcrun --
 export SDKROOT="$MAC_SDK"
 # Build Mesa's native shader generation tools first; iOS cannot execute them.
 meson setup "$OUT/native" "$SOURCE" --buildtype=release \
-  -Dplatforms= -Dgallium-drivers= -Dvulkan-drivers=kosmickrisp \
+  -Dplatforms=macos -Dgallium-drivers= -Dvulkan-drivers=kosmickrisp \
   -Dopengl=false -Dgles1=disabled -Dgles2=disabled -Degl=disabled -Dglx=disabled \
   -Dbuild-tests=false -Dtools= -Dinstall-mesa-clc=true -Dinstall-precomp-compiler=true \
   -Dmesa-clc=enabled -Dprecomp-compiler=enabled \
@@ -49,8 +49,16 @@ needs_exe_wrapper = true
 EOF
 export SDKROOT="$IOS_SDK"
 meson setup "$OUT/ios" "$SOURCE" --cross-file "$OUT/ios-cross.ini" --buildtype=release \
-  -Dplatforms= -Dgallium-drivers= -Dvulkan-drivers=kosmickrisp \
+  -Dplatforms=macos -Dgallium-drivers= -Dvulkan-drivers=kosmickrisp \
   -Dopengl=false -Dgles1=disabled -Dgles2=disabled -Degl=disabled -Dglx=disabled \
   -Dbuild-tests=false -Dtools= -Dllvm=disabled -Dmesa-clc=system -Dprecomp-compiler=system
 ninja -C "$OUT/ios" -j4
 find "$OUT/ios" -name '*kosmickrisp*.dylib' -print
+# Record exported ICD entry points and deployment/dependency metadata before packaging.
+for target in native ios; do
+  library="$OUT/$target/src/kosmickrisp/vulkan/libvulkan_kosmickrisp.dylib"
+  xcrun nm -gU "$library" > "$OUT/$target/exports.txt"
+  xcrun otool -L "$library" > "$OUT/$target/dependencies.txt"
+  xcrun vtool -show-build "$library" > "$OUT/$target/deployment.txt"
+  grep -q '_vk_icdGetInstanceProcAddr' "$OUT/$target/exports.txt"
+done
