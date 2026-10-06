@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 
 root = Path(__file__).resolve().parents[2]
@@ -277,4 +278,7 @@ void wine_launched_process_did_exit(int status) { assert(status == 0); atomic_fe
                         '-fsanitize=' + sanitizer, '-fno-omit-frame-pointer',
                         str(path / 'probe.c'), str(path / 'hook.c'), '-o', str(exe), '-pthread'], check=True, timeout=60)
         subprocess.run([str(exe)], check=True, timeout=30,
-                       env=dict(os.environ, ASAN_OPTIONS='detect_leaks=1', TSAN_OPTIONS='halt_on_error=1'))
+                       # Apple's ASan runtime rejects leak detection; retain
+                       # address/UB/thread checks, and leak checks on Linux.
+                       env=dict(os.environ, ASAN_OPTIONS='detect_leaks=' + ('0' if sys.platform == 'darwin' else '1'),
+                                TSAN_OPTIONS='halt_on_error=1'))
