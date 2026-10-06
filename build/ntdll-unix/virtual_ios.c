@@ -9155,7 +9155,6 @@ extern const void *dwrite_unix_call_funcs[];
  * STATUS_NOT_IMPLEMENTED. */
 extern const void *winegstreamer_unix_call_funcs[];
 extern const void *winevulkan_unix_call_funcs[];
-extern const void *winevulkan_unix_call_wow64_funcs[];
 
 /* win32u's unix init, statically linked via libwin32u_unix.a. Renamed
  * from __wine_unix_lib_init in build/win32u-unix/build.sh so future
@@ -9507,7 +9506,10 @@ static NTSTATUS load_builtin_unixlib( void *module, BOOL wow, const void **funcs
         } else if (match && strstr(match, "winevulkan")) {
             libname = "winevulkan (native Vulkan ABI conversion)";
             funcs64 = (const void *)winevulkan_unix_call_funcs;
-            funcs_wow64 = (const void *)winevulkan_unix_call_wow64_funcs;
+            /* This backend is for AMD64/ARM64EC games. Upstream's wow64
+             * Vulkan thunks have not been ported to Madeira's guest-window
+             * pointer conversions; refuse them instead of using raw PTR32. */
+            funcs_wow64 = NULL;
         } else if (match && strstr(match, "opengl32")) {
             pthread_once( &ios_stub_tables_once, ios_init_stub_tables );
             WARN_(module)("iOS: module %p (%s) -> GL-absent stub table (attach ok, wgl/gl NOT_SUPPORTED)\n",
