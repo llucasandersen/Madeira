@@ -251,7 +251,7 @@ rdrEntry.arguments = "-dx12"; rdrEntry.automaticCompatibility = false; rdrEntry.
 expect(env("MADEIRA_RDR2_DX12") == nil, "automatic compatibility opt-out clears renderer inheritance")
 rdrEntry.automaticCompatibility = true; rdrEntry.configureLaunch(); game.configureLaunch()
 expect(env("MADEIRA_RDR2_DX12") == nil, "the next generic launch clears RDR2 renderer inheritance")
-rdrEntry.configureLaunch(); steamGame.steamStart = nil; steamGame.configureLaunch()
+rdrEntry.configureLaunch(); var rdrDockEntry = steamGame; rdrDockEntry.steamStart = nil; rdrDockEntry.configureLaunch()
 expect(env("MADEIRA_RDR2_DX12") == nil, "the Dock early return clears renderer inheritance")
 let older = #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","title":"Old","relativePath":"a/b.exe","bits":64,"arguments":"","resolution":"944x656","fpsMode":1,"reducedX87":false,"liveLogs":false,"performance":false,"touchControls":false}"#
 let decodedOld = try? JSONDecoder().decode(LibraryEntry.self, from: Data(older.utf8))
