@@ -9154,6 +9154,8 @@ extern const void *dwrite_unix_call_funcs[];
  * and Media Foundation's MP4 source; the wg_muxer entries return
  * STATUS_NOT_IMPLEMENTED. */
 extern const void *winegstreamer_unix_call_funcs[];
+extern const void *winevulkan_unix_call_funcs[];
+extern const void *winevulkan_unix_call_wow64_funcs[];
 
 /* win32u's unix init, statically linked via libwin32u_unix.a. Renamed
  * from __wine_unix_lib_init in build/win32u-unix/build.sh so future
@@ -9502,6 +9504,10 @@ static NTSTATUS load_builtin_unixlib( void *module, BOOL wow, const void **funcs
             }
             libname = "win32u (stub table)";
             funcs64 = funcs_wow64 = (const void *)ios_stub_unix_call_table;
+        } else if (match && strstr(match, "winevulkan")) {
+            libname = "winevulkan (native Vulkan ABI conversion)";
+            funcs64 = (const void *)winevulkan_unix_call_funcs;
+            funcs_wow64 = (const void *)winevulkan_unix_call_wow64_funcs;
         } else if (match && strstr(match, "opengl32")) {
             pthread_once( &ios_stub_tables_once, ios_init_stub_tables );
             WARN_(module)("iOS: module %p (%s) -> GL-absent stub table (attach ok, wgl/gl NOT_SUPPORTED)\n",

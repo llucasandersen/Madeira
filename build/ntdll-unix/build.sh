@@ -91,6 +91,12 @@ compile_one "$BUILD_DIR/../madsync/madsync.c" "madsync"   # ml1058: userspace nt
 
 # iOS-Madeira 2026-07-05 (Steam S0): network + crypto unix sides.
 echo "=== Building crypto/network unixlibs ==="
+# Wine's generated Vulkan ABI conversion remains native on iOS. The actual
+# driver is loaded lazily by win32u; absence of a backend returns an error.
+compile_unixlib "$WINE_SRC/dlls/winevulkan/vulkan.c" "winevulkan" "winevulkan" \
+    -I"$WINE_SRC/dlls/winevulkan"
+compile_unixlib "$WINE_SRC/dlls/winevulkan/vulkan_thunks.c" "winevulkan_thunks" "winevulkan" \
+    -I"$WINE_SRC/dlls/winevulkan"
 "$CRYPTO_DIR/gen_gnutls_symtab.sh" > /dev/null
 compile_one "$CRYPTO_DIR/gnutls_symtab_ios.c" "gnutls_symtab_ios"
 compile_unixlib "$WINE_SRC/dlls/ws2_32/unixlib.c" "ws2_32_unixlib" "ws2_32" \
@@ -217,6 +223,7 @@ ar rcs "$OBJ_DIR/libntdll_unix.a" \
     "$OBJ_DIR/bcrypt_unixlib.o" "$OBJ_DIR/secur32_unixlib.o" "$OBJ_DIR/crypt32_unixlib.o" \
     "$OBJ_DIR/dwrite_unixlib.o" "$OBJ_DIR/dnsapi_unixlib.o" \
     "$OBJ_DIR/winegstreamer_unixlib.o" "$OBJ_DIR/wg_parser_apple_ios.o" \
+    "$OBJ_DIR/winevulkan.o" "$OBJ_DIR/winevulkan_thunks.o" \
     "$OBJ_DIR/cdrom.o" "$OBJ_DIR/debug.o" "$OBJ_DIR/env.o" "$OBJ_DIR/file.o" \
     "$OBJ_DIR/loader.o" "$OBJ_DIR/loadorder.o" "$OBJ_DIR/process.o" "$OBJ_DIR/registry.o" \
     "$OBJ_DIR/security.o" "$OBJ_DIR/serial.o" "$OBJ_DIR/server.o" \

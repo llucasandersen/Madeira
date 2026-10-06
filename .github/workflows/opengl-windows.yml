@@ -1,0 +1,34 @@
+name: Desktop OpenGL Windows translation build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  opengl-windows:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retrieve tracked Wine source
+        run: git submodule update --init --depth 1 wine
+      - name: Install build utilities
+        run: |
+          brew install meson ninja bison
+          python3 -m pip install --break-system-packages mako pyyaml packaging
+      - name: Build pinned Zink and Windows Vulkan interfaces
+        run: bash build/opengl-ios/build-windows.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opengl-windows-results
+          path: |
+            build/ci-output/opengl-windows/**/*.dll
+            build/ci-output/opengl-windows/**/meson-logs/**
+            build/ci-output/opengl-windows/windows-cross.ini
+            build/ci-output/opengl-windows/pe-dependencies.txt
+            wine/build-arm64ec/config.log
