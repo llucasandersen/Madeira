@@ -1,8 +1,63 @@
 # Game compatibility test matrix
 
+## October 6 RDR2 test build 5 delivery
+
+The latest phone log is still test build 3 (`madeira-log 12.txt`). It reaches
+the required child image address, then fails private-ntdll startup before
+graphics. Test build 5 includes the template retention correction and preserves
+the requested `-dx12` argument that Launcher.exe drops when restarting RDR2.
+Explicit child renderer choices and automatic compatibility opt-out remain
+effective. Windows child startup information and Unix argv receive the same
+command line; caller process parameters remain unchanged. Existing settings
+are backed up, and missing settings are not fabricated. Game files remain
+unchanged on E: with no bulk copy to F:.
+
+All 85 distinct host checks pass in
+[37482398582](https://github.com/llucasandersen/Madeira/actions/runs/37482398582)
+at `d4f52fa`, with no sanitizer diagnostics. Its production runtime/app source
+matches IPA source `e159c2c`; later changes isolate a test fixture, exclude
+internal session state from the configuration catalog and record evidence.
+Five targeted Mac checks also pass in
+[37481321943](https://github.com/llucasandersen/Madeira/actions/runs/37481321943).
+Fresh native runtime, app build, signing and packaging pass in
+[37481013995](https://github.com/llucasandersen/Madeira/actions/runs/37481013995).
+Unchanged graphics/Common-Controls source artifacts remain run 37404589105.
+Audio matches the earlier working component apart from rebuild timestamps.
+IPA provenance/component checks and all seven USB file hashes pass.
+
+Diagnostic IPA: `E:\Madeira-RDR2-Test-5\Madeira-diagnostic-e159c2c.ipa`
+(88,241,733 bytes), SHA-256 `3b72ba7c6c1694509a8ee9aa62ee5b65ee81875f57bc41173c30bb68905bd6ce`.
+Install as an update using the same signing account/App ID prefix. Keep the
+imported game folder and `env.MADEIRA_WAIT_CHILDREN = 1`, enable JIT and launch
+the existing RDR2.exe with automatic compatibility. Export the complete new
+log and report whether menu/story gameplay, visuals, audio, input and a second
+launch work. Phone acceptance remains pending; this is not a final gameplay
+pass, and the active goal remains open. Teardown stays deferred.
+
+## October 6 RDR2 renderer handoff and test gates
+
+The latest phone log (test build 3) fails private runtime startup before any
+graphics device or presents. Test build 4 on USB retains the needed ntdll
+template; its phone result remains pending. The same log shows that the
+initial `-dx12` argument disappears when Launcher.exe restarts RDR2.exe.
+Production source `e159c2c` preserves that requested renderer in the child
+Windows command line, respecting explicit child choices and automatic
+compatibility opt-out. It also releases the Wine argument parser's scratch
+buffer and checks allocation failure. No game files were changed.
+
+Five targeted Mac checks pass in run 37481321943 at `34a527f` with identical
+production source: template lifetime, socket cleanup, actual Wine parser and
+renderer helper, XML settings adapter and library launch environment.
+Run 37481326596 passes 84 of 85 distinct host checks with no sanitizer
+diagnostics; only the generated catalog check failed. Source `d4f52fa` keeps
+internal session policy out of user settings; its local catalog check passes.
+Full run 37482398582 is pending. Fresh native runtime compilation passes in
+IPA workflow 37481013995; app packaging remains pending. Phone menu/story
+gameplay, audio/input and repeat launch remain unverified.
+
 ## October 6 targeted runtime host evidence
 
-The full host run 37472160091 remains active in Linux environment preparation.
+The full host run 37472160091 later timed out during compiler downloads, before Linux tests started.
 To validate the two changed runtime paths independently, macOS ARM64 run
 [37477610396](https://github.com/llucasandersen/Madeira/actions/runs/37477610396) passes
 the production template helper/image-reload harness and the process socket
@@ -354,7 +409,7 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
 | Teardown, app 1167630 | Automatic D3D12 selection; visible voxels/terrain/tools, audio, level, ten minutes, close and relaunch | Candidate 8 audio works on the phone, but terrain/voxels/tools remain invisible despite active compound replay and nonzero draws | Candidate 9 preserves float texture payloads and adds bounded input captures; all 82 host and graphics/native/app/USB gates pass; visual/ten-minute/relaunch acceptance pending |
-| RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | Game imported; v6 controls load; child-session handoff works, then relaunched image stalls before graphics; whole 128GB folder inspected on E: with no bulk copy | Test build 3 reclaims the required address then fails private runtime boot; test build 4 diagnostic on USB preserves its template; Linux host gate and phone startup/gameplay remain pending |
+| RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | Game imported; v6 controls load; child-session handoff works, then relaunched image stalls before graphics; whole 128GB folder inspected on E: with no bulk copy | Test build 3 fails private runtime boot; test build 5 diagnostic on USB retains the template and renderer request; 85 host checks pass; phone startup/gameplay remains pending |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Supplied session log reaches physical footprint 6141 MB; no three-match survival result on the updated package | Memory pressure confirmed; updated device acceptance pending |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
 | Steam downloader | Median throughput at least 70% of direct same-CDN `URLSession` control when CPU is not limiting; resume and corruption checks | User reports much faster Steam downloading; no measured device/native-control comparison | Improvement reported; benchmark pending |

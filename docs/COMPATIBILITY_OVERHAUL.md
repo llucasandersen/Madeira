@@ -1,5 +1,39 @@
 # Compatibility overhaul: investigation record
 
+## October 6 RDR2 test build 5 delivery
+
+The latest phone log is still test build 3 (`madeira-log 12.txt`). It reaches
+the required child image address, then fails private-ntdll startup before
+graphics. Test build 5 includes the template retention correction and preserves
+the requested `-dx12` argument that Launcher.exe drops when restarting RDR2.
+Explicit child renderer choices and automatic compatibility opt-out remain
+effective. Windows child startup information and Unix argv receive the same
+command line; caller process parameters remain unchanged. Existing settings
+are backed up, and missing settings are not fabricated. Game files remain
+unchanged on E: with no bulk copy to F:.
+
+All 85 distinct host checks pass in
+[37482398582](https://github.com/llucasandersen/Madeira/actions/runs/37482398582)
+at `d4f52fa`, with no sanitizer diagnostics. Its production runtime/app source
+matches IPA source `e159c2c`; later changes isolate a test fixture, exclude
+internal session state from the configuration catalog and record evidence.
+Five targeted Mac checks also pass in
+[37481321943](https://github.com/llucasandersen/Madeira/actions/runs/37481321943).
+Fresh native runtime, app build, signing and packaging pass in
+[37481013995](https://github.com/llucasandersen/Madeira/actions/runs/37481013995).
+Unchanged graphics/Common-Controls source artifacts remain run 37404589105.
+Audio matches the earlier working component apart from rebuild timestamps.
+IPA provenance/component checks and all seven USB file hashes pass.
+
+Diagnostic IPA: `E:\Madeira-RDR2-Test-5\Madeira-diagnostic-e159c2c.ipa`
+(88,241,733 bytes), SHA-256 `3b72ba7c6c1694509a8ee9aa62ee5b65ee81875f57bc41173c30bb68905bd6ce`.
+Install as an update using the same signing account/App ID prefix. Keep the
+imported game folder and `env.MADEIRA_WAIT_CHILDREN = 1`, enable JIT and launch
+the existing RDR2.exe with automatic compatibility. Export the complete new
+log and report whether menu/story gameplay, visuals, audio, input and a second
+launch work. Phone acceptance remains pending; this is not a final gameplay
+pass, and the active goal remains open. Teardown stays deferred.
+
 ## RDR2 launcher renderer handoff — 2026-10-06
 
 The latest device log starts RDR2 with `-dx12`, but Launcher.exe restarts
