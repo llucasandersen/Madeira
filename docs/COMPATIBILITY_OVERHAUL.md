@@ -35,8 +35,20 @@ samples per process during existing census intervals: root/table constant
 buffers and small raw atlas regions, including hexadecimal R32Float texels.
 The captures are bounded and contained in the local diagnostic log. No game
 shader cache, disassembly or private phone log is committed or uploaded.
-Fresh native runtime, PE renderer, host and IPA gates are in progress.
-All original acceptance requirements and RDR2 device testing remain pending.
+All 82 host checks passed at `dcde6b1` in 37392477348, including the actual
+converter policy and cache-key regressions. Graphics source build 37392477354
+and fresh native/app build 37392506691 passed. The app compiled converter
+identity `0811ccc365a6a4b6`; macOS strict codesign and packaging passed.
+Local and USB package/source/component/checksum verification passed for
+`E:\Madeira-Compatibility-Update-9\Madeira-diagnostic-dcde6b1.ipa`:
+87,609,479 bytes, SHA-256
+`363c4cf839e5abc843cd8532d8c543a7671f9ef14f96892dbc105ae496652c4d`.
+All six delivery files were checked after copying. Candidate 9 retains the
+working audio component; phone visual/sustained/relaunch acceptance and the
+remaining original requirements, including RDR2 device testing, remain open.
+The [candidate-9 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.9)
+targets the exact app source; all six uploaded asset sizes and SHA-256 digests
+match the verified USB files.
 
 ## October 5 Teardown missing geometry/audio and RDR2 preparation
 

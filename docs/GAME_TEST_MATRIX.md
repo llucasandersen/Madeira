@@ -8,8 +8,15 @@ compound replay works, nonzero geometry draws occur, and foreground summaries
 show no GPU errors or skipped draws. Candidate 9 corrects the converter's
 float-payload default and adds bounded volume-input captures. Native Metal
 payload probe 37392477416 passed on the hosted paravirtual GPU; it does not test
-the converter or this phone. Fresh runtime/graphics/host/IPA gates are pending.
+the converter or this phone. All 82 host checks (37392477348), graphics
+(37392477354) and fresh native/app/package gates (37392506691) passed at
+`dcde6b1`, including strict macOS codesign. Local and USB verification passed:
+`E:\Madeira-Compatibility-Update-9\Madeira-diagnostic-dcde6b1.ipa`,
+87,609,479 bytes, SHA-256
+`363c4cf839e5abc843cd8532d8c543a7671f9ef14f96892dbc105ae496652c4d`.
 Teardown visual/sustained/relaunch acceptance and the whole goal remain open.
+The [candidate-9 prerelease](https://github.com/llucasandersen/Madeira/releases/tag/v0.1.3-compat-diagnostic.9)
+has the exact app source tag and all six asset sizes/digests match the USB copy.
 
 October 5 candidate-7 follow-up: the source stamp is `8ed43f9` and the 12GB
 arena is installed. The user reaches gameplay but reports invisible voxels,
@@ -180,7 +187,7 @@ and has not replaced USB update 2. The later upgrade requires its own gates.
 | Target | Required device result | Current evidence | Status |
 | --- | --- | --- | --- |
 | PEAK, app 3527290 | Steam stays alive; PEAK.exe created; menu, single-player level, DX11/DXMT, audio, input, authentication and repeated launches | User reports PEAK worked and believes it is fully playable; USB transfer now includes PEAK session logs; exact installed build and individual acceptance results pending | Gameplay success reported; detailed acceptance pending |
-| Teardown, app 1167630 | Automatic D3D12 selection; visible voxels/terrain/tools, audio, level, ten minutes, close and relaunch | Candidate 7 receives the 12GB arena and reaches gameplay, but geometry is missing and audio is silent; compound indirect draws are skipped and XAudio2.9 is missing | Candidate-8 rendering/audio repair passes all 81 host checks and graphics/native/app/USB gates; physical visual/audio/ten-minute/relaunch run pending |
+| Teardown, app 1167630 | Automatic D3D12 selection; visible voxels/terrain/tools, audio, level, ten minutes, close and relaunch | Candidate 8 audio works on the phone, but terrain/voxels/tools remain invisible despite active compound replay and nonzero draws | Candidate 9 preserves float texture payloads and adds bounded input captures; all 82 host and graphics/native/app/USB gates pass; visual/ten-minute/relaunch acceptance pending |
 | RDR2, additional USB import requirement | Direct imported executable; actual DX12 device, menu/story gameplay, audio/input, sustained play and relaunch | No phone run or generated settings; static direct dependencies are present; whole 128GB folder inspected on E: with no bulk copy | Initial DX12 argument/settings preparation is packaged; renderer/activation/gameplay unverified; latest logged 60GB free is insufficient for import |
 | Ravenfield | Three consecutive match loads and scene changes below the device memory ceiling | Supplied session log reaches physical footprint 6141 MB; no three-match survival result on the updated package | Memory pressure confirmed; updated device acceptance pending |
 | Bomber Crew | Visible primary window from Steam; switching, fullscreen and relaunch | Reported zero size and off-screen Unity window; no new device run | Not tested on this fork |
@@ -197,7 +204,7 @@ build for collecting missing evidence; it does not establish completion.
 | Original requirement | Current authoritative evidence | Remaining gate |
 | --- | --- | --- |
 | 1. PEAK and Valve runtime | Coherent Valve runtime upgrade, actual PE machine/dependency fixtures, real archive checks, native/app builds and user report of earlier gameplay | Exact updated-package log; Steam survival, executable creation, single-player, audio/input, authentication, networking where supported and repeated launches |
-| 2. Teardown renderer/content/children | Candidate 7 receives the larger arena and reaches gameplay; new logs identify compound indirect draw omission and missing XAudio2.9 | Verify visible world/tools, sound, ten minutes and relaunch after the new fixes; native peer-thread resource lifetime remains under audit |
+| 2. Teardown renderer/content/children | Candidate 8 audio confirmed; indirect replay active, but geometry invisible. Candidate 9 shader policy/capture and all build gates pass | Verify visible world/tools, ten minutes and relaunch; native peer-thread resource lifetime remains under audit |
 | 3. Ravenfield memory | Consumed learned JIT budgeting, measured footprint/headroom and source-built completed-resource ring trimming; host fixtures and graphics/app build | Three consecutive matches, scene changes, safe measured memory headroom and performance on the target phone |
 | 4. Bomber Crew windows | Compiled owner-thread primary-window repair, startup grace and actual-source sanitizer fixtures preserving dialogs and later minimization | Real Steam start, visible game window, switching, fullscreen/windowed transitions and relaunch |
 | 5. Steam downloads | Production adaptive concurrency, connection reuse/CDN selection, network/decode/write/hash/CPU/resume instrumentation, integrity fixtures and owned native-control measurement in candidate 5 | Measured same-CDN native-control comparison, roughly 70% median target when CPU is not limiting and actual device resume/update behavior |
