@@ -169,7 +169,7 @@ require('else { library.begin(.dockSession(title: game.name, width: width, heigh
 # (LibraryEntry.configureLaunch returns before MADEIRA_EXE for a Steam game; check-steam-games.py).
 # Either way the library is told which game Dock starts (its starting screen, DockStartScreen.swift).
 require('if let profile { library.begin(profile, dock: game) }' in start and start.count('runWineFullSequence(') == 1
-        and 'runWineFullSequence(profile: profile)' in start,
+        and 'runWineFullSequence(profile: profile, compatibilityAppID: game.id)' in start,
         "Dock's launch path takes a Steam game's own profile, and only that")
 configure = block(library, 'func configureLaunch()')
 require(configure.index('if steamAppID != nil {') < configure.index('setenv("MADEIRA_EXE"'),

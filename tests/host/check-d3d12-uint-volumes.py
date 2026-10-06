@@ -48,6 +48,7 @@ define i32 @main(i32 %index) {
     ir += ", !\"volume\", i32 0, i32 128, i32 "+std::to_string(bindless?131072:1)+", i32 "+std::to_string(kind)+", i32 0, !3}\n";
     // Shared extended properties: lowering must preserve the other 2D resource.
     ir += "!3 = !{i32 0, i32 9}\n!4 = !{i32 1, %class.Texture* undef, !\"float2d\", i32 0, i32 1, i32 1, i32 2, i32 0, !3}\n";
+    if(bindless) ir.replace(ir.find("type { float }"),14,"type { <4 x float> }");
     LLVMContext ctx; ctx.setOpaquePointers(false); SMDiagnostic err;
     auto m=parseAssemblyString(ir,err,ctx);
     if (!m) { err.print("fixture",errs()); abort(); }
@@ -84,7 +85,9 @@ static void check(const std::vector<uint8_t>&input, bool changed, bool bindless=
     assert(component(volume)==5 && component(other)==9);
     auto *type=cast<ConstantAsMetadata>(volume->getOperand(1))->getValue()->getType()->getPointerElementType();
     if(bindless) { assert(cast<ArrayType>(type)->getNumElements()==131072); type=cast<ArrayType>(type)->getElementType(); }
-    assert(cast<StructType>(type)->getElementType(0)->isIntegerTy(32));
+    auto *element=cast<StructType>(type)->getElementType(0);
+    if(bindless) { assert(cast<FixedVectorType>(element)->getNumElements()==4); element=cast<FixedVectorType>(element)->getElementType(); }
+    assert(element->isIntegerTy(32));
     // Idempotence prevents rewriting already integer declarations.
     void *again=nullptr; size_t n=0;
     assert(madeira_uint_volumes_rewrite(out,len,&again,&n,note,sizeof note)==0 && !again && !n);

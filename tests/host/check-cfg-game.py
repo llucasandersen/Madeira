@@ -105,7 +105,9 @@ check(i_cfg < i_game < i_fast, "bridge: game env lines after madeira.cfg's, befo
 
 lib = read("app/Madeira/Library.swift")
 apply_env = lib[lib.index("func applyEnvironment()"):lib.index("func configureLaunch()")]
-check("MadeiraConfig.applyGame(config)" in apply_env, "every library launch writes (or clears) the game's lines")
+check("MadeiraConfig.applyGame(preparedConfig)" in apply_env and
+      "compatibility?.runtimeConfig(user: config, global: MadeiraConfig.all()) ?? config" in apply_env,
+      "every library launch writes (or clears) game lines with compatibility defaults and explicit overrides")
 cfg = read("app/Madeira/MadeiraConfig.swift")
 check('unsetenv("MADEIRA_CFG_GAME")' in cfg and 'setenv("MADEIRA_CFG_GAME", u.path, 1)' in cfg,
       "MadeiraConfig.applyGame unsets before it sets")

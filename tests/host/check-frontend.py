@@ -88,6 +88,7 @@ enum MadeiraConfig {
     static var values: [String: String] = [:]   // stands in for madeira.cfg
     static func flag(_ name: String, fallback: Bool = true) -> Bool { fallback }
     static func get(_ key: String) -> String? { values[key] }
+    static func all() -> [String: String] { values }
     static func bool(_ key: String, default dflt: Bool = false) -> Bool { values[key].map { ["1", "on", "true", "yes"].contains($0) } ?? dflt }
     @discardableResult static func set(_ key: String, _ value: String?) -> Bool { values[key] = value; return true }
     static var game: String?   // stands in for the file MADEIRA_CFG_GAME names
@@ -105,6 +106,7 @@ enum GamepadInput { static let keyboardMouseAvailable = true }   // LibraryEntry
 enum LibraryError: LocalizedError { case message(String) }
 func env(_ name: String) -> String? { getenv(name).map { String(cString: $0) } }
 '''
+swift += (root / 'app/Madeira/GameCompatibility.swift').read_text() + '\n'
 swift += block(lib, 'struct LibraryEntry: Codable, Identifiable') + '\n'
 swift += block(lib, 'enum SyncEngine: String, CaseIterable, Identifiable') + '\n'
 swift += '\n'.join(l for l in display.splitlines() if not l.startswith('import ')) + '\n'
@@ -142,6 +144,18 @@ game.resolution = "1280x720"; game.configureLaunch()
 // A Steam game: Madeira Dock sets what starts, so its profile leaves MADEIRA_EXE alone...
 var steamGame = LibraryEntry(title: "Steam game", relativePath: "Program Files (x86)/Steam/steamapps/common/Some Game", bits: 0)
 steamGame.steamAppID = 4242
+var teardown = steamGame; teardown.steamAppID = 1167630
+teardown.applyEnvironment()
+expect(MadeiraConfig.game == "msc-uint-volume-loads = 1\n", "Teardown's actual entry exports integer volume session default")
+teardown.config = "msc-uint-volume-loads = 0"; teardown.applyEnvironment()
+expect(MadeiraConfig.game == "msc-uint-volume-loads = 0", "explicit game setting wins")
+teardown.config = nil; teardown.automaticCompatibility = false; teardown.applyEnvironment()
+expect(MadeiraConfig.game == nil, "compatibility opt-out removes the session default")
+teardown.automaticCompatibility = nil
+MadeiraConfig.values["msc-uint-volume-loads"] = "0"; teardown.applyEnvironment()
+expect(MadeiraConfig.game == nil, "explicit global setting wins")
+MadeiraConfig.values = [:]; teardown.applyEnvironment(); steamGame.applyEnvironment()
+expect(MadeiraConfig.game == nil, "the next generic game clears the previous volume mode")
 setenv("MADEIRA_EXE", "set-by-dock", 1); setenv("MADEIRA_STEAM_APPID", "1", 1)
 steamGame.configureLaunch()
 expect(env("MADEIRA_EXE") == "set-by-dock" && env("MADEIRA_STEAM_APPID") == nil, "Madeira Dock (the default): the profile sets nothing that starts")

@@ -111,6 +111,10 @@ start = content[content.index('private func startDock('):]
 assert start.index('cloudClear(') < start.index('compatibility.prepare(options:') < start.index('runWineFullSequence(profile:')
 assert start.index('wine_process_is_running() == 0', start.index('await SteamOwnedLibrary.shared.prepareDock()')) < start.index('compatibility.prepare(options:')
 assert 'enabled: profile?.automaticCompatibility != false' in start
+assert 'runWineFullSequence(profile: profile, compatibilityAppID: game.id)' in start
+run = content[content.index('private func runWineFullSequence('):content.index('private func startDock(')]
+assert run.index('MadeiraConfig.applyGame(nil)') < run.index('compatibilityAppID,') < run.index('StikJITHelper.allocatePool(')
+assert 'runtimeConfig(user: profile?.config, global: MadeiraConfig.all())' in run
 project = (root / 'app/Madeira.xcodeproj/project.pbxproj').read_text()
 assert project.count('A1F0FF01 /* GameCompatibility.swift in Sources */') == 2
 with tempfile.TemporaryDirectory() as folder:

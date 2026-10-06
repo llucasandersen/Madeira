@@ -170,7 +170,7 @@ require(content_view.count('SteamOwnedLibrary.shared.sessionChanged(active: true
 # is written, and stays off until the Dock session ended (the ordering the gate test above runs).
 dock_start = block(content_view, 'private func startDock(')
 order = [dock_start.find(s) for s in ('await SteamOwnedLibrary.shared.prepareDock()', 'SteamSignIn.credentialsForDock()',
-                                      'try MadeiraDock.writeHandoff(', 'runWineFullSequence(profile: profile)')]
+                                      'try MadeiraDock.writeHandoff(', 'runWineFullSequence(profile: profile, compatibilityAppID: game.id)')]
 require(-1 not in order and order == sorted(order),
         'Dock start: the app connection closes, then the sign-in is read and handed over, then the session starts')
 require(dock_start.count('SteamSignIn.credentialsForDock()') == 1 and dock_start.count('MadeiraDock.writeHandoff(') == 1,
