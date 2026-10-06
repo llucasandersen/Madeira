@@ -1,5 +1,26 @@
 # Game compatibility test matrix
 
+## October 6 targeted runtime host evidence
+
+The full host run 37472160091 remains active in Linux environment preparation.
+To validate the two changed runtime paths independently, macOS ARM64 run
+[37477610396](https://github.com/llucasandersen/Madeira/actions/runs/37477610396) passes
+the production template helper/image-reload harness and the process socket
+ownership/teardown harness under ASan/UBSan/TSan. Eight image-reload modes and
+both socket sanitizer runs are checked in the downloaded artifacts, without
+sanitizer diagnostics. The template assertions exercise containing allocation
+promotion, default/private/stale mappings and unrelated allocation ownership.
+Root teardown assertions exercise one-time template retention and cleanup order.
+
+Initial macOS attempts failed before execution on an omitted SDK path, then
+Apple's unsupported leak-detection option. The workflow now selects the macOS
+SDK; the harness retains address/UB/thread checks on Darwin and leak detection
+on Linux. Production runtime source at `5166038` matches IPA source `df29649`;
+the differences are CI, documentation and that platform sanitizer option.
+The test-build-4 IPA on USB is unchanged; its README records this evidence.
+This is a two-check host result, not an 84-check or phone gameplay pass. The
+full gate and phone test remain pending, and the goal is not complete.
+
 ## October 6 RDR2 template correction: device test pending
 
 Log `madeira-log 12.txt` confirms test build 3 retires the old executable and
