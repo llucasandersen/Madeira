@@ -1,5 +1,33 @@
 # Game compatibility test matrix
 
+## October 6 test build 10 captures: indirect readback defect isolated
+
+Both new phone exports identify `cc78c5b`. RDR2 includes the delayed dump
+and active worker registers, but still does not reach the menu. Its observed
+footprint peaks at 4,980 MB; memory exhaustion remains unproved. The captured
+worker executes several blocks in the low-address helper module. These
+samples do not establish a faulty operation or a fixed spin loop. A comparison
+with `env.FEX_MULTIBLOCK = 0` and `env.FEX_MAXINST = 1` on the existing test IPA
+has been requested; neither setting is shipped as a verified workaround.
+
+Teardown's completed compound indirect readbacks contain no live sampled
+draws. The native call faults in `objc_msgSend` with receiver `1`, at the
+buffer-copy call in `_MTLBlitCommandEncoder_encodeCommands`. Source inspection
+establishes the cause: `exec_begin_blit` returns a boolean success value, but
+`exec_indirect` used that value as the Metal encoder object. It must pass
+`e->benc`. Zero-filled readbacks subsequently suppress the compound draws.
+
+Fix source: `0ffacc2c2add8ddfafa11b5d115a7baec010ee38`. The regression now
+extracts the production boolean helper and requires a distinct encoder object;
+the previous fixture incorrectly replaced that helper with an object return.
+All 88 exact-source host checks pass without sanitizer diagnostics in
+[37566004229](https://github.com/llucasandersen/Madeira/actions/runs/37566004229).
+The graphics build passes in
+[37566006368](https://github.com/llucasandersen/Madeira/actions/runs/37566006368),
+and its renderer source and DLL hashes have been verified. Teardown's visible
+terrain/tools still require physical-device acceptance. RDR2 remains unresolved.
+No new final IPA has been packaged or delivered, and the complete goal is open.
+
 ## October 6 test build 9 phone results: original gameplay failures remain
 
 The new exports confirm source `ea6697d`. RDR2 restores its visible/audible
