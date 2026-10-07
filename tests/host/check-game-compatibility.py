@@ -52,13 +52,20 @@ check(policy.runtimeConfig(user: "  msc-uint-volume-loads=0\r\npool=64", global:
 check(policy.runtimeConfig(user: nil, global: ["msc-uint-volume-loads": "0"]) == nil)
 check(policy.runtimeConfig(user: "pool=64", global: ["msc-uint-volume-loads": "1"]) == "pool=64")
 let rdrPolicy = GameCompatibilityProfile.resolve(appID: 1174180)!
-check(rdrPolicy.runtimeConfig(user: nil, global: [:]) == "vram-mb = 2048\n")
-check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "0"]) == "vram-mb = 2048\n")
-check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "3072"]) == nil)
-check(rdrPolicy.runtimeConfig(user: "vram-mb=1536", global: [:]) == "vram-mb=1536")
-check(rdrPolicy.runtimeConfig(user: "vram-mb=0", global: ["vram-mb": "3072"]) == "vram-mb=0\nvram-mb = 2048\n")
-check(rdrPolicy.runtimeConfig(user: "vram-mb=0\nvram-mb=4096", global: [:]) == "vram-mb=0\nvram-mb=4096")
-check(rdrPolicy.runtimeConfig(user: "vram-mb=invalid", global: [:]) == "vram-mb=invalid")
+let conservativeCPU = "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 1\n"
+check(rdrPolicy.revision == 3)
+check(rdrPolicy.runtimeConfig(user: nil, global: [:]) == conservativeCPU + "vram-mb = 2048\n")
+check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "0"]) == conservativeCPU + "vram-mb = 2048\n")
+check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "3072"]) == conservativeCPU)
+check(rdrPolicy.runtimeConfig(user: "vram-mb=1536", global: [:]) == conservativeCPU + "vram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: "vram-mb=0", global: ["vram-mb": "3072"]) == conservativeCPU + "vram-mb=0\nvram-mb = 2048\n")
+check(rdrPolicy.runtimeConfig(user: "vram-mb=0\nvram-mb=4096", global: [:]) == conservativeCPU + "vram-mb=0\nvram-mb=4096")
+check(rdrPolicy.runtimeConfig(user: "vram-mb=invalid", global: [:]) == conservativeCPU + "vram-mb=invalid")
+let explicitCPU = "  env.FEX_MULTIBLOCK=1\r\nenv.FEX_MAXINST=32\nvram-mb=1536"
+check(rdrPolicy.runtimeConfig(user: explicitCPU, global: [:]) == explicitCPU)
+check(rdrPolicy.runtimeConfig(user: nil, global: ["env.FEX_MULTIBLOCK": "1", "env.FEX_MAXINST": "32", "vram-mb": "3072"]) == nil)
+check(rdrPolicy.runtimeConfig(user: "env.FEX_MULTIBLOCK=0\nvram-mb=1536", global: [:]) == "env.FEX_MAXINST = 1\nenv.FEX_MULTIBLOCK=0\nvram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: "env.FEX_MAXINST=1\nvram-mb=1536", global: ["env.FEX_MULTIBLOCK": "0"]) == "env.FEX_MAXINST=1\nvram-mb=1536")
 rejects(source.replacingOccurrences(of: "2.1.0", with: "99.0"))
 rejects(source.replacingOccurrences(of: "<gfxapi value=\"0\"/>", with: ""))
 rejects(source.replacingOccurrences(of: "<gfxapi value=\"0\"/>", with: "<gfxapi value=\"0\"/><gfxapi value=\"1\"/>"))
@@ -149,13 +156,14 @@ with tempfile.TemporaryDirectory() as folder:
     subprocess.run([str(path / 'check')], check=True)
     debug_fixture = r'''
 let profile = GameCompatibilityProfile.resolve(appID: 1174180)!
-precondition(profile.runtimeConfig(user: nil, global: [:]) == "env.MADEIRA_JIT_DUMP_AFTER_SECONDS = 120\nvram-mb = 2048\n")
-precondition(profile.runtimeConfig(user: "vram-mb=1536", global: [:]) == "env.MADEIRA_JIT_DUMP_AFTER_SECONDS = 120\nvram-mb=1536")
-precondition(profile.runtimeConfig(user: "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=0\nvram-mb=1536", global: [:]) == "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=0\nvram-mb=1536")
-precondition(profile.runtimeConfig(user: nil, global: ["env.MADEIRA_JIT_DUMP_AFTER_SECONDS": "0", "vram-mb": "3072"]) == nil)
+let conservativeCPU = "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 1\n"
+precondition(profile.runtimeConfig(user: nil, global: [:]) == conservativeCPU + "vram-mb = 2048\n")
+precondition(profile.runtimeConfig(user: "vram-mb=1536", global: [:]) == conservativeCPU + "vram-mb=1536")
+precondition(profile.runtimeConfig(user: "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=120\nvram-mb=1536", global: [:]) == conservativeCPU + "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=120\nvram-mb=1536")
+precondition(profile.runtimeConfig(user: nil, global: ["env.MADEIRA_JIT_DUMP_AFTER_SECONDS": "0", "vram-mb": "3072"]) == conservativeCPU)
 precondition(GameCompatibilityProfile.resolve(appID: 1167630)!.runtimeConfig(user: nil, global: [:]) == "msc-uint-volume-loads = 1\n")
 '''
     (path / 'main.swift').write_text(production + '\n' + debug_fixture, encoding='utf-8')
     subprocess.run(['swiftc', '-D', 'DEBUG', str(path / 'main.swift'), '-o', str(path / 'debug-check')], check=True)
     subprocess.run([str(path / 'debug-check')], check=True)
-print('PASS: production renderer policies, settings preservation and diagnostic-only late capture')
+print('PASS: production renderer policies, settings preservation, conservative RDR2 CPU defaults and opt-in late capture')

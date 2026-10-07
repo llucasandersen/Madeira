@@ -1,5 +1,21 @@
 # Game compatibility test matrix
 
+## October 6 RDR2 phone result: conservative CPU translation reaches gameplay
+
+The user reports that RDR2 now launches and plays successfully on the iPhone
+with `env.FEX_MULTIBLOCK = 0` and `env.FEX_MAXINST = 1` in its per-game settings.
+This is a successful device-tested compatibility workaround; the precise CPU
+translation defect behind the previous loading stall is not yet established.
+It does not establish every mission, save/load path or long-session behavior.
+
+RDR2 profile revision 3 supplies those two defaults in both Debug and release
+builds, while preserving explicit game/global overrides and the existing
+video-memory policy. The automatic delayed Debug dump is removed now that
+gameplay works; explicit diagnostic settings still function. Teardown's
+indirect encoder fix below is retained. Its visible terrain/tools and the
+combined updated IPA still require a new physical-device test. The complete
+goal remains open until that acceptance result is available.
+
 ## October 6 test build 10 captures: indirect readback defect isolated
 
 Both new phone exports identify `cc78c5b`. RDR2 includes the delayed dump

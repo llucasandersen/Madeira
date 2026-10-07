@@ -54,7 +54,7 @@ struct GameCompatibilityProfile: Equatable {
     // No profile is needed for PEAK's ordinary D3D11 launch path.
     private static let builtins = [Self(appID: 1167630, revision: 4,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
-        Self(appID: 1174180, revision: 2, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
+        Self(appID: 1174180, revision: 3, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
     func prepare(options: URL) throws -> Bool {
         switch settingsAdapter {
@@ -73,20 +73,19 @@ struct GameCompatibilityProfile: Equatable {
     /// Session defaults; explicit game/global settings take precedence.
     func runtimeConfig(user: String?, global: [String: String]) -> String? {
         if appID == 1174180 {
-            var session = user
-#if DEBUG
-            // Diagnostic IPAs capture the loading period automatically. A
-            // release build and explicit user/global overrides retain their
-            // existing policy; no game executable or activation data changes.
-            let diagnosticKey = "env.MADEIRA_JIT_DUMP_AFTER_SECONDS"
-            let explicitDump = (user ?? "").split(separator: "\n").contains { line in
+            // The iPhone loading stall clears with this conservative CPU
+            // translation policy. Preserve explicit user/global choices.
+            let explicitKeys = Set((user ?? "").split(separator: "\n").compactMap { line -> String? in
                 let parts = line.split(separator: "=", maxSplits: 1)
-                return parts.count == 2 && parts[0].trimmingCharacters(in: .whitespaces) == diagnosticKey
+                return parts.count == 2 ? parts[0].trimmingCharacters(in: .whitespaces) : nil
+            })
+            var defaults = ""
+            for (key, value) in [("env.FEX_MULTIBLOCK", "0"), ("env.FEX_MAXINST", "1")] {
+                if !explicitKeys.contains(key), global[key] == nil {
+                    defaults += key + " = " + value + "\n"
+                }
             }
-            if !explicitDump, global[diagnosticKey] == nil {
-                session = diagnosticKey + " = 120\n" + (user ?? "")
-            }
-#endif
+            let session = defaults.isEmpty ? user : defaults + (user ?? "")
             // The device trace's automatic 1 GB budget reaches frames, then
             // ERR_GFX_D3D_DEFERRED_MEM. Use a 2 GB session budget; the native
             // budget still trims under real process pressure. Zero means Auto
