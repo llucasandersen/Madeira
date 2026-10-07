@@ -1390,7 +1390,9 @@ static void *wine_process_thread(void *arg) {
                 }
             }
 
-            // Use bundled desktop OpenGL for sessions whose game profile selects it.
+            // Enable experimental desktop OpenGL components for this session.
+            // The current backend exposes GL 2.1; Teardown requires GL 4.5
+            // and its automatic profile uses D3D12.
             const char *openGL = getenv("MADEIRA_OPENGL");
             madeira_clear_opengl_links(fm, prefix, bundlePath);
             if (openGL && !strcmp(openGL, "1"))
