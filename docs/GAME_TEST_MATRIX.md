@@ -1,5 +1,38 @@
 # Game compatibility test matrix
 
+## October 6 test build 7 phone results: acceptance failed
+
+The supplied `logs 5/RDR2.exe-2026-10-06_18-57-50.txt` and
+`logs 5/teardown.exe-2026-10-06_19-06-42.txt` both identify IPA source
+`5887d285908e0e490934439967e1db259c7fb277`. The user reports a visible,
+audible RDR2 intro followed by indefinite loading, and Teardown intro audio
+with a white screen followed by a crash. Neither game passes acceptance.
+
+RDR2's log covers about 504 seconds and reaches at least 28,800 D3D12 presents,
+with continued roughly 59 FPS submission near the end. GPU command-buffer
+reports show zero errors. Footprint reaches about 4,958 MB; video budget trims
+from 2,048 to 1,740 MB. The main thread repeatedly waits in `NtDelayExecution`
+while a guest worker consumes about one CPU core. Repeated SMC/SIGBUS messages
+also occur; their presence alone does not establish an unhandled fatal fault
+because successful self-modifying-code recovery is logged in the same paths.
+The stall's root cause is unresolved. GPU submissions do not prove menu or
+Story progress or correct images on screen.
+
+Teardown now logs all four `sysx64` GL/Vulkan links, loads Mesa
+`libgallium_wgl.dll` and the native Wine Vulkan ABI bridge, and records one
+successful Vulkan present. It then faults at about 36 seconds: the exact
+reconstructed guest RIP is `teardown.exe+0x5df216`, reading a byte through
+null `RDX` (`44 0f b6 0a`). The stale State.RIP still names Mesa code and is
+not the faulting game instruction. The existing generic R10 operand diagnostic
+does not prove a lost pointer high half for this instruction. Subsequent
+crash-reporting/process cleanup faults must not be substituted for this first
+game fault. Its origin and the white-screen cause remain unresolved.
+
+Requested the game's own Teardown error output and RDR2's generated
+`Settings/system.xml`, plus the last visible RDR2 screen. The USB was
+disconnected during investigation. No new repair IPA has been built from
+these observations, and test 7 must not be described as a confirmed fix.
+
 ## October 6 combined test build 7 delivery
 
 Verified on USB: `E:\Madeira-RDR2-Teardown-Test-7\Madeira-diagnostic-5887d28.ipa`.
