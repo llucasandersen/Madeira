@@ -75,7 +75,8 @@ struct GameCompatibilityProfile: Equatable {
         if appID == 1174180 {
             // The iPhone loading stall clears with this conservative CPU
             // translation policy. Preserve explicit user/global choices.
-            let explicitKeys = Set((user ?? "").split(separator: "\n").compactMap { line -> String? in
+            let lines = (user ?? "").components(separatedBy: .newlines)
+            let explicitKeys = Set(lines.compactMap { line -> String? in
                 let parts = line.split(separator: "=", maxSplits: 1)
                 return parts.count == 2 ? parts[0].trimmingCharacters(in: .whitespaces) : nil
             })
@@ -95,7 +96,6 @@ struct GameCompatibilityProfile: Equatable {
             // ERR_GFX_D3D_DEFERRED_MEM. Use a 2 GB session budget; the native
             // budget still trims under real process pressure. Zero means Auto
             // in the Video memory picker, rather than an explicit 0 MB budget.
-            let lines = (user ?? "").split(separator: "\n")
             let chosen = lines.compactMap { line -> String? in
                 let parts = line.split(separator: "=", maxSplits: 1)
                 guard parts.count == 2, parts[0].trimmingCharacters(in: .whitespaces) == "vram-mb" else { return nil }
@@ -106,7 +106,7 @@ struct GameCompatibilityProfile: Equatable {
         }
         guard appID == 1167630 else { return user }
         if preferredRenderer == .opengl {
-            let overrides = (user ?? "").split(separator: "\n").compactMap { line -> String? in
+            let overrides = (user ?? "").components(separatedBy: .newlines).compactMap { line -> String? in
                 let parts = line.split(separator: "=", maxSplits: 1)
                 guard parts.count == 2, parts[0].trimmingCharacters(in: .whitespaces) == "env.WINEDLLOVERRIDES" else { return nil }
                 return parts[1].trimmingCharacters(in: .whitespaces)
@@ -118,7 +118,7 @@ struct GameCompatibilityProfile: Equatable {
                 "env.MADEIRA_OPENGL = 1\nenv.WINEDLLOVERRIDES = " + merged + "\n"
         }
         let key = "msc-uint-volume-loads"
-        let explicit = (user ?? "").split(separator: "\n").contains { line in
+        let explicit = (user ?? "").components(separatedBy: .newlines).contains { line in
             let parts = line.split(separator: "=", maxSplits: 1)
             return parts.count == 2 && parts[0].trimmingCharacters(in: .whitespaces) == key
         }
