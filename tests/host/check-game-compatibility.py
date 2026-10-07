@@ -29,8 +29,11 @@ check(try! TeardownRendererSettings.selectingD3D12(Data(selected.utf8)) == Data(
 check(GameCompatibilityProfile.resolve(appID: 3527290) == nil)
 check(GameCompatibilityProfile.resolve(appID: 1167630, enabled: false) == nil)
 let policy = GameCompatibilityProfile.resolve(appID: 1167630)!
-check(policy.preferredRenderer == .d3d12 && policy.revision == 2)
-let openGLPolicy = GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: true)!
+check(policy.preferredRenderer == .d3d12 && policy.revision == 4)
+check(GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: true, openGLVersion: 21)!.preferredRenderer == .d3d12)
+check(GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: true, openGLVersion: 44)!.preferredRenderer == .d3d12)
+check(GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: false, openGLVersion: 45)!.preferredRenderer == .d3d12)
+let openGLPolicy = GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: true, openGLVersion: 45)!
 check(openGLPolicy.preferredRenderer == .opengl && openGLPolicy.revision == 3)
 check(GameCompatibilityProfile.resolve(appID: 1167630, enabled: false, openGLAvailable: true) == nil)
 check(GameCompatibilityProfile.resolve(appID: 1174180, openGLAvailable: true)!.preferredRenderer == .d3d12)

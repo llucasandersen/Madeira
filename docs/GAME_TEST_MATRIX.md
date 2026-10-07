@@ -1,5 +1,24 @@
 # Game compatibility test matrix
 
+## October 6 test build 8 phone results and renderer correction
+
+The latest Teardown export identifies source `273813a`. The driver reports
+requested GL 1.0, actual GL 2.1, GLSL 1.20. It records one Vulkan present and
+again faults on the game null read at `teardown.exe+0x5df216`. Later context
+messages are suppressed by Wine's four-message debug-string rate limit.
+The requested legacy context alone does not prove the game's later requests.
+However, the pinned backend independently lacks transform feedback and
+geometry-shader support, which Zink needs to expose higher GL versions.
+It cannot meet Teardown's published OpenGL 4.5 requirement.
+
+The automatic profile now requires adequate GL capability as well as bundled
+files. Revision 4 returns Teardown to D3D12 instead of automatically selecting
+this inadequate OpenGL backend. This is a renderer-selection correction;
+missing D3D12 terrain/tools remain unresolved. RDR2's animated loading stall
+also remains unresolved. The newest export contains no newer RDR2 run.
+No gameplay pass or final repair is claimed. See the
+[OpenGL record](DESKTOP_OPENGL_IOS.md) for primary references and limitations.
+
 ## October 6 diagnostic test build 8: actual OpenGL capabilities
 
 Verified on USB: `E:\Madeira-Teardown-Context-Test-8\Madeira-diagnostic-273813a.ipa`.

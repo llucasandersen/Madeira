@@ -34,10 +34,17 @@ struct GameCompatibilityProfile: Equatable {
 #endif
     }
 
+    // The pinned KosmicKrisp backend does not implement transform feedback
+    // or geometry shaders. Zink consequently exposes OpenGL 2.1 on the
+    // supplied iPhone run. DLL presence must not imply the 4.5 capability
+    // required by this game's OpenGL renderer.
+    static var bundledDesktopOpenGLVersion: Int { bundledDesktopOpenGL ? 21 : 0 }
+
     static func resolve(appID: Int, enabled: Bool = true,
-                        openGLAvailable: Bool = bundledDesktopOpenGL) -> Self? {
+                        openGLAvailable: Bool = bundledDesktopOpenGL,
+                        openGLVersion: Int = bundledDesktopOpenGLVersion) -> Self? {
         guard enabled else { return nil }
-        if appID == 1167630, openGLAvailable {
+        if appID == 1167630, openGLAvailable, openGLVersion >= 45 {
             return Self(appID: appID, revision: 3, preferredRenderer: .opengl, settingsAdapter: .teardownRegistry)
         }
         return builtins.first { $0.appID == appID }
@@ -45,7 +52,7 @@ struct GameCompatibilityProfile: Equatable {
 
     // Teardown 2.1.0: supplied options.xml and a real D3D12 device trace.
     // No profile is needed for PEAK's ordinary D3D11 launch path.
-    private static let builtins = [Self(appID: 1167630, revision: 2,
+    private static let builtins = [Self(appID: 1167630, revision: 4,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
         Self(appID: 1174180, revision: 2, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 

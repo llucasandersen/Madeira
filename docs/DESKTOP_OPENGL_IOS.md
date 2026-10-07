@@ -39,13 +39,23 @@ manifest and upstream licenses. The IPA build signs the native libraries and
 records their final hashes. Package verification requires all seven runtime
 files and checks those hashes.
 
-When all components are bundled on iOS 26, Teardown's automatic profile
-selects the OpenGL candidate. Its existing, validated version 2.1.0 settings
-file changes only `gfxapi` to zero; `d3d12support`, audio and other choices are
-preserved. The original settings backup remains. A missing or unsupported
-settings file is not replaced with a guessed schema. The native OpenGL DLL
-policy and prefix links apply to that session. Compatibility opt-out remains
-available. RDR2 continues to use D3D12.
+Test build 8's iPhone log reports a requested legacy 1.0 context, actual
+OpenGL 2.1 and GLSL 1.20. Later context messages are hidden by Wine's existing
+four-message OutputDebugString rate limit; absence is not evidence that no
+later request occurred. Independently, the pinned KosmicKrisp source does not
+advertise `VK_EXT_transform_feedback` or `geometryShader`. Mesa's
+[Zink requirements](https://docs.mesa3d.org/drivers/zink.html) need the former
+for GL 3.0 and the latter for GL 3.2. The backend cannot meet Teardown's
+[published GL 4.5 requirement](https://teardowngame.com/faq.html).
+
+Automatic selection now requires both bundled components and sufficient
+OpenGL capability. The pinned backend's capability is 2.1, so Teardown's
+revision 4 profile selects D3D12 and updates only its validated renderer
+settings. Original backups, audio choices and other settings are preserved.
+This corrects selection of an inadequate renderer; it does not resolve the
+earlier D3D12 terrain/tools failure. The experimental OpenGL components remain
+bundled for explicit development sessions. No version override or invented
+feature is used. RDR2 continues to use D3D12; its loading stall is unresolved.
 
 All four PE components (`opengl32.dll`, `libgallium_wgl.dll`, `vulkan-1.dll`
 and `winevulkan.dll`) are packaged in `x86_64-opengl`, outside the default
