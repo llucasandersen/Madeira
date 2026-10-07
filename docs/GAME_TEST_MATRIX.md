@@ -2,6 +2,24 @@
 
 ## October 6 test build 7 phone results: acceptance failed
 
+The supplied `E:\Madeira\fex-jit-dump.bin` is 939,524,096 bytes. Bounded reads
+of its compiled blocks match the first crash instruction. The game caller at
+RVA `0x887f40` loads a member at `+0x2200`, calls the getter at `0xd8910`
+(`+0xe8`), then the getter at `0xa37d0` (`+0x10`). That zero return becomes the
+input to the constructor at `0x5df210`, which dereferences it at `0x5df216`.
+The compiled getter instructions preserve 64-bit pointers. Object types and
+the cause of the missing data remain unproved; no game binary was patched.
+The pool's original game-image copy is not the runtime-decrypted guest code
+at these locations, so it cannot replace the compiled-block evidence.
+
+RDR2's `ml981` profiler reads the frame's entry RIP, which can be stale while
+translated code runs. Its concentrated `0x132cc623` bucket does not prove a
+fixed spin loop. The exact thread sampler resolves varied current RIPs in
+that worker. Requested a Teardown run with scoped `env.MESA_DEBUG = 1` to
+enable the release OpenGL driver's existing error output. The user has no
+game-native logs or RDR2 `system.xml` available and confirms an animated
+loading spinner. No new repair is claimed from the dump alone.
+
 The supplied `logs 5/RDR2.exe-2026-10-06_18-57-50.txt` and
 `logs 5/teardown.exe-2026-10-06_19-06-42.txt` both identify IPA source
 `5887d285908e0e490934439967e1db259c7fb277`. The user reports a visible,
