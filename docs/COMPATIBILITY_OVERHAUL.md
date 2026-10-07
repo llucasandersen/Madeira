@@ -1,5 +1,21 @@
 # Compatibility overhaul: investigation record
 
+## October 6 diagnostic test build 8: context evidence
+
+Test 8 at source `273813a` is verified on USB in
+`E:\Madeira-Teardown-Context-Test-8`. The test 7 Mesa-debug phone run
+reports an invalid `GL_NUM_EXTENSIONS` query and the same game null read.
+The context used for that query and its relation to the crash are unproved.
+The new Windows OpenGL component records actual/requested context versions,
+GLSL, creation failures and missing GL 3.0 gates when `MESA_DEBUG` is set.
+No capabilities or version are overridden. It is a diagnostic build only.
+
+All 87 exact-source host checks, component compilation, app packaging,
+package provenance and nine USB file hashes pass. Reused native runtime
+and native OpenGL inputs match; RDR2 behavior is unchanged from test 7.
+Both games still need a repair and physical-device acceptance. The goal
+is open. See [the matrix](GAME_TEST_MATRIX.md) for hashes and workflow evidence.
+
 ## October 6 test build 7: OpenGL routing and RDR2 renderer isolation
 
 Test 7 at source `5887d28` is verified on USB:

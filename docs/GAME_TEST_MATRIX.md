@@ -1,5 +1,38 @@
 # Game compatibility test matrix
 
+## October 6 diagnostic test build 8: actual OpenGL capabilities
+
+Verified on USB: `E:\Madeira-Teardown-Context-Test-8\Madeira-diagnostic-273813a.ipa`.
+Source: `273813aa21876233b162472faae681fa4b15becf`; size: 95,952,213 bytes;
+SHA-256: `01f10ce8fe57e8e9d95cfe9bce61613ff12bd245b57a68f908d69a5b8cf9d7d0`.
+
+The new scoped `env.MESA_DEBUG = 1` phone run on test 7 reports
+`GL_INVALID_ENUM in glGetIntegerv(pname=GL_NUM_EXTENSIONS)` and the same
+first null read at `teardown.exe+0x5df216`. This does not establish whether
+the query ran in an initial legacy context or the required game context.
+No missing backend feature or causal connection to the crash is proved.
+
+Test 8 logs the requested and actual WGL context version/profile, GLSL
+version, context creation failures and missing Mesa OpenGL 3.0 gates.
+Logging is enabled by `MESA_DEBUG`; it does not override versions, enable
+unsupported features or change rendering behavior. Keep Automatic
+compatibility and `env.MESA_DEBUG = 1`, then export the new full phone log.
+Teardown terrain/tools, stability and RDR2 menu/Story progression remain
+unconfirmed. This is a diagnostic build, not a final repair; the goal is open.
+
+All 87 exact-source host checks pass without sanitizer diagnostics in
+[37553880854](https://github.com/llucasandersen/Madeira/actions/runs/37553880854).
+The Windows OpenGL component and iPhone Vulkan ABI bridge compile in
+[37553878897](https://github.com/llucasandersen/Madeira/actions/runs/37553878897).
+App packaging passes in
+[37553913023](https://github.com/llucasandersen/Madeira/actions/runs/37553913023).
+The six targeted Mac checks from 37546113080 have identical corresponding
+app/runtime inputs. Reused native runtime 37540738924 and native OpenGL
+37538235752 inputs were compared and verified; XAudio2 matches working test 5
+apart from rebuild timestamps. Package provenance, all seven OpenGL runtime
+hashes and all nine USB file hashes pass. RDR2 retains test 7's runtime and
+profile; no new RDR2 loading repair is claimed. No bulk game copy was made.
+
 ## October 6 test build 7 phone results: acceptance failed
 
 The supplied `E:\Madeira\fex-jit-dump.bin` is 939,524,096 bytes. Bounded reads
