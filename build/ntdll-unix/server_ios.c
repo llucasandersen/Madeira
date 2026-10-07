@@ -935,6 +935,20 @@ static void ios_thread_sampler_pass(int burst)
                 n += snprintf(line + n, sizeof(line) - n, " ]");
             }
             wine_log_write("%s", line);
+            if (!burst && rip && running && bi.cpu_usage >= 500) {
+                char registers[1000];
+                int length = snprintf(registers, sizeof registers,
+                    "[thread-registers] teb=0x%llx block=0x%llx hostpc=0x%llx guest=0x%llx",
+                    (unsigned long long)x18, (unsigned long long)bb,
+                    (unsigned long long)pc, (unsigned long long)rip);
+                /* The suspended snapshot accompanies its exact host PC.
+                 * Offline analysis can follow the actual branch condition;
+                 * a frame's saved RIP alone is not a spin-loop diagnosis. */
+                for (i = 0; i < 29 && length < (int)sizeof registers - 40; i++)
+                    length += snprintf(registers + length, sizeof registers - length,
+                        " x%u=%llx", i, (unsigned long long)st.__x[i]);
+                wine_log_write("%s", registers);
+            }
             printed++;
         }
     }
