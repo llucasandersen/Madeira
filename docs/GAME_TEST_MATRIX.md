@@ -1,5 +1,31 @@
 # Game compatibility test matrix
 
+## October 6 test build 9 delivery: startup and renderer selection
+
+Verified on USB: `E:\Madeira-RDR2-Teardown-Test-9\Madeira-diagnostic-ea6697d.ipa`.
+Source: `ea6697dbeda63efd739cc2d0641b0d044ec72957`; size: 95,952,789 bytes;
+SHA-256: `a484e38aad3c5124641891b03ea196e7e5459f2cc364e6fcf6d6a2acb4440f26`.
+
+This corrects renamed-bundle graphics-link cleanup and the automatic
+selection of an inadequate OpenGL backend. It does not establish Teardown
+terrain/tools rendering or RDR2 menu/Story progression. Both games remain
+unconfirmed; the earlier animated RDR2 loading stall and D3D12 voxel failure
+still need work. The complete goal is open. Keep Automatic compatibility;
+remove any manually forced OpenGL session settings before the next test.
+
+All 87 exact-source host checks pass without sanitizer diagnostics in
+[37558056659](https://github.com/llucasandersen/Madeira/actions/runs/37558056659).
+All six targeted Mac checks pass at the exact source in
+[37558059033](https://github.com/llucasandersen/Madeira/actions/runs/37558059033),
+including executed cleanup for `Madeira.app`, `App.app` and custom signing
+bundle names, both launch architectures, dangling reinstall links and
+unrelated user-file/link preservation. App build and packaging pass in
+[37558061369](https://github.com/llucasandersen/Madeira/actions/runs/37558061369).
+Reused native runtime and graphics component inputs were compared; package
+provenance, seven OpenGL component hashes and nine USB file hashes pass.
+XAudio2 matches working test 5 apart from rebuild timestamps. Game data was
+not modified or bulk-copied to the computer. Phone acceptance is pending.
+
 ## October 6 test build 8 phone results and renderer correction
 
 The latest Teardown export identifies source `273813a`. The driver reports
@@ -15,7 +41,7 @@ The automatic profile now requires adequate GL capability as well as bundled
 files. Revision 4 returns Teardown to D3D12 instead of automatically selecting
 this inadequate OpenGL backend. This is a renderer-selection correction;
 missing D3D12 terrain/tools remain unresolved. RDR2's animated loading stall
-also remains unresolved. The newest export contains no newer RDR2 run.
+also remains unresolved. The initial export contained no newer RDR2 run; the subsequent export is described below.
 The subsequent RDR2 export also identifies source `273813a` and shows
 the signer installed the app as `App.app`. The cleanup matched only
 `Madeira.app`, so a previous OpenGL session's Vulkan links survived in

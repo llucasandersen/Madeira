@@ -1,5 +1,23 @@
 # Compatibility overhaul: investigation record
 
+## October 6 test build 9: renamed signing bundle and GL capability
+
+Test 9 at source `ea6697d` is verified on USB in
+`E:\Madeira-RDR2-Teardown-Test-9`. The latest test 8 RDR2 run loads
+Vulkan DLLs left by the prior Teardown session and asserts in
+`vkDestroyQueryPool`, terminating its child before the intro. The installed
+bundle is `App.app`; cleanup previously matched only `Madeira.app`.
+The correction recognizes renamed bundles and preserves unrelated user
+files/links. This targets the new startup failure; the earlier animated
+loading stall remains unresolved.
+
+Teardown's pinned GL backend cannot meet its GL 4.5 requirement. Automatic
+selection now checks capability as well as file presence and uses D3D12.
+The previous missing D3D12 terrain/tools remain unresolved. All 87 host
+checks and six targeted Mac checks pass at the exact source, along with
+app build, packaging and nine USB hashes. Both games still require phone
+acceptance. The goal is open; see [the matrix](GAME_TEST_MATRIX.md).
+
 ## October 6 diagnostic test build 8: context evidence
 
 Test 8 at source `273813a` is verified on USB in
