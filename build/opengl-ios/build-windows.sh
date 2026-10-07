@@ -8,6 +8,7 @@ bash build/ci/fetch-mingw.sh
 TC="$R/toolchains/llvm-mingw-20260421-ucrt-macos-universal/bin"
 export PATH="$(brew --prefix bison)/bin:$TC:$PATH"
 SOURCE="$(python3 build/opengl-ios/fetch-mesa.py)"
+python3 build/opengl-ios/patch-wgl-diagnostics.py "$SOURCE"
 OUT="$R/build/ci-output/opengl-windows"
 mkdir -p "$OUT"
 cat > "$OUT/windows-cross.ini" <<EOF

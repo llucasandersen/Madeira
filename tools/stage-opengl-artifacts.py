@@ -52,7 +52,8 @@ native, native_info = retrieve(ARGS.native_run, 'opengl-ios-backend-results', [
     'build/opengl-ios/build-backend.sh', 'build/opengl-ios/build-loader.sh',
     'build/opengl-ios/check-loader.py'])
 windows, windows_info = retrieve(ARGS.windows_run, 'opengl-windows-results', [
-    'build/opengl-ios/fetch-mesa.py', 'build/opengl-ios/build-windows.sh'])
+    'build/opengl-ios/fetch-mesa.py', 'build/opengl-ios/build-windows.sh',
+    'build/opengl-ios/patch-wgl-diagnostics.py'])
 hashes = {}
 for name in ['vulkan-1.dll', 'winevulkan.dll', 'opengl32.dll', 'libgallium_wgl.dll']:
     copy(unique(windows, name), ROOT / 'build/ci-output/opengl-package/x86_64-opengl' / name)
