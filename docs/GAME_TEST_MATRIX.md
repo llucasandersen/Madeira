@@ -1,5 +1,17 @@
 # Game compatibility test matrix
 
+## October 6 test build 11 delivery: memory tier and indirect encoder candidate
+
+Verified on USB: `E:\Madeira-RDR2-Teardown-Test-11\Madeira-diagnostic-40133d3.ipa`.
+Source `40133d3742c1e665971e6cd341e643d8d8357845`; 95,955,291 bytes;
+SHA-256 `beaeb1e0439b7dfa70e8f9bca45a05f75ff881a0dfae534e07c3680827bc1fbd`.
+IPA build 37568406896 passes. All 88 host checks pass without sanitizer
+diagnostics in 37568979973 at `3d9a6ef`. Production files match the IPA;
+the only difference is the corrected direct-import profile test expectation.
+Component provenance, working audio bytes and nine USB file hashes pass.
+The next device test must establish RDR2 Story-load stability and Teardown
+visible terrain/tools. This is a fix candidate, not a final accepted release.
+
 ## October 6 RDR2 gameplay loading crash: memory tier candidate
 
 The user's follow-up reports a crash when loading gameplay, superseding the
