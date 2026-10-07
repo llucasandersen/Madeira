@@ -1,20 +1,31 @@
 # Game compatibility test matrix
 
-## October 6 RDR2 phone result: conservative CPU translation reaches gameplay
+## October 6 RDR2 gameplay loading crash: memory tier candidate
 
-The user reports that RDR2 now launches and plays successfully on the iPhone
-with `env.FEX_MULTIBLOCK = 0` and `env.FEX_MAXINST = 1` in its per-game settings.
-This is a successful device-tested compatibility workaround; the precise CPU
-translation defect behind the previous loading stall is not yet established.
-It does not establish every mission, save/load path or long-session behavior.
+The user's follow-up reports a crash when loading gameplay, superseding the
+initial successful-play report. The new `madeira-log 2.txt` from test IPA 10
+ends at 6,139 MB physical footprint against the measured 6,144 MB app allowance.
+This strongly supports memory pressure termination, but no iOS termination
+record was supplied to prove jetsam. There is no final fatal exception in the
+export. The original animated loading stall clears with `env.FEX_MULTIBLOCK = 0`
+and `env.FEX_MAXINST = 1`; the new failure is a separate acceptance blocker.
 
-RDR2 profile revision 3 supplies those two defaults in both Debug and release
-builds, while preserving explicit game/global overrides and the existing
-video-memory policy. The automatic delayed Debug dump is removed now that
-gameplay works; explicit diagnostic settings still function. Teardown's
-indirect encoder fix below is retained. Its visible terrain/tools and the
-combined updated IPA still require a new physical-device test. The complete
-goal remains open until that acceptance result is available.
+The run requests broad swap coverage but contains no armed/active swap tier:
+coverage alone cannot enable backing when `swap-mb` is absent. A game allocation
+at `0x5cdd90000` accounts for 1,173 MB dirty memory; another at `0x370000000`
+accounts for 386 MB. Revision 4 adds `swap-mb = 4096` and broad coverage as
+session defaults, using the existing generic file-backed guest tier. Explicit
+game/global choices, including `swap-mb = 0`, remain authoritative. This is a
+memory mitigation candidate, not a phone-verified crash fix. The tier's cap is
+soft and does not guarantee a 4 GB footprint reduction.
+
+The one-instruction translator also records 4,382,719 real compiles. An A/B
+phone check of MAXINST 16 with MULTIBLOCK 0 is pending; the default remains 1
+until that result establishes that a larger block still clears the stall.
+Automatic delayed dumps are disabled in the next build. Teardown's verified
+encoder-object repair remains included, with terrain/tools acceptance pending.
+Combined IPA run 37567912750 was canceled after the new crash report; no new
+package was delivered as finished. Both games and the complete goal remain open.
 
 ## October 6 test build 10 captures: indirect readback defect isolated
 

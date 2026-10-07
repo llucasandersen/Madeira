@@ -53,19 +53,24 @@ check(policy.runtimeConfig(user: nil, global: ["msc-uint-volume-loads": "0"]) ==
 check(policy.runtimeConfig(user: "pool=64", global: ["msc-uint-volume-loads": "1"]) == "pool=64")
 let rdrPolicy = GameCompatibilityProfile.resolve(appID: 1174180)!
 let conservativeCPU = "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 1\n"
-check(rdrPolicy.revision == 3)
-check(rdrPolicy.runtimeConfig(user: nil, global: [:]) == conservativeCPU + "vram-mb = 2048\n")
-check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "0"]) == conservativeCPU + "vram-mb = 2048\n")
-check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "3072"]) == conservativeCPU)
-check(rdrPolicy.runtimeConfig(user: "vram-mb=1536", global: [:]) == conservativeCPU + "vram-mb=1536")
-check(rdrPolicy.runtimeConfig(user: "vram-mb=0", global: ["vram-mb": "3072"]) == conservativeCPU + "vram-mb=0\nvram-mb = 2048\n")
-check(rdrPolicy.runtimeConfig(user: "vram-mb=0\nvram-mb=4096", global: [:]) == conservativeCPU + "vram-mb=0\nvram-mb=4096")
-check(rdrPolicy.runtimeConfig(user: "vram-mb=invalid", global: [:]) == conservativeCPU + "vram-mb=invalid")
-let explicitCPU = "  env.FEX_MULTIBLOCK=1\r\nenv.FEX_MAXINST=32\nvram-mb=1536"
+let memoryTier = "swap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\n"
+let defaults = conservativeCPU + memoryTier
+check(rdrPolicy.revision == 4)
+check(rdrPolicy.runtimeConfig(user: nil, global: [:]) == defaults + "vram-mb = 2048\n")
+check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "0"]) == defaults + "vram-mb = 2048\n")
+check(rdrPolicy.runtimeConfig(user: nil, global: ["vram-mb": "3072"]) == defaults)
+check(rdrPolicy.runtimeConfig(user: "vram-mb=1536", global: [:]) == defaults + "vram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: "vram-mb=0", global: ["vram-mb": "3072"]) == defaults + "vram-mb=0\nvram-mb = 2048\n")
+check(rdrPolicy.runtimeConfig(user: "vram-mb=0\nvram-mb=4096", global: [:]) == defaults + "vram-mb=0\nvram-mb=4096")
+check(rdrPolicy.runtimeConfig(user: "vram-mb=invalid", global: [:]) == defaults + "vram-mb=invalid")
+let explicitCPU = "  env.FEX_MULTIBLOCK=1\r\nenv.FEX_MAXINST=32\nswap-mb=0\nenv.MADEIRA_SWAP_COVERAGE=classic\nvram-mb=1536"
 check(rdrPolicy.runtimeConfig(user: explicitCPU, global: [:]) == explicitCPU)
-check(rdrPolicy.runtimeConfig(user: nil, global: ["env.FEX_MULTIBLOCK": "1", "env.FEX_MAXINST": "32", "vram-mb": "3072"]) == nil)
-check(rdrPolicy.runtimeConfig(user: "env.FEX_MULTIBLOCK=0\nvram-mb=1536", global: [:]) == "env.FEX_MAXINST = 1\nenv.FEX_MULTIBLOCK=0\nvram-mb=1536")
-check(rdrPolicy.runtimeConfig(user: "env.FEX_MAXINST=1\nvram-mb=1536", global: ["env.FEX_MULTIBLOCK": "0"]) == "env.FEX_MAXINST=1\nvram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: nil, global: ["env.FEX_MULTIBLOCK": "1", "env.FEX_MAXINST": "32", "vram-mb": "3072", "swap-mb": "0", "env.MADEIRA_SWAP_COVERAGE": "classic"]) == nil)
+check(rdrPolicy.runtimeConfig(user: "env.FEX_MULTIBLOCK=0\nvram-mb=1536", global: [:]) == "env.FEX_MAXINST = 1\n" + memoryTier + "env.FEX_MULTIBLOCK=0\nvram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: "env.FEX_MAXINST=1\nvram-mb=1536", global: ["env.FEX_MULTIBLOCK": "0"]) == memoryTier + "env.FEX_MAXINST=1\nvram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: "swap-mb=0\nvram-mb=1536", global: ["env.MADEIRA_SWAP_COVERAGE": "classic"]) == conservativeCPU + "swap-mb=0\nvram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: "swap-mb=2048\nenv.MADEIRA_SWAP_COVERAGE=blocks\nvram-mb=1536", global: [:]) == conservativeCPU + "swap-mb=2048\nenv.MADEIRA_SWAP_COVERAGE=blocks\nvram-mb=1536")
+check(rdrPolicy.runtimeConfig(user: "swap-mb=0\nswap-mb=3072\nvram-mb=1536", global: [:]) == conservativeCPU + "env.MADEIRA_SWAP_COVERAGE = broad\nswap-mb=0\nswap-mb=3072\nvram-mb=1536")
 rejects(source.replacingOccurrences(of: "2.1.0", with: "99.0"))
 rejects(source.replacingOccurrences(of: "<gfxapi value=\"0\"/>", with: ""))
 rejects(source.replacingOccurrences(of: "<gfxapi value=\"0\"/>", with: "<gfxapi value=\"0\"/><gfxapi value=\"1\"/>"))
@@ -156,7 +161,7 @@ with tempfile.TemporaryDirectory() as folder:
     subprocess.run([str(path / 'check')], check=True)
     debug_fixture = r'''
 let profile = GameCompatibilityProfile.resolve(appID: 1174180)!
-let conservativeCPU = "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 1\n"
+let conservativeCPU = "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 1\nswap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\n"
 precondition(profile.runtimeConfig(user: nil, global: [:]) == conservativeCPU + "vram-mb = 2048\n")
 precondition(profile.runtimeConfig(user: "vram-mb=1536", global: [:]) == conservativeCPU + "vram-mb=1536")
 precondition(profile.runtimeConfig(user: "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=120\nvram-mb=1536", global: [:]) == conservativeCPU + "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=120\nvram-mb=1536")

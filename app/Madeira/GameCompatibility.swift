@@ -54,7 +54,7 @@ struct GameCompatibilityProfile: Equatable {
     // No profile is needed for PEAK's ordinary D3D11 launch path.
     private static let builtins = [Self(appID: 1167630, revision: 4,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
-        Self(appID: 1174180, revision: 3, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
+        Self(appID: 1174180, revision: 4, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
     func prepare(options: URL) throws -> Bool {
         switch settingsAdapter {
@@ -80,7 +80,12 @@ struct GameCompatibilityProfile: Equatable {
                 return parts.count == 2 ? parts[0].trimmingCharacters(in: .whitespaces) : nil
             })
             var defaults = ""
-            for (key, value) in [("env.FEX_MULTIBLOCK", "0"), ("env.FEX_MAXINST", "1")] {
+            // The next phone capture reaches the app's 6 GB allowance while
+            // loading gameplay. Coverage alone does not enable file backing:
+            // the swap tier also needs a nonzero cap. Back large guest heaps
+            // using the existing broad tier; explicit Off remains Off.
+            for (key, value) in [("env.FEX_MULTIBLOCK", "0"), ("env.FEX_MAXINST", "1"),
+                                 ("swap-mb", "4096"), ("env.MADEIRA_SWAP_COVERAGE", "broad")] {
                 if !explicitKeys.contains(key), global[key] == nil {
                     defaults += key + " = " + value + "\n"
                 }
