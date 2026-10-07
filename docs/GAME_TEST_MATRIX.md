@@ -1,5 +1,26 @@
 # Game compatibility test matrix
 
+## October 6 test build 9 phone results: original gameplay failures remain
+
+The new exports confirm source `ea6697d`. RDR2 restores its visible/audible
+intro, then remains at an animated loading screen through 10,225 presents.
+Its footprint ends near 4,974 MB against the measured 6,144 MB process
+allowance; the export does not establish RAM exhaustion. One worker remains
+near a full CPU core. The supplied JIT dump precedes the stalled period and
+does not contain its later faulting block. Teardown uses D3D12 and continues
+gameplay/audio, but the user still reports missing terrain, tools and character.
+GPU retirement reports no command-buffer errors. Some captured voxel textures
+contain nonzero IDs; corner/centre samples of zero do not prove an empty atlas.
+
+The voxel shader's one-shot input capture was consumed by a zero-instance
+record with an unset object CBV. That record never renders, so it cannot
+establish missing bindings for a live draw. The diagnostic now reserves that
+capture for nonempty draws, includes the coarser traversal mip levels, and
+counts live/empty completed compound indirect records. Diagnostic Debug
+profiles schedule one sparse RDR2 JIT dump after 120 seconds; release profiles
+remain unchanged and explicit overrides are preserved. These are diagnostic
+repairs, not verified gameplay fixes. No final IPA or goal completion is claimed.
+
 ## October 6 test build 9 delivery: startup and renderer selection
 
 Verified on USB: `E:\Madeira-RDR2-Teardown-Test-9\Madeira-diagnostic-ea6697d.ipa`.

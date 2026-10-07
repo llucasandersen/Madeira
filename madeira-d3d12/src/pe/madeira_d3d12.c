@@ -3602,6 +3602,10 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
     static const void *seen[12];
     unsigned i, k, found = 0, volumes = 0;
     char lab[160];
+    /* A culled indirect record may precede every live object in this PSO.
+     * Do not let that empty record consume its only input capture. */
+    if ((c->kind == MC_DRAW && (!c->u.draw.vcount || !c->u.draw.icount)) ||
+        (c->kind == MC_DRAW_INDEXED && (!c->u.drawi.icount || !c->u.drawi.inst))) return;
     if (total >= 12 || !e->pso || !e->rs || !e->srv || !e->srv->cpu || e->nrt < 2 || d->cap_total >= 2000) return;
     for (i = 0; i < total; i++) if (seen[i] == e->pso) return;
     for (i = 0; i < e->rs->nparams && i < MAD_ROOT_PARAM_MAX && !found; i++) {
@@ -3656,7 +3660,14 @@ static void exec_capture_volume_draw(struct mad_exec *e, const struct mad_cmd *c
             d3d12_log("[volume-input] %s view-format=%u\n", lab, xv >= 0 ? r->xview[xv].pf : (UINT)r->tex_pf);
             { UINT level = xv >= 0 ? r->xview[xv].lvl0 : 0;
               exec_capture_region(e, lab, r, 0, level, 0, 0, 4, 1, 1);
-              exec_capture_texels(e, lab, r, (r->tex_depth >> level) / 2, level); }
+              exec_capture_texels(e, lab, r, (r->tex_depth >> level) / 2, level);
+              /* Hierarchical traversal reads the coarser occupancy levels
+               * before mip zero. Capture them without assuming base data
+               * establishes that the traversal inputs are populated. */
+              for (UINT mip = level + 1; mip < r->tex_mips && mip <= level + 2; mip++) {
+                  snprintf(lab, sizeof lab, "volume%u atlas p%u[%u] occupancy mip%u", total, i, k, mip);
+                  exec_capture_texels(e, lab, r, (r->tex_depth >> mip) / 2, mip);
+              } }
             volumes++;
         }
     }
@@ -4844,6 +4855,27 @@ static void exec_indirect(struct mad_exec *e, const struct mad_cmd *c) {
     { static LONG said; if (InterlockedIncrement(&said) <= 4)
         d3d12_log("[madeira-d3d12] ExecuteIndirect compound/count replay: %u/%u records, %u arguments, GPU producers completed\n",
                   count, c->u.ind.count, c->u.ind.ndesc); }
+    /* Read the completed argument data, rather than inferring culling from
+     * the first record (which can legitimately contain only zeros). */
+    { static LONG samples;
+      LONG sample = InterlockedIncrement(&samples);
+      if (!compute && (sample <= 8 || sample % 4096 == 0)) {
+          UINT live = 0, empty = 0;
+          for (k = 0; k < count; k++) {
+              UINT offset = 0;
+              for (j = 0; j < c->u.ind.ndesc; j++) {
+                  const D3D12_INDIRECT_ARGUMENT_DESC *a = &c->u.ind.desc[j];
+                  if (a->Type == D3D12_INDIRECT_ARGUMENT_TYPE_DRAW || a->Type == D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED) {
+                      UINT counts[2];
+                      memcpy(counts, records + (UINT64)k * c->u.ind.stride + offset, sizeof counts);
+                      if (counts[0] && counts[1]) live++; else empty++;
+                  }
+                  offset += mad_indirect_size(a);
+              }
+          }
+          d3d12_log("[indirect-input] list#%u pso=%p records=%u stride=%u live=%u empty=%u\n",
+                    g_list_seq, e->pso, count, c->u.ind.stride, live, empty);
+      } }
     for (k = 0; k < count; k++) {
         UINT offset = 0;
         for (j = 0; j < c->u.ind.ndesc; j++) {

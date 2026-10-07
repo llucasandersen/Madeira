@@ -1923,9 +1923,24 @@ static void ios_wprof_main( void )
     }
 }
 
+/* Optional one-shot capture after startup. The first fault dump predates a
+ * loading stall and cannot describe blocks compiled during that stall. */
+static unsigned ios_jit_dump_delay(const char *value)
+{
+    unsigned long seconds;
+    char *end;
+    if (!value || value[0] < '0' || value[0] > '9') return 0;
+    seconds = strtoul(value, &end, 10);
+    return !*end && seconds > 0 && seconds <= 3600 ? (unsigned)seconds : 0;
+}
+
 static void ios_thread_sampler_main(void)
 {
     int gen = 0;
+    unsigned dump_after = ios_jit_dump_delay(getenv("MADEIRA_JIT_DUMP_AFTER_SECONDS"));
+    uint64_t dump_started = mach_absolute_time();
+    mach_timebase_info_data_t dump_timebase;
+    mach_timebase_info(&dump_timebase);
     ios_ts_calibrate();
     wine_log_write("[thread-sample] ml876 armed (task-wide: burst of 4 passes / 250 ms every 20 s)");
     for (;;) {
@@ -1933,6 +1948,13 @@ static void ios_thread_sampler_main(void)
         sleep(20);
         for (b = 0; b < 4; b++) { ios_thread_sampler_pass(b); usleep(250000); }
         wine_log_write("[thread-sample] ml876 burst done");
+        if (dump_after && (mach_absolute_time() - dump_started) *
+            ((double)dump_timebase.numer / dump_timebase.denom) >= dump_after * 1e9) {
+            extern void ios_dump_jit_pool(const char *);
+            dump_after = 0;
+            /* Each sampler pass has resumed and released its target threads. */
+            ios_dump_jit_pool("timed diagnostic");
+        }
         {   /* ml1115: alert (futex) traffic since the last burst, per second */
             extern volatile long long ios_alert_wakes, ios_alert_waits, ios_qpc_syscalls, ios_affinity_sets; extern volatile int ios_srv_req_count;
             extern volatile long long ios_alert_lat_n, ios_alert_lat_ticks, ios_alert_lat_hist[6], ios_alert_spin_tries, ios_alert_spin_hits;

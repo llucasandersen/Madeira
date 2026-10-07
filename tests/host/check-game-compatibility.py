@@ -147,3 +147,15 @@ with tempfile.TemporaryDirectory() as folder:
     (path / 'main.swift').write_text(production + '\n' + fixture, encoding='utf-8')
     subprocess.run(['swiftc', str(path / 'main.swift'), '-o', str(path / 'check')], check=True)
     subprocess.run([str(path / 'check')], check=True)
+    debug_fixture = r'''
+let profile = GameCompatibilityProfile.resolve(appID: 1174180)!
+precondition(profile.runtimeConfig(user: nil, global: [:]) == "env.MADEIRA_JIT_DUMP_AFTER_SECONDS = 120\nvram-mb = 2048\n")
+precondition(profile.runtimeConfig(user: "vram-mb=1536", global: [:]) == "env.MADEIRA_JIT_DUMP_AFTER_SECONDS = 120\nvram-mb=1536")
+precondition(profile.runtimeConfig(user: "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=0\nvram-mb=1536", global: [:]) == "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=0\nvram-mb=1536")
+precondition(profile.runtimeConfig(user: nil, global: ["env.MADEIRA_JIT_DUMP_AFTER_SECONDS": "0", "vram-mb": "3072"]) == nil)
+precondition(GameCompatibilityProfile.resolve(appID: 1167630)!.runtimeConfig(user: nil, global: [:]) == "msc-uint-volume-loads = 1\n")
+'''
+    (path / 'main.swift').write_text(production + '\n' + debug_fixture, encoding='utf-8')
+    subprocess.run(['swiftc', '-D', 'DEBUG', str(path / 'main.swift'), '-o', str(path / 'debug-check')], check=True)
+    subprocess.run([str(path / 'debug-check')], check=True)
+print('PASS: production renderer policies, settings preservation and diagnostic-only late capture')

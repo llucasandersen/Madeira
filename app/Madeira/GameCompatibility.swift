@@ -73,6 +73,20 @@ struct GameCompatibilityProfile: Equatable {
     /// Session defaults; explicit game/global settings take precedence.
     func runtimeConfig(user: String?, global: [String: String]) -> String? {
         if appID == 1174180 {
+            var session = user
+#if DEBUG
+            // Diagnostic IPAs capture the loading period automatically. A
+            // release build and explicit user/global overrides retain their
+            // existing policy; no game executable or activation data changes.
+            let diagnosticKey = "env.MADEIRA_JIT_DUMP_AFTER_SECONDS"
+            let explicitDump = (user ?? "").split(separator: "\n").contains { line in
+                let parts = line.split(separator: "=", maxSplits: 1)
+                return parts.count == 2 && parts[0].trimmingCharacters(in: .whitespaces) == diagnosticKey
+            }
+            if !explicitDump, global[diagnosticKey] == nil {
+                session = diagnosticKey + " = 120\n" + (user ?? "")
+            }
+#endif
             // The device trace's automatic 1 GB budget reaches frames, then
             // ERR_GFX_D3D_DEFERRED_MEM. Use a 2 GB session budget; the native
             // budget still trims under real process pressure. Zero means Auto
@@ -83,8 +97,8 @@ struct GameCompatibilityProfile: Equatable {
                 guard parts.count == 2, parts[0].trimmingCharacters(in: .whitespaces) == "vram-mb" else { return nil }
                 return parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
             }.last ?? global["vram-mb"]
-            if let chosen, Int(chosen) != 0 { return user }
-            return (user.map { $0 + ($0.hasSuffix("\n") ? "" : "\n") } ?? "") + "vram-mb = 2048\n"
+            if let chosen, Int(chosen) != 0 { return session }
+            return (session.map { $0 + ($0.hasSuffix("\n") ? "" : "\n") } ?? "") + "vram-mb = 2048\n"
         }
         guard appID == 1167630 else { return user }
         if preferredRenderer == .opengl {

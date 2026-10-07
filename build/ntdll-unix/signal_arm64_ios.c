@@ -1559,7 +1559,8 @@ static int ios_x18_derived_base( uint64_t fault_pc, int rn )
  * ran and hit the 4096MB jetsam limit four seconds later. Pages mincore()
  * reports neither resident nor paged out were never written; they stay holes,
  * so file offsets still equal pool offsets (head copies and tail CodeBuffers). */
-static void ios_dump_jit_pool( const char *why )
+void ios_dump_jit_pool( const char *why );
+void ios_dump_jit_pool( const char *why )
 {
     extern void *ios_jit_rw_base_global;
     extern size_t ios_jit_pool_size_global;

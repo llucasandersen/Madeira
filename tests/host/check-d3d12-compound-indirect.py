@@ -17,6 +17,7 @@ code = r'''
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 typedef unsigned UINT; typedef uint64_t UINT64; typedef int32_t INT;
 typedef int LONG;
 static LONG InterlockedIncrement(LONG *n) { return ++*n; }
@@ -54,6 +55,7 @@ struct mad_vis_batch { int active; };
 struct mad_queue { struct mad_device *device; obj_handle_t open_cb; UINT64 batches; struct mad_vis_batch *vis; };
 struct mad_list { UINT64 ring_batch; };
 struct mad_exec { struct mad_queue *q; struct mad_list *l; obj_handle_t cb;
+ void *pso;
  UINT skipped, nroot; int fence_needed, f6_sync_needed, f6_list_start;
  UINT64 root[32], croot[32]; UINT consts[32][64], cconsts[32][64];
  struct { struct mad_resource *res; UINT64 off; UINT stride; } vb[16];
@@ -95,7 +97,16 @@ static void exec_draw(struct mad_exec *e, const struct mad_cmd *c) {
  seen_vertices[draws++]=c->kind==MC_DRAW ? c->u.draw.vcount : c->kind==MC_DRAW_INDEXED ? c->u.drawi.icount : 999; }
 static void exec_dispatch(struct mad_exec *e, const struct mad_cmd *c) { assert(e->croot[2]==123 && c->u.dispatch.x==4); dispatches++; }
 static struct mad_cmd *mad_list_push(struct mad_list *l, enum mad_ck kind) { (void)l; memset(&recorded,0,sizeof recorded); recorded.kind=kind; return &recorded; }
-#define d3d12_log(...) ((void)0)
+static unsigned g_list_seq, logged_live, logged_empty;
+static void d3d12_log(const char *format, ...) {
+ if(strncmp(format,"[indirect-input]",16)) return;
+ va_list args; va_start(args,format);
+ (void)va_arg(args,unsigned); (void)va_arg(args,void*);
+ unsigned count=va_arg(args,unsigned); (void)va_arg(args,unsigned);
+ logged_live=va_arg(args,unsigned); logged_empty=va_arg(args,unsigned);
+ assert(logged_live+logged_empty==count);
+ va_end(args);
+}
 ''' + function('static UINT mad_indirect_size(', '\n#define MADEIRA_D3D12_BUILD') + function('static void exec_indirect(', '\nstatic void mad_exec_list') + function('static void STDMETHODCALLTYPE list_ExecuteIndirect(', '\nstatic void STDMETHODCALLTYPE list_CopyBufferRegion') + r'''
 int main(void) {
  struct mad_vis_batch visibility={1};
@@ -147,6 +158,7 @@ int main(void) {
  memcpy(args.buffer->mem+24*i,&address,8); memcpy(args.buffer->mem+24*i+8,draw,16); }
  list_ExecuteIndirect(&l,&sig,3,&args,0,NULL,0); exec_indirect(&e,&recorded);
  assert(draws==packed_first+3 && waits==before+1 && e.root[2]==0);
+ assert(logged_live==2 && logged_empty==1);
  for(UINT i=0;i<3;i++) {
  assert(seen_root[packed_first+i]==0x1000177c000ull+256*i && seen_vertices[packed_first+i]==12);
  assert(packed_instances[packed_first+i]==(i==1?0:i+1));
