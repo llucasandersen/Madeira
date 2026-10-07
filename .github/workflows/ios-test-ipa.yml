@@ -3,6 +3,10 @@ name: iOS diagnostic test IPA
 on:
   workflow_dispatch:
     inputs:
+      native_only:
+        description: Build native runtime artifacts without packaging an IPA
+        type: boolean
+        default: false
       reuse_llvm_run:
         description: Earlier successful LLVM artifact run ID (optional)
         type: string
@@ -118,7 +122,7 @@ jobs:
   app:
     needs: [llvm-ios, fex-ios, native-runtime]
     if: >-
-      always() &&
+      always() && !inputs.native_only &&
       (needs.llvm-ios.result == 'success' || inputs.reuse_llvm_run != '') &&
       (needs.fex-ios.result == 'success' || inputs.reuse_fex_run != '') &&
       (needs.native-runtime.result == 'success' || inputs.reuse_runtime_run != '')
