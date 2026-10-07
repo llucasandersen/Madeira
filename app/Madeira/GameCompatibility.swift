@@ -54,7 +54,7 @@ struct GameCompatibilityProfile: Equatable {
     // No profile is needed for PEAK's ordinary D3D11 launch path.
     private static let builtins = [Self(appID: 1167630, revision: 5,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
-        Self(appID: 1174180, revision: 4, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
+        Self(appID: 1174180, revision: 5, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
     func prepare(options: URL) throws -> Bool {
         switch settingsAdapter {
@@ -73,20 +73,23 @@ struct GameCompatibilityProfile: Equatable {
     /// Session defaults; explicit game/global settings take precedence.
     func runtimeConfig(user: String?, global: [String: String]) -> String? {
         if appID == 1174180 {
-            // The iPhone loading stall clears with this conservative CPU
-            // translation policy. Preserve explicit user/global choices.
+            // The phone comparison reaches Story's opening cutscene with
+            // MAXINST 16; MAXINST 1 spends much longer recompiling blocks.
+            // Preserve explicit user/global choices.
             let lines = (user ?? "").components(separatedBy: .newlines)
             let explicitKeys = Set(lines.compactMap { line -> String? in
                 let parts = line.split(separator: "=", maxSplits: 1)
                 return parts.count == 2 ? parts[0].trimmingCharacters(in: .whitespaces) : nil
             })
             var defaults = ""
-            // The next phone capture reaches the app's 6 GB allowance while
-            // loading gameplay. Coverage alone does not enable file backing:
-            // the swap tier also needs a nonzero cap. Back large guest heaps
-            // using the existing broad tier; explicit Off remains Off.
-            for (key, value) in [("env.FEX_MULTIBLOCK", "0"), ("env.FEX_MAXINST", "1"),
-                                 ("swap-mb", "4096"), ("env.MADEIRA_SWAP_COVERAGE", "broad")] {
+            // The cutscene capture reaches the 6 GB app allowance while
+            // the tier's size blacklist and 4 MB floor exclude game heaps.
+            // Keep recurring allocation sizes eligible and include smaller
+            // heaps. This reduces anonymous memory, subject to storage I/O
+            // and real device limits; explicit Off remains Off.
+            for (key, value) in [("env.FEX_MULTIBLOCK", "0"), ("env.FEX_MAXINST", "16"),
+                                 ("swap-mb", "4096"), ("env.MADEIRA_SWAP_COVERAGE", "broad"),
+                                 ("env.MADEIRA_SWAP_MIN_KB", "256"), ("env.MADEIRA_SWAP_CHURN", "0")] {
                 if !explicitKeys.contains(key), global[key] == nil {
                     defaults += key + " = " + value + "\n"
                 }

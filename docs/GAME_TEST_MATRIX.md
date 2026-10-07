@@ -1,5 +1,35 @@
 # Game compatibility test matrix
 
+## October 7: RDR2 reaches Story; cutscene and Villa Gordon need memory testing
+
+The MAXINST 16 / MULTIBLOCK 0 phone comparison clears the loading screen
+after roughly four minutes and plays the beginning of Story's opening cutscene.
+The new run then ends abruptly at 6,118 MB against a 6,144 MB process allowance.
+Its last graphics census reports 77,886 retired command buffers with zero
+errors. Memory termination is strongly indicated, but an OS termination report
+has not been supplied. Intro/cutscene rendering is confirmed; stable gameplay
+is not. The old infinite-loading report is superseded by this comparison.
+
+Broad swap is active, but six recurring allocation sizes become permanently
+anonymous after the early churn heuristic. The final full census reports
+785 MB of commit requests excluded by churn and 3,381 MB below the 4 MB floor;
+these are cumulative requests, not guaranteed recoverable live memory.
+RDR2 profile revision 5 retains the successful MAXINST 16 setting, disables
+that size blacklist and lowers the floor to 256 KB using the generic memory
+policy already added for Teardown. Explicit game/global overrides remain
+authoritative. The 4 GB tier cap and actual device allowance remain unchanged.
+
+The user identifies Lee Chemicals as playable with normal Teardown voxels
+and Villa Gordon as failing to load. Teardown's encoder repair is accepted
+for visible voxels; map stability remains open. Both profiles now use the
+memory candidate, which can increase storage I/O and requires phone testing.
+
+The preceding production memory changes pass all 88 host checks without
+sanitizer errors in run 37573053707. Native-only run 37572522578 successfully
+builds the changed runtime and deliberately skips IPA packaging. The RDR2
+profile update requires its own matching gate before delivery. No final
+fully accepted IPA is claimed.
+
 ## October 6 test build 11 phone results: voxels visible; loading failures remain
 
 The user confirms normal visible Teardown voxels/tools on a map that loads.

@@ -246,7 +246,7 @@ var rdrEntry = LibraryEntry(title: "RDR2", relativePath: rdrFolderName + "/RDR2.
 rdrEntry.arguments = "-dx12"; rdrEntry.configureLaunch()
 expect(env("MADEIRA_RDR2_DX12") == "1", "recognized RDR2 carries its requested DX12 through child launches")
 rdrEntry.applyEnvironment()
-expect(MadeiraConfig.game == "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 1\nswap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\nvram-mb = 2048\n", "direct imported RDR2 gets its automatic CPU and session memory profile")
+expect(MadeiraConfig.game == "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 16\nswap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\nenv.MADEIRA_SWAP_MIN_KB = 256\nenv.MADEIRA_SWAP_CHURN = 0\nvram-mb = 2048\n", "direct imported RDR2 gets its automatic CPU and session memory profile")
 rdrEntry.automaticCompatibility = false; rdrEntry.applyEnvironment()
 expect(MadeiraConfig.game == nil, "RDR2 compatibility opt-out preserves the user's memory configuration")
 rdrEntry.automaticCompatibility = true
