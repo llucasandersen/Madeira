@@ -54,7 +54,7 @@ struct mad_device { obj_handle_t mtl_device, mtl_queue; };
 struct mad_vis_batch { int active; };
 struct mad_queue { struct mad_device *device; obj_handle_t open_cb; UINT64 batches; struct mad_vis_batch *vis; };
 struct mad_list { UINT64 ring_batch; };
-struct mad_exec { struct mad_queue *q; struct mad_list *l; obj_handle_t cb;
+struct mad_exec { struct mad_queue *q; struct mad_list *l; obj_handle_t cb, benc, renc;
  void *pso;
  UINT skipped, nroot; int fence_needed, f6_sync_needed, f6_list_start;
  UINT64 root[32], croot[32]; UINT consts[32][64], cconsts[32][64];
@@ -74,10 +74,16 @@ static obj_handle_t MTLDevice_newBuffer(obj_handle_t d, struct WMTBufferInfo *bi
 static obj_handle_t MTLCommandQueue_commandBuffer(obj_handle_t q) { (void)q; return buffer_new(0); }
 static void NSObject_retain(obj_handle_t b) { assert(b); }
 static void NSObject_release(obj_handle_t b) { assert(b); }
-static obj_handle_t exec_begin_blit(struct mad_exec *e) { return e->cb; }
+static obj_handle_t last_blit;
+static LONG g_pass_end_blit; static unsigned g_enc_seq; static int g_enc_labels;
+static obj_handle_t MTLCommandBuffer_blitCommandEncoder(obj_handle_t cb) {
+ assert(cb); return last_blit=buffer_new(0); }
+static void mad_label(obj_handle_t enc, const char *format, ...) { assert(enc); (void)format; }
+static void exec_fence_blit(struct mad_exec *e, obj_handle_t enc, int end) {
+ assert(enc==e->benc && enc==last_blit); (void)end; }
 static void MTLBlitCommandEncoder_encodeCommands(obj_handle_t e, const struct wmtcmd_base *p) {
- assert(e); copies[ncopies++]=*(const struct wmtcmd_blit_copy_from_buffer_to_buffer *)p; }
-static void exec_end(struct mad_exec *e) { (void)e; }
+ assert(e==last_blit && e); copies[ncopies++]=*(const struct wmtcmd_blit_copy_from_buffer_to_buffer *)p; }
+static void exec_end(struct mad_exec *e) { e->benc=NULL; e->renc=NULL; }
 static void mad_queue_flush(struct mad_queue *q) { assert(!q->vis); q->open_cb=NULL; q->batches++; }
 static void MTLCommandBuffer_waitUntilCompleted(obj_handle_t cb) {
  assert(cb); waits++; for(UINT i=0;i<ncopies;i++) { struct wmtcmd_blit_copy_from_buffer_to_buffer *c=&copies[i];
@@ -107,7 +113,7 @@ static void d3d12_log(const char *format, ...) {
  assert(logged_live+logged_empty==count);
  va_end(args);
 }
-''' + function('static UINT mad_indirect_size(', '\n#define MADEIRA_D3D12_BUILD') + function('static void exec_indirect(', '\nstatic void mad_exec_list') + function('static void STDMETHODCALLTYPE list_ExecuteIndirect(', '\nstatic void STDMETHODCALLTYPE list_CopyBufferRegion') + r'''
+''' + function('static UINT mad_indirect_size(', '\n#define MADEIRA_D3D12_BUILD') + function('static int exec_begin_blit(', '\n/* One slot of root values') + function('static void exec_indirect(', '\nstatic void mad_exec_list') + function('static void STDMETHODCALLTYPE list_ExecuteIndirect(', '\nstatic void STDMETHODCALLTYPE list_CopyBufferRegion') + r'''
 int main(void) {
  struct mad_vis_batch visibility={1};
  struct mad_device dev={0}; struct mad_queue q={.device=&dev,.vis=&visibility}; struct mad_list l={0};

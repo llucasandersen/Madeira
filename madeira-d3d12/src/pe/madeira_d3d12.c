@@ -4822,8 +4822,8 @@ static void exec_indirect(struct mad_exec *e, const struct mad_cmd *c) {
     bi.length = bytes + 4; bi.options = WMTResourceStorageModeShared;
     readback = MTLDevice_newBuffer(e->q->device->mtl_device, &bi);
     if (!readback || !bi.memory.ptr) { if (readback) NSObject_release(readback); e->skipped++; return; }
-    enc = exec_begin_blit(e);
-    if (!enc) { NSObject_release(readback); e->skipped++; return; }
+    if (!exec_begin_blit(e)) { NSObject_release(readback); e->skipped++; return; }
+    enc = e->benc;
     copy.type = WMTBlitCommandCopyFromBufferToBuffer;
     copy.src = c->u.ind.args->buffer; copy.src_offset = c->u.ind.off;
     copy.dst = readback; copy.copy_length = bytes;
