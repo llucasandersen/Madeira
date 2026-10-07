@@ -146,7 +146,7 @@ var steamGame = LibraryEntry(title: "Steam game", relativePath: "Program Files (
 steamGame.steamAppID = 4242
 var teardown = steamGame; teardown.steamAppID = 1167630
 teardown.applyEnvironment()
-expect(MadeiraConfig.game == "msc-uint-volume-loads = 1\n", "Teardown's actual entry exports integer volume session default")
+expect(MadeiraConfig.game == "msc-uint-volume-loads = 1\nswap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\nenv.MADEIRA_SWAP_MIN_KB = 256\nenv.MADEIRA_SWAP_CHURN = 0\n", "Teardown's actual entry exports integer volume session default")
 teardown.config = "msc-uint-volume-loads = 0"; teardown.applyEnvironment()
 expect(MadeiraConfig.game == "msc-uint-volume-loads = 0", "explicit game setting wins")
 teardown.config = nil; teardown.automaticCompatibility = false; teardown.applyEnvironment()

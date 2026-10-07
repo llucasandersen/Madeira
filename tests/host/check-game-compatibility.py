@@ -29,7 +29,7 @@ check(try! TeardownRendererSettings.selectingD3D12(Data(selected.utf8)) == Data(
 check(GameCompatibilityProfile.resolve(appID: 3527290) == nil)
 check(GameCompatibilityProfile.resolve(appID: 1167630, enabled: false) == nil)
 let policy = GameCompatibilityProfile.resolve(appID: 1167630)!
-check(policy.preferredRenderer == .d3d12 && policy.revision == 4)
+check(policy.preferredRenderer == .d3d12 && policy.revision == 5)
 check(GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: true, openGLVersion: 21)!.preferredRenderer == .d3d12)
 check(GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: true, openGLVersion: 44)!.preferredRenderer == .d3d12)
 check(GameCompatibilityProfile.resolve(appID: 1167630, openGLAvailable: false, openGLVersion: 45)!.preferredRenderer == .d3d12)
@@ -45,12 +45,17 @@ let glXML = try TeardownRendererSettings.selectingOpenGL(dx12XML)
 check(String(decoding: glXML, as: UTF8.self) == String(decoding: dx12XML, as: UTF8.self).replacingOccurrences(of: "<gfxapi value=\"1\"/>", with: "<gfxapi value=\"0\"/>"))
 let glXMLAgain = try TeardownRendererSettings.selectingOpenGL(glXML)
 check(glXMLAgain == glXML)
-check(policy.runtimeConfig(user: nil, global: [:]) == "msc-uint-volume-loads = 1\n")
-check(policy.runtimeConfig(user: "pool = 32", global: [:]) == "msc-uint-volume-loads = 1\npool = 32")
-check(policy.runtimeConfig(user: "msc-uint-volume-loads = 0", global: [:]) == "msc-uint-volume-loads = 0")
-check(policy.runtimeConfig(user: "  msc-uint-volume-loads=0\r\npool=64", global: [:]) == "  msc-uint-volume-loads=0\r\npool=64")
-check(policy.runtimeConfig(user: nil, global: ["msc-uint-volume-loads": "0"]) == nil)
-check(policy.runtimeConfig(user: "pool=64", global: ["msc-uint-volume-loads": "1"]) == "pool=64")
+let teardownMemory = "swap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\nenv.MADEIRA_SWAP_MIN_KB = 256\nenv.MADEIRA_SWAP_CHURN = 0\n"
+let teardownDefaults = "msc-uint-volume-loads = 1\n" + teardownMemory
+check(policy.runtimeConfig(user: nil, global: [:]) == teardownDefaults)
+check(policy.runtimeConfig(user: "pool = 32", global: [:]) == teardownDefaults + "pool = 32")
+check(policy.runtimeConfig(user: "msc-uint-volume-loads = 0", global: [:]) == teardownMemory + "msc-uint-volume-loads = 0")
+check(policy.runtimeConfig(user: "  msc-uint-volume-loads=0\r\npool=64", global: [:]) == teardownMemory + "  msc-uint-volume-loads=0\r\npool=64")
+check(policy.runtimeConfig(user: nil, global: ["msc-uint-volume-loads": "0"]) == teardownMemory)
+check(policy.runtimeConfig(user: "pool=64", global: ["msc-uint-volume-loads": "1"]) == teardownMemory + "pool=64")
+let explicitTeardown = "msc-uint-volume-loads=0\nswap-mb=0\nenv.MADEIRA_SWAP_COVERAGE=classic\nenv.MADEIRA_SWAP_MIN_KB=4096\nenv.MADEIRA_SWAP_CHURN=1"
+check(policy.runtimeConfig(user: explicitTeardown, global: [:]) == explicitTeardown)
+check(policy.runtimeConfig(user: nil, global: ["msc-uint-volume-loads": "0", "swap-mb": "0", "env.MADEIRA_SWAP_COVERAGE": "classic", "env.MADEIRA_SWAP_MIN_KB": "4096", "env.MADEIRA_SWAP_CHURN": "1"]) == nil)
 let rdrPolicy = GameCompatibilityProfile.resolve(appID: 1174180)!
 let conservativeCPU = "env.FEX_MULTIBLOCK = 0\nenv.FEX_MAXINST = 1\n"
 let memoryTier = "swap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\n"
@@ -166,7 +171,7 @@ precondition(profile.runtimeConfig(user: nil, global: [:]) == conservativeCPU + 
 precondition(profile.runtimeConfig(user: "vram-mb=1536", global: [:]) == conservativeCPU + "vram-mb=1536")
 precondition(profile.runtimeConfig(user: "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=120\nvram-mb=1536", global: [:]) == conservativeCPU + "env.MADEIRA_JIT_DUMP_AFTER_SECONDS=120\nvram-mb=1536")
 precondition(profile.runtimeConfig(user: nil, global: ["env.MADEIRA_JIT_DUMP_AFTER_SECONDS": "0", "vram-mb": "3072"]) == conservativeCPU)
-precondition(GameCompatibilityProfile.resolve(appID: 1167630)!.runtimeConfig(user: nil, global: [:]) == "msc-uint-volume-loads = 1\n")
+precondition(GameCompatibilityProfile.resolve(appID: 1167630)!.runtimeConfig(user: nil, global: [:]) == "msc-uint-volume-loads = 1\nswap-mb = 4096\nenv.MADEIRA_SWAP_COVERAGE = broad\nenv.MADEIRA_SWAP_MIN_KB = 256\nenv.MADEIRA_SWAP_CHURN = 0\n")
 '''
     (path / 'main.swift').write_text(production + '\n' + debug_fixture, encoding='utf-8')
     subprocess.run(['swiftc', '-D', 'DEBUG', str(path / 'main.swift'), '-o', str(path / 'debug-check')], check=True)

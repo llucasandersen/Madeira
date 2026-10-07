@@ -188,6 +188,7 @@ static const char *prot_of( const void *p )
 
 static void test_config( void )
 {
+    unsetenv( "MADEIRA_SWAP_CHURN" );
     env( NULL, NULL, NULL );
     CHECK( !ios_swap_v2 && !ios_swap_wide && ios_swap_min == (8u << 20) && !strcmp( ios_swap_mode, "classic" ), "default = classic, 8 MB" );
     env( "junk", NULL, NULL );
@@ -208,6 +209,21 @@ static void test_config( void )
     CHECK( ios_swap_min == ((size_t)1 << 32), "MIN_KB clamped to 4 GB without overflow" );
     env( "wide", NULL, "64" );
     CHECK( ios_swap_resv_max == (64u << 20), "MADEIRA_SWAP_RESERVE_MAX_MB" );
+    env( "broad", "256", NULL );
+    CHECK( ios_swap_broad && ios_swap_min == (256u << 10), "broad covers smaller map-loading allocations" );
+    for (unsigned i = 0; i < 12; i++) ios_swap_churn_backed( 4u << 20 );
+    for (unsigned i = 0; i < 8; i++) ios_swap_churn_note( 4u << 20, 1000000 );
+    CHECK( ios_swap_churn_filter && ios_swap_churny( 4u << 20 ), "default filter excludes a repeatedly short-lived size" );
+    setenv( "MADEIRA_SWAP_CHURN", "0", 1 );
+    ios_swap_config();
+    CHECK( !ios_swap_churn_filter && !ios_swap_churny( 4u << 20 ), "opt-out keeps later allocations of a blacklisted size eligible" );
+    unsigned hits = ios_swap_churn[0].hits, backs = ios_swap_churn[0].backs;
+    ios_swap_churn_backed( 4u << 20 );
+    ios_swap_churn_note( 4u << 20, 1000000 );
+    CHECK( ios_swap_churn[0].hits == hits && ios_swap_churn[0].backs == backs, "disabled filter records no new churn" );
+    unsetenv( "MADEIRA_SWAP_CHURN" );
+    ios_swap_config();
+    CHECK( ios_swap_churn_filter && ios_swap_churny( 4u << 20 ), "default filtering is restored when override is absent" );
 }
 
 static void test_why( void )

@@ -52,7 +52,7 @@ struct GameCompatibilityProfile: Equatable {
 
     // Teardown 2.1.0: supplied options.xml and a real D3D12 device trace.
     // No profile is needed for PEAK's ordinary D3D11 launch path.
-    private static let builtins = [Self(appID: 1167630, revision: 4,
+    private static let builtins = [Self(appID: 1167630, revision: 5,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
         Self(appID: 1174180, revision: 4, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
@@ -117,13 +117,22 @@ struct GameCompatibilityProfile: Equatable {
             return (user.map { $0 + ($0.hasSuffix("\n") ? "" : "\n") } ?? "") +
                 "env.MADEIRA_OPENGL = 1\nenv.WINEDLLOVERRIDES = " + merged + "\n"
         }
-        let key = "msc-uint-volume-loads"
-        let explicit = (user ?? "").components(separatedBy: .newlines).contains { line in
+        let explicitKeys = Set((user ?? "").components(separatedBy: .newlines).compactMap { line -> String? in
             let parts = line.split(separator: "=", maxSplits: 1)
-            return parts.count == 2 && parts[0].trimmingCharacters(in: .whitespaces) == key
+            return parts.count == 2 ? parts[0].trimmingCharacters(in: .whitespaces) : nil
+        })
+        // The map-loading capture exceeds the process allowance even with
+        // broad swap: its permanent size blacklist skips later voxel heaps,
+        // and the 4 MB floor leaves smaller game allocations anonymous.
+        var defaults = ""
+        for (key, value) in [("msc-uint-volume-loads", "1"), ("swap-mb", "4096"),
+                             ("env.MADEIRA_SWAP_COVERAGE", "broad"),
+                             ("env.MADEIRA_SWAP_MIN_KB", "256"), ("env.MADEIRA_SWAP_CHURN", "0")] {
+            if !explicitKeys.contains(key), global[key] == nil {
+                defaults += key + " = " + value + "\n"
+            }
         }
-        guard !explicit, global[key] == nil else { return user }
-        return key + " = 1\n" + (user ?? "")
+        return defaults.isEmpty ? user : defaults + (user ?? "")
     }
 }
 

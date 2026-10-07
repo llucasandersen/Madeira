@@ -1,5 +1,34 @@
 # Game compatibility test matrix
 
+## October 6 test build 11 phone results: voxels visible; loading failures remain
+
+The user confirms normal visible Teardown voxels/tools on a map that loads.
+Some other maps still terminate during loading. The exported previous log
+contains active broad swap at 4,096 MB, then ends at 6,139 MB physical footprint
+against the 6,144 MB allowance. Metal allocation rises from 513 to 2,653 MB;
+its final logical UAV texture estimate is 1,142 MB across 897 textures. No OS
+jetsam record was supplied, so memory termination is strongly indicated rather
+than proven. Enabling the old broad tier did not establish map-load stability.
+
+The tier permanently excludes allocation sizes 4 MB, 0xfd0000 and 0x7f0000
+after short-lived early allocations; its census subsequently reports 1,008 MB
+of reservations excluded by churn and 1,016 MB below the 4 MB floor. New generic
+`env.MADEIRA_SWAP_CHURN = 0` keeps those recurring sizes eligible. Teardown
+profile revision 5 uses that opt-out, a 256 KB floor and the existing 4 GB broad
+tier, preserving explicit overrides. This is an unverified memory mitigation
+candidate, with a possible storage-I/O cost; it does not fix arbitrary GPU
+allocation demand or establish that every map fits the phone.
+
+RDR2's new run uses MAXINST 1, MULTIBLOCK 0 and active broad swap, reaches
+359 seconds and about 4,784 MB, then is backgrounded by the user. The old
+6 GB memory failure is not reproduced in that run, but Story loading remains
+unresolved. It logs 7,538,937 real compiles and 7,389 unhandled-JIT-SIGBUS
+messages from SMC writes. Several writes demonstrably land; those messages
+alone do not establish a permanent fault loop. Late samples and worker activity
+show continued work. Background-only GPU permission errors are not the cause
+of the foreground loading delay. A MAXINST 16 comparison on the existing IPA
+is pending; no new RDR2 translation default or final gameplay claim is made.
+
 ## October 6 test build 11 delivery: memory tier and indirect encoder candidate
 
 Verified on USB: `E:\Madeira-RDR2-Teardown-Test-11\Madeira-diagnostic-40133d3.ipa`.

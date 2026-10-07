@@ -15469,6 +15469,7 @@ static const char * const ios_swap_reason_name[IOS_SW_REASONS] =
 static int         ios_swap_v2;               /* blocks, wide or broad; 0 = classic */
 static int         ios_swap_wide;
 static int         ios_swap_broad;            /* ml1257 */
+static int         ios_swap_churn_filter = 1;
 static size_t      ios_swap_min = 8u << 20;
 static size_t      ios_swap_resv_max = 256u << 20;
 static const char *ios_swap_mode = "classic";
@@ -15507,6 +15508,7 @@ static size_t ios_swap_env_size( const char *name, size_t def, unsigned shift, s
 static void ios_swap_config( void )
 {
     const char *cov = getenv( "MADEIRA_SWAP_COVERAGE" );
+    const char *churn = getenv( "MADEIRA_SWAP_CHURN" );
     int cfg_mode = 1, cfg_min_mb = 0;
     size_t cfg_min;
     char c;
@@ -15514,6 +15516,10 @@ static void ios_swap_config( void )
     cfg_min = cfg_min_mb > 0 ? (size_t)cfg_min_mb << 20 : 0;
     ios_swap_v2 = 0; ios_swap_wide = 0; ios_swap_broad = 0; ios_swap_min = 8u << 20; ios_swap_mode = "classic";
     ios_swap_resv_max = 256u << 20;
+    /* A loading phase's short-lived blocks need not predict the lifetime of
+     * later allocations of the same size. Opt out of the permanent size
+     * blacklist when retaining backing is more important than file-fault cost. */
+    ios_swap_churn_filter = !(churn && !strcmp( churn, "0" ));
     /* the env names the coverage when set; otherwise madeira.cfg swap-mode = 2
      * (ml1257) means broad. classic is the default: the wider modes back far more
      * of a game's memory with the file, and a game can run slower for it, so
@@ -15561,10 +15567,14 @@ static void ios_swap_init( void )
     if (ios_swap_logical == ios_swap_cap && ftruncate( ios_swap_fd, (off_t)ios_swap_cap )) { dprintf( 2, "[swap] ml1077 ftruncate failed (errno %d): tier OFF\n", errno ); close( ios_swap_fd ); ios_swap_fd = -1; return; }
     dprintf( 2, "[swap] ml1077 file-backed guest data tier ON: %s, cap %llu MB\n", f, (unsigned long long)(ios_swap_cap >> 20) );
     if (ios_swap_v2)
+    {
         dprintf( 2, "[swap] coverage=%s min=%zuKB reserve-max=%zuMB (MADEIRA_SWAP_COVERAGE=classic|blocks|wide|broad, "
                     "MADEIRA_SWAP_MIN_KB, MADEIRA_SWAP_RESERVE_MAX_MB; madeira.cfg swap-mode, swap-min-mb)%s\n",
                  ios_swap_mode, ios_swap_min >> 10, ios_swap_resv_max >> 20,
                  ios_swap_broad ? " -- ml1257 broad: whole reservations below FEX, holes on decommit, swap-mb caps the disk" : "" );
+        dprintf( 2, "[swap] churn-filter=%s (MADEIRA_SWAP_CHURN=0 keeps recurring allocation sizes file-backed)\n",
+                 ios_swap_churn_filter ? "on" : "off" );
+    }
     else
         dprintf( 2, "[swap] coverage=classic: %zu MB commits in the guest band, no census\n", ios_swap_min >> 20 );
 }
@@ -15662,19 +15672,21 @@ static int ios_swap_churn_is( unsigned i )
 static int ios_swap_churny( size_t size )
 {
     int i;
-    if (!ios_swap_broad) return 0;
+    if (!ios_swap_broad || !ios_swap_churn_filter) return 0;
     i = ios_swap_churn_find( size, 0 );
     return i >= 0 && ios_swap_churn_is( (unsigned)i );
 }
 static void ios_swap_churn_backed( size_t size )
 {
     int i;
-    if (!ios_swap_broad) return;
+    if (!ios_swap_broad || !ios_swap_churn_filter) return;
     if ((i = ios_swap_churn_find( size, 1 )) >= 0) ios_swap_churn[i].backs++;
 }
 static void ios_swap_churn_note( size_t size, uint64_t lived_ns )
 {
-    int i = ios_swap_churn_find( size, 1 ), was;
+    int i, was;
+    if (!ios_swap_churn_filter) return;
+    i = ios_swap_churn_find( size, 1 );
     if (i < 0) return;
     was = ios_swap_churn_is( (unsigned)i );
     ios_swap_churn[i].hits++;
