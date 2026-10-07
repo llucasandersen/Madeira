@@ -16,6 +16,20 @@ files. Revision 4 returns Teardown to D3D12 instead of automatically selecting
 this inadequate OpenGL backend. This is a renderer-selection correction;
 missing D3D12 terrain/tools remain unresolved. RDR2's animated loading stall
 also remains unresolved. The newest export contains no newer RDR2 run.
+The subsequent RDR2 export also identifies source `273813a` and shows
+the signer installed the app as `App.app`. The cleanup matched only
+`Madeira.app`, so a previous OpenGL session's Vulkan links survived in
+`sysx64`. RDR2 loads those DLLs despite its preserved `-dx12` argument,
+then asserts in `vkDestroyQueryPool` and terminates the child. Subsequent
+fixed-base image faults follow that termination. Its footprint is about
+2.2 GB; this is not evidence of RAM exhaustion. The cleanup now recognizes
+the actual installed bundle name and both prior distribution names, while
+preserving ordinary files and unrelated application links. Regression checks
+execute the production Foundation code with original, renamed and custom
+bundle names, native/EC roots, dangling upgrades and D3D12 session switches.
+This targets the new pre-intro failure; the earlier animated loading stall
+still requires phone confirmation and remains unresolved.
+
 No gameplay pass or final repair is claimed. See the
 [OpenGL record](DESKTOP_OPENGL_IOS.md) for primary references and limitations.
 

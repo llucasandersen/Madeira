@@ -590,7 +590,7 @@ static void madeira_link_wbem(NSFileManager *fm, NSString *prefix, NSString *sys
 /* The Steam launch root is native explorer.exe; its AMD64 game resolves
  * colliding system DLLs through sysx64. Apply GL links after the ordinary
  * farms have been refreshed, independently of the launch root's bitness. */
-static void madeira_clear_opengl_links(NSFileManager *fm, NSString *prefix)
+static void madeira_clear_opengl_links(NSFileManager *fm, NSString *prefix, NSString *bundle)
 {
     for (NSString *farm in @[@"system32", @"sysx64"]) {
         NSString *directory = [[prefix stringByAppendingPathComponent:@"drive_c/windows"] stringByAppendingPathComponent:farm];
@@ -598,8 +598,18 @@ static void madeira_clear_opengl_links(NSFileManager *fm, NSString *prefix)
             NSString *path = [directory stringByAppendingPathComponent:name];
             NSString *target = [fm destinationOfSymbolicLinkAtPath:path error:nil];
             BOOL vulkan = [name isEqualToString:@"vulkan-1.dll"] || [name isEqualToString:@"winevulkan.dll"];
-            if ([target containsString:@"/Madeira.app/x86_64-opengl/"] ||
-                (vulkan && [target containsString:@"/Madeira.app/arm64ec-windows/"])) {
+            // Re-signing can rename Madeira.app to App.app. Match the
+            // installed bundle name and the two prior distribution names,
+            // including dangling links from an older installation. Do not
+            // delete ordinary files or links to unrelated user directories.
+            NSString *componentDir = [target stringByDeletingLastPathComponent];
+            NSString *appName = [[componentDir stringByDeletingLastPathComponent] lastPathComponent];
+            BOOL ownedApp = [appName isEqualToString:[bundle lastPathComponent]] ||
+                            [appName isEqualToString:@"Madeira.app"] ||
+                            [appName isEqualToString:@"App.app"];
+            BOOL ownedComponent = [[componentDir lastPathComponent] isEqualToString:@"x86_64-opengl"] ||
+                                  (vulkan && [[componentDir lastPathComponent] isEqualToString:@"arm64ec-windows"]);
+            if (ownedApp && ownedComponent && [[target lastPathComponent] isEqualToString:name]) {
                 [fm removeItemAtPath:path error:nil];
                 dprintf(STDERR_FILENO, "[opengl] removed prior session bundle link: %s/%s\n", farm.UTF8String, name.UTF8String);
             }
@@ -1382,7 +1392,7 @@ static void *wine_process_thread(void *arg) {
 
             // Use bundled desktop OpenGL for sessions whose game profile selects it.
             const char *openGL = getenv("MADEIRA_OPENGL");
-            madeira_clear_opengl_links(fm, prefix);
+            madeira_clear_opengl_links(fm, prefix, bundlePath);
             if (openGL && !strcmp(openGL, "1"))
                 madeira_link_opengl(fm, prefix, bundlePath, use_arm64ec && !is_i386_target);
             /* AMD64 manifests require the EC farm's side-by-side assemblies.
