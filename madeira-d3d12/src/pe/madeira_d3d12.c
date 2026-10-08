@@ -2079,8 +2079,25 @@ static long long mad_cfg_int_pe(const char *key, long long dflt) {
 static int mad_upload_swap_on(void) {   /* ml1154: madeira.cfg upload-swap (default 1) */
     static int on = -1;
     if (on < 0) { on = mad_cfg_int_pe("upload-swap", 1) ? 1 : 0;
-                  d3d12_log("[madeira-d3d12] ml1154 upload-swap = %d (%s)\n", on, on ? "CPU-visible buffers >= 8 MB live on file-backed storage, off the jetsam footprint" : "Metal-owned storage"); }
+                  d3d12_log("[madeira-d3d12] ml1154 upload-swap = %d (%s)\n", on, on ? "eligible CPU-visible buffers use guest storage; active swap tier can file-back it" : "Metal-owned storage"); }
     return on;
+}
+/* upload-swap-min-kb defaults to the original 8 MB threshold. RDR2's mission
+ * transition grows hundreds of smaller UPLOAD/READBACK buffers while reaching
+ * the process limit. Let a profile include them without changing other games.
+ * The backing tier must be active and have a matching floor to cover storage. */
+static UINT64 mad_upload_swap_min(void) {
+    static UINT64 bytes;
+    if (!bytes) {
+        LONG64 kb = mad_cfg_int_pe("upload-swap-min-kb", 8192);
+        if (kb < 64 || kb > 1048576) kb = 8192;
+        bytes = (UINT64)kb << 10;
+        d3d12_log("[madeira-d3d12] upload-swap-min-kb = %llu\n", (unsigned long long)kb);
+    }
+    return bytes;
+}
+static int mad_upload_swap_eligible(UINT heap_type, UINT64 length) {
+    return heap_type != D3D12_HEAP_TYPE_DEFAULT && mad_upload_swap_on() && length >= mad_upload_swap_min();
 }
 static int mad_pso_lazy_on(void) {   /* madeira.cfg pso-lazy (default 1): pipelines built at their first draw/dispatch */
     static int on = -1;
@@ -7763,14 +7780,14 @@ static HRESULT mad_create_resource_at(struct mad_device *d, D3D12_HEAP_TYPE heap
             if (r->buffer) { r->placed_heap = ph; ID3D12Heap_AddRef((ID3D12Heap *)ph); InterlockedIncrement(&g_placed_in_heap); }
             else { mad_placed_fallback(ph, desc, poff, psz, pal); info.memory.ptr = NULL; info.gpu_address = 0; }
         }
-        /* ml1154: a large CPU-visible buffer gets storage WE allocate, handed to
-         * Metal as a no-copy buffer. A fresh >= 8 MB guest commit is backed by
-         * the file tier (ml1077), whose dirty pages iOS writes back and never
-         * charges to phys_footprint, the number jetsam kills on. UE 5.0 keeps
+        /* ml1154: an eligible CPU-visible buffer gets storage WE allocate,
+         * handed to Metal as a no-copy buffer. The active guest file tier can
+         * back it when it meets that tier's floor and cap. The original buffer
+         * threshold is 8 MB; upload-swap-min-kb permits smaller buffers. UE 5.0 keeps
          * 0.4-0.9 GB of UPLOAD buffers live (ph-valley08-13), and its load-time
          * peak is what kills the Lumen runs. Metal-allocated shared storage is
          * charged in full. madeira.cfg upload-swap = 0 turns it off. */
-        if (!r->buffer && heap_type != D3D12_HEAP_TYPE_DEFAULT && info.length >= (8u << 20) && mad_upload_swap_on()) {
+        if (!r->buffer && mad_upload_swap_eligible(heap_type, info.length)) {
             SIZE_T len = (SIZE_T)((info.length + 0xffff) & ~(UINT64)0xffff);
             void *mem = VirtualAlloc(NULL, len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
             if (mem) {

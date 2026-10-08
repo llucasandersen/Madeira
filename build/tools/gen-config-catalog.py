@@ -46,6 +46,7 @@ INTERNAL_ENV = {"MADEIRA_RDR2_DX12"}
 # Titles, kinds and fixed choices for options with a dedicated Settings row.
 # "choices" are (value, label); the empty value means "remove the key".
 OVERLAY = {
+    "upload-swap-min-kb": {"title": "CPU-visible graphics buffer backing floor (KB)", "category": "Direct3D 12", "note": "Minimum UPLOAD/READBACK buffer size that uses guest storage eligible for the swap tier. Default 8192 KB; RDR2's automatic profile uses 256 KB. Requires upload-swap enabled and an active backing tier with a matching floor. May increase storage I/O. Valid range: 64 to 1048576 KB; invalid values use 8192."},
     "env.MADEIRA_JIT_DUMP_AFTER_SECONDS": {"title": "Delayed diagnostic capture (seconds)",
                 "note": "Saves one diagnostic JIT dump after this delay, from 1 to 3600 seconds. Off unless explicitly set. Set 0 to disable the delayed capture. MADEIRA_JIT_DUMP=0 disables all JIT dumps."},
     "swap-mb": { "note": "Moves game data to a file on this device's storage when memory runs short, up to this size. Off by default; read at launch.", "category": "Memory & JIT pool","title": "Swap tier size", "kind": "choice",

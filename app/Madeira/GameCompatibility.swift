@@ -54,7 +54,7 @@ struct GameCompatibilityProfile: Equatable {
     // No profile is needed for PEAK's ordinary D3D11 launch path.
     private static let builtins = [Self(appID: 1167630, revision: 5,
         preferredRenderer: .d3d12, settingsAdapter: .teardownRegistry),
-        Self(appID: 1174180, revision: 5, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
+        Self(appID: 1174180, revision: 6, preferredRenderer: .d3d12, settingsAdapter: .rdr2System)]
 
     func prepare(options: URL) throws -> Bool {
         switch settingsAdapter {
@@ -89,7 +89,8 @@ struct GameCompatibilityProfile: Equatable {
             // and real device limits; explicit Off remains Off.
             for (key, value) in [("env.FEX_MULTIBLOCK", "0"), ("env.FEX_MAXINST", "16"),
                                  ("swap-mb", "4096"), ("env.MADEIRA_SWAP_COVERAGE", "broad"),
-                                 ("env.MADEIRA_SWAP_MIN_KB", "256"), ("env.MADEIRA_SWAP_CHURN", "0")] {
+                                 ("env.MADEIRA_SWAP_MIN_KB", "256"), ("env.MADEIRA_SWAP_CHURN", "0"),
+                                 ("upload-swap-min-kb", "256")] {
                 if !explicitKeys.contains(key), global[key] == nil {
                     defaults += key + " = " + value + "\n"
                 }

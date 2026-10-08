@@ -1,5 +1,32 @@
 # Game compatibility test matrix
 
+## October 7 mission transition: CPU-visible graphics backing candidate
+
+The latest MAXINST 32 / MULTIBLOCK 0 run reaches about 1,249 seconds and
+ends at 6,139 MB against the measured 6,144 MB app allowance. Swap is active
+at 12,228 MB (the user's configured value), with zero backing refusals and
+zero churn exclusions. Enlarging the cap did not establish mission stability.
+The last graphics report has zero failed command buffers. OS termination
+evidence is not supplied, so a memory kill remains strongly indicated.
+
+Near the transition, logical shared graphics buffers grow to 817 MB across
+776 resources, while total Metal allocation reaches 3,276 MB. The renderer's
+existing guest-storage path only includes CPU-visible buffers at least 8 MB;
+smaller UPLOAD/READBACK allocations remain Metal-owned despite the guest
+tier's 256 KB floor. A new generic `upload-swap-min-kb` setting retains the
+8 MB default and existing fallback/lifetime behavior. RDR2 profile revision 6
+uses 256 KB. This is a candidate to reduce transition memory pressure, not a
+guarantee that all of that shared buffer estimate is recoverable memory.
+
+The user reports that smaller actual JIT pools prevent the intro from loading.
+Retain the working 896 MB pool. The per-game pool=768 line appears in the log
+but the Swift pool allocator still reads the global configuration and allocates
+896 MB. This candidate does not activate that previously ignored override.
+Teardown's phone-confirmed voxel fix remains, and its graphics threshold
+remains 8 MB. New production allocation tests exercise both thresholds,
+UPLOAD/READBACK vs private heaps, explicit opt-out, size alignment, and
+VirtualAlloc/Metal failure fallback. Phone mission acceptance is pending.
+
 ## October 7: RDR2 reaches Story; cutscene and Villa Gordon need memory testing
 
 The MAXINST 16 / MULTIBLOCK 0 phone comparison clears the loading screen
