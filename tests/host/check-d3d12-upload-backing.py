@@ -6,7 +6,8 @@ import tempfile
 
 root = Path(__file__).resolve().parents[2]
 source = (root / 'madeira-d3d12/src/pe/madeira_d3d12.c').read_text()
-helpers = source[source.index('static int mad_upload_swap_on('):source.index('static int mad_pso_lazy_on(')]
+start = source.index('static int mad_upload_swap_on(void) {')
+helpers = source[start:source.index('static int mad_pso_lazy_on(void) {', start)]
 at = source.index('if (!r->buffer && mad_upload_swap_eligible(')
 end = source.index('{', at)
 depth = 1
