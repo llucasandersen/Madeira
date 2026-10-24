@@ -26,9 +26,18 @@ final class ProMotionIntent {
     static let shared = ProMotionIntent()
     private var link: CADisplayLink?
     private var activeMax: Float = 0
+    private var activeScreen: ObjectIdentifier?
+    private var mode: Int32?
+    private var displayObserver: NSObjectProtocol?
+
+    private init() {
+        displayObserver = NotificationCenter.default.addObserver(forName: .madeiraDisplayContextChanged, object: nil, queue: .main) { [weak self] _ in
+            if let mode = self?.mode { ProMotionIntent.apply(mode: mode) }
+        }
+    }
 
     /// Honest report of what the panel can do, for the native `[frame]` line.
-    static var panelMaxFPS: Int { UIScreen.main.maximumFramesPerSecond }
+    static var panelMaxFPS: Int { AppDisplay.maximumFramesPerSecond }
 
     /// The opt-in above; read when a session's pacing is applied.
     static var holdMaximum: Bool { MadeiraConfig.flag("MADEIRA_PROMOTE", fallback: false) }
@@ -45,9 +54,12 @@ final class ProMotionIntent {
     func setActive(_ active: Bool, maxHz: Int = ProMotionIntent.panelMaxFPS) {
         let want = Float(max(maxHz, 0))
         if active && want > 0 {
-            if link != nil && activeMax == want { return }
+            let screen = AppDisplay.screen
+            let identity = screen.map { ObjectIdentifier($0) }
+            if link != nil && activeMax == want && activeScreen == identity { return }
             link?.invalidate()
-            let l = CADisplayLink(target: self, selector: #selector(tick))
+            let l = screen?.displayLink(withTarget: self, selector: #selector(tick))
+                ?? CADisplayLink(target: self, selector: #selector(tick))
             // `minimum` must not exceed the panel's own maximum or CoreAnimation
             // clamps the whole range away (a 60Hz device asked for min 60 /
             // max 120 gets nothing useful).
@@ -56,12 +68,14 @@ final class ProMotionIntent {
             l.add(to: .main, forMode: .common)
             link = l
             activeMax = want
+            activeScreen = identity
             fputs("[promote] display link armed preferred=\(Int(want))Hz panel_max=\(ProMotionIntent.panelMaxFPS)Hz\n", stderr)
         } else {
             if link != nil { fputs("[promote] display link released\n", stderr) }
             link?.invalidate()
             link = nil
             activeMax = 0
+            activeScreen = nil
         }
     }
 
@@ -74,6 +88,7 @@ final class ProMotionIntent {
 
     /// Arms or releases the link for `mode` and publishes the rates to DXMT.
     static func apply(mode: Int32) {
+        shared.mode = mode
         let hz = maxHz(for: mode)
         shared.setActive(hz > 0, maxHz: hz)
         madeira_set_display_max_fps(Int32(panelMaxFPS), Int32(hz))
@@ -301,7 +316,7 @@ struct FPSOverlay: View {
         switch mode {
         case 1: return "60"
         case 3: return "30"
-        case 0: return "MAX(\(UIScreen.main.maximumFramesPerSecond))"
+        case 0: return "MAX(\(AppDisplay.maximumFramesPerSecond))"
         default: return "RAW"
         }
     }

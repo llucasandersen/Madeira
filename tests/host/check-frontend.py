@@ -399,6 +399,23 @@ let phone = GuestDisplay.defaultMode(forLandscapeView: CGSize(width: 844, height
 let tablet = GuestDisplay.defaultMode(forLandscapeView: CGSize(width: 1024, height: 768))
 expect(phone.w == 1280 && phone.h == 720, "phone default mode is 1280x720")
 expect(tablet.w == 1152 && tablet.h == 864, "4:3 default mode is 1152x864 (cheapest 4:3 of at least 0.9 MP)")
+// Fold, unfold, rotate and mirror without changing the guest monitor.
+let displaySpaces = [CGSize(width: 466, height: 678), CGSize(width: 890, height: 626),
+                     CGSize(width: 626, height: 890), CGSize(width: 1920, height: 1080)]
+for size in displaySpaces {
+    let bounds = CGRect(origin: CGPoint(x: 17, y: 23), size: size)
+    let surface = GameSurfaceLayout.rect(guest: guest, bounds: bounds, mode: .fit)
+    let centre = GameSurfaceLayout.map(point: CGPoint(x: surface.midX, y: surface.midY),
+                                      guest: guest, bounds: bounds, mode: .fit)
+    expect(near(centre.x, 640) && near(centre.y, 360), "resize preserves guest touch coordinates")
+    expect(surface.width <= size.width + 0.5 && surface.height <= size.height + 0.5,
+           "resized surface stays inside the app's available space")
+}
+expect(GuestDisplay.screenShapeResolution(for: CGSize(width: 890, height: 626)) == "1024x720",
+       "Duo inner display shape follows current window bounds")
+expect(GuestDisplay.screenShapeResolution(for: .zero) == nil, "detached window has no screen-shape preset")
+expect(GuestDisplay.screenShapeResolution(for: CGSize(width: CGFloat.infinity, height: 10)) == nil,
+       "nonfinite transient bounds do not trap converting a resolution")
 expect(DisplayMode.allCases.map { $0.label } == ["Fit", "Fill", "Stretch", "Aspect"], "the four Aspect & scaling choices")
 
 // Controller navigation.

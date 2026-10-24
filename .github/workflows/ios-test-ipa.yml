@@ -39,6 +39,16 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
 
 jobs:
+  display-compatibility:
+    runs-on: xcode-27
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Select iOS 27.1 SDK
+        run: bash build/ci/select-duo-sdk.sh
+      - name: Check actual UIKit display adapters against the new SDK
+        run: python3 build/ci/check-display-sdk.py
+
   llvm-ios:
     if: inputs.reuse_llvm_run == ''
     runs-on: macos-26
@@ -120,16 +130,19 @@ jobs:
             wine/build-*/config.log
 
   app:
-    needs: [llvm-ios, fex-ios, native-runtime]
+    needs: [llvm-ios, fex-ios, native-runtime, display-compatibility]
     if: >-
       always() && !inputs.native_only &&
+      needs.display-compatibility.result == 'success' &&
       (needs.llvm-ios.result == 'success' || inputs.reuse_llvm_run != '') &&
       (needs.fex-ios.result == 'success' || inputs.reuse_fex_run != '') &&
       (needs.native-runtime.result == 'success' || inputs.reuse_runtime_run != '')
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v5
+      - name: Select iOS 27.1 SDK for adaptive iPhone Duo layouts
+        run: bash build/ci/select-duo-sdk.sh
       - name: Retrieve pinned FEX and DXMT headers and sources
         run: git submodule update --init --recursive --depth 1 FEX dxmt wine madeira-dock
       - name: Wait for explicitly reused component artifacts

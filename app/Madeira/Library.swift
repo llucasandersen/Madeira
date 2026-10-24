@@ -41,7 +41,7 @@ enum DeviceLoadDiagnostics {
         lastReport = now
         let process = ProcessInfo.processInfo
         let thermal = thermalName(process.thermalState)
-        fputs("[device-load] thermal=\(thermal) low-power=\(process.isLowPowerModeEnabled ? 1 : 0) capture=\(UIScreen.main.isCaptured ? 1 : 0)\n", stderr)
+        fputs("[device-load] thermal=\(thermal) low-power=\(process.isLowPowerModeEnabled ? 1 : 0) capture=\(AppDisplay.isCaptured ? 1 : 0)\n", stderr)
     }
     static func thermalName(_ state: ProcessInfo.ThermalState) -> String {
         switch state {
@@ -2564,12 +2564,7 @@ struct LibraryDetail: View {
     /// MADEIRA_SCREEN_SHAPE_RESOLUTION=0.
     static var screenShapeResolution: String? {
         guard MadeiraConfig.flag("MADEIRA_SCREEN_SHAPE_RESOLUTION") else { return nil }
-        let bounds = UIScreen.main.bounds
-        let long = max(bounds.width, bounds.height), short = min(bounds.width, bounds.height)
-        guard short > 0 else { return nil }
-        let width = Int((720 * long / short / 8).rounded()) * 8
-        guard (640...4096).contains(width), width != 1280, width != 960 else { return nil }
-        return "\(width)x720"
+        return GuestDisplay.screenShapeResolution(for: AppDisplay.bounds.size)
     }
     /// "None", or how many keys this game's own config sets.
     static func configSummary(_ config: String?) -> String {

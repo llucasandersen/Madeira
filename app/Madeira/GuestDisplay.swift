@@ -91,6 +91,17 @@ enum GameSurfaceLayout {
 
 /// The session default of the guest's virtual monitor.
 enum GuestDisplay {
+    /// Uses the app's current space, including a folded or resized window.
+    static func screenShapeResolution(for size: CGSize) -> String? {
+        let long = max(size.width, size.height), short = min(size.width, size.height)
+        guard long.isFinite, short.isFinite, short > 0 else { return nil }
+        let rounded = (720 * long / short / 8).rounded() * 8
+        guard rounded >= 640, rounded <= 4096 else { return nil }
+        let width = Int(rounded)
+        guard width != 1280, width != 960 else { return nil }
+        return "\(width)x720"
+    }
+
     /// Standard modes a session default is chosen from when no size is given.
     static let standardModes: [(w: Int, h: Int)] = [
         (640, 480), (800, 600), (1024, 768), (1152, 864),
@@ -144,3 +155,87 @@ enum GuestDisplay {
         return (mode.w, mode.h, source)
     }
 }
+
+#if canImport(UIKit)
+import UIKit
+import SwiftUI
+import AVFoundation
+
+extension Notification.Name {
+    static let madeiraDisplayContextChanged = Notification.Name("MadeiraDisplayContextChanged")
+}
+
+/// The content window owns display selection. Never retain a UIScreen: folding,
+/// iPhone Mirroring and moving a scene can change it during an existing session.
+enum AppDisplay {
+    private static weak var contentWindow: UIWindow?
+    private static var lastContext = ""
+
+    static var window: UIWindow? {
+        if let value = contentWindow, value.windowScene != nil { return value }
+        return UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .filter { $0.session.role == .windowApplication && $0.activationState == .foregroundActive }
+            .flatMap(\.windows).first { $0.isKeyWindow }
+    }
+    static var screen: UIScreen? { window?.windowScene?.screen }
+    static var bounds: CGRect { window?.bounds ?? .zero }
+    static var scale: CGFloat { max(window?.traitCollection.displayScale ?? 1, 1) }
+    static var maximumFramesPerSecond: Int { max(screen?.maximumFramesPerSecond ?? 60, 1) }
+    static var isCaptured: Bool { screen?.isCaptured ?? false }
+
+    static func refresh(window value: UIWindow? = nil, reason: String) {
+        if let value, value.windowScene?.session.role == .windowApplication { contentWindow = value }
+        guard let window, let scene = window.windowScene else { return }
+        let context = "scene=\(scene.session.persistentIdentifier) screen=\(ObjectIdentifier(scene.screen)) "
+            + "bounds=\(window.bounds) scale=\(scale) hz=\(maximumFramesPerSecond) capture=\(isCaptured ? 1 : 0)"
+        guard context != lastContext else { return }
+        lastContext = context
+        fputs("[display-context] reason=\(reason) \(context)\n", stderr)
+        // Avoid delivering layout work inside SwiftUI's current layout pass.
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .madeiraDisplayContextChanged, object: nil)
+        }
+    }
+}
+
+/// A layout-only probe in the application's content window. No second window is
+/// created for AirPlay: UIKit keeps its normal whole-screen mirroring behavior.
+struct DisplayContextReader: UIViewRepresentable {
+    final class Probe: UIView {
+        private var observers: [NSObjectProtocol] = []
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isUserInteractionEnabled = false
+            for name in [UIScreen.didConnectNotification, UIScreen.didDisconnectNotification,
+                         UIScreen.modeDidChangeNotification, UIScreen.capturedDidChangeNotification,
+                         UIApplication.didBecomeActiveNotification, AVAudioSession.routeChangeNotification] {
+                observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                    guard let self, let window = self.window else { return }
+                    AppDisplay.refresh(window: window, reason: note.name.rawValue)
+                    if note.name == AVAudioSession.routeChangeNotification {
+                        let route = AVAudioSession.sharedInstance().currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ",")
+                        fputs("[display-audio-route] outputs=\(route)\n", stderr)
+                    }
+                })
+            }
+            registerForTraitChanges([UITraitDisplayScale.self]) { (self: Probe, _: UITraitCollection) in
+                AppDisplay.refresh(window: self.window, reason: "display-scale")
+            }
+        }
+        required init?(coder: NSCoder) { fatalError() }
+        deinit { observers.forEach { NotificationCenter.default.removeObserver($0) } }
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if let window { AppDisplay.refresh(window: window, reason: "window") }
+        }
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            if let window { AppDisplay.refresh(window: window, reason: "resize") }
+        }
+    }
+    func makeUIView(context: Context) -> Probe { Probe(frame: .zero) }
+    func updateUIView(_ view: Probe, context: Context) {
+        if let window = view.window { AppDisplay.refresh(window: window, reason: "update") }
+    }
+}
+#endif

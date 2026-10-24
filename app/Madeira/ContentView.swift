@@ -38,7 +38,7 @@ final class MetalHostView: UIView {
         GamepadEventClaim.install(on: self)
         isUserInteractionEnabled = false   // touches fall through to SwiftUI
         backgroundColor = .black
-        contentScaleFactor = UIScreen.main.scale
+        contentScaleFactor = AppDisplay.scale
         metalLayer.device = MTLCreateSystemDefaultDevice()
         metalLayer.pixelFormat = .bgra8Unorm
         metalLayer.framebufferOnly = true
@@ -64,7 +64,7 @@ final class MetalHostView: UIView {
          * have eliminated it rather than argued about it. */
         let fpsSel = NSSelectorFromString("setNominalFramesPerSecond:")
         if metalLayer.responds(to: fpsSel) {
-            let hz = UIScreen.main.maximumFramesPerSecond
+            let hz = AppDisplay.maximumFramesPerSecond
             metalLayer.perform(fpsSel, with: hz as NSNumber)
             LogStore.shared.log("MetalLayer: ml651 nominalFPS=\(hz) (was hardcoded 60; "
                                 + "display link asks preferred=120)")
@@ -77,6 +77,19 @@ final class MetalHostView: UIView {
         metalLayer.drawableSize = CGSize(width: 800, height: 600)
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    func updateDisplayContext() {
+        let scale = max(window?.traitCollection.displayScale ?? AppDisplay.scale, 1)
+        contentScaleFactor = scale
+        metalLayer.contentsScale = scale
+        let fpsSel = NSSelectorFromString("setNominalFramesPerSecond:")
+        if metalLayer.responds(to: fpsSel) {
+            let hz = window?.windowScene?.screen.maximumFramesPerSecond ?? AppDisplay.maximumFramesPerSecond
+            metalLayer.perform(fpsSel, with: hz as NSNumber)
+        }
+        // drawableSize belongs to the swapchain, not to the phone's physical
+        // pixels. Folding or AirPlay must not silently increase game resolution.
+    }
 }
 
 // SwiftUI-hosted placeholder: geometry + touch input only.
@@ -178,7 +191,8 @@ final class MetalBackedView: UIView {
     /// Sizes the presented layer's host view to gameRect(). `[display] apply`
     /// is logged when the result changes.
     private func applyDisplayMode(reason: String) {
-        guard let w = window else { return }
+        guard let w = window, bounds.width > 0, bounds.height > 0 else { return }
+        MetalHostView.shared.updateDisplayContext()
         let r = gameRect()
         MetalHostView.shared.frame = convert(r, to: w)
         // The desktop compositor lays the guest display out in the same rect,
@@ -209,6 +223,11 @@ final class MetalBackedView: UIView {
     /// Guest mode changes (IOSDisplayShim posts them on the main queue) and
     /// device rotation re-lay-out the surface. Idempotent, app lifetime.
     private static let observers: [NSObjectProtocol] = [
+        NotificationCenter.default.addObserver(forName: .madeiraDisplayContextChanged, object: nil, queue: .main) { _ in
+            MetalBackedView.refreshDisplayMode(reason: "display-context")
+            TouchControlsHost.refreshDisplayContext()
+            if let scene = AppDisplay.window?.windowScene { JoystickPadHost.refreshDisplayContext(scene: scene) }
+        },
         NotificationCenter.default.addObserver(forName: .MadeiraDisplayModeChanged, object: nil, queue: .main) { _ in
             MetalBackedView.refreshDisplayMode(reason: "mode-changed")
         },
@@ -769,7 +788,13 @@ enum JoystickPadHost {
             w.rootViewController = host
             overlay = w
         }
+        if overlay?.windowScene !== scene { overlay?.windowScene = scene }
         overlay?.frame = scene.coordinateSpace.bounds
+    }
+
+    static func refreshDisplayContext(scene: UIWindowScene) {
+        guard overlay != nil else { return }
+        attach(to: scene)
     }
 }
 
@@ -3808,9 +3833,7 @@ enum TouchControlsHost {
     private static var window: ControlsWindow?
 
     static func attach() {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive })
-                        ?? scenes.first else { return }
+        guard let scene = AppDisplay.window?.windowScene else { return }
         if window == nil {
             // ml644: orientationDidChangeNotification is NOT posted unless
             // generation has been switched on, so without this the overlay would
@@ -3827,9 +3850,15 @@ enum TouchControlsHost {
             w.rootViewController = host
             window = w
         }
+        if window?.windowScene !== scene { window?.windowScene = scene }
         window?.frame = scene.coordinateSpace.bounds
         fputs("[controls] ml644 overlay attached frame=\(window?.frame ?? .zero) " +
               "controls=\(TouchControlsModel.shared.controls.count)\n", stderr)
+    }
+
+    static func refreshDisplayContext() {
+        guard window != nil else { return }
+        attach()
     }
 }
 

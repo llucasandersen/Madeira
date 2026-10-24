@@ -5,6 +5,7 @@ struct MadeiraApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .background(DisplayContextReader().allowsHitTesting(false))
                 .modifier(ClaimGamepadEvents())
                 .onAppear {
                     GamepadInput.shared.start()
