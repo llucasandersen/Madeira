@@ -3438,13 +3438,10 @@ struct LibraryFloatingItem: View {
 /// It lives in TouchControlsOverlay's window, which is above the game surface.
 struct LibraryHUD: View {
     /// Top offset for the overlays pinned to the top edge. This HUD ignores the
-    /// safe area, and with the game view in portrait its reported top inset can
-    /// be zero while the status bar is showing; the larger of the reported inset
-    /// and the visible status bar's height is used.
+    /// safe area, so consult its content window too. A Duo status bar may be
+    /// vertical: its frame height is not a top inset and could hide the HUD.
     static func topInset(_ geo: GeometryProxy) -> CGFloat {
-        let bar = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }?.statusBarManager?.statusBarFrame.height ?? 0
-        return max(geo.safeAreaInsets.top, bar)
+        max(geo.safeAreaInsets.top, AppDisplay.window?.safeAreaInsets.top ?? 0)
     }
     @ObservedObject private var model = LibraryModel.shared
     @ObservedObject private var controls = TouchControlsModel.shared
@@ -3907,7 +3904,7 @@ enum LibraryKeyboard {
     static func show() {
         // MADEIRA_FRONTEND_KEYBOARD=0: the game view's own keyboard instead.
         if !MadeiraConfig.flag("MADEIRA_FRONTEND_KEYBOARD") { MetalBackedView.toggleKeyboard(); return }
-        guard window == nil, let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first(where: { $0.activationState == .foregroundActive }) else { return }
+        guard window == nil, let scene = AppDisplay.window?.windowScene else { return }
         previous = scene.windows.first(where: { $0.isKeyWindow })
         let w = LibraryKeyboardWindow(windowScene: scene)
         w.windowLevel = .normal + 102; w.backgroundColor = .clear

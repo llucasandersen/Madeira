@@ -1006,8 +1006,7 @@ struct JoystickKeyView: View {
                         center = CGPoint(x: geo.frame(in: .global).midX,
                                          y: geo.frame(in: .global).midY)
                         JoystickPadState.shared.center = center
-                        if let scene = UIApplication.shared.connectedScenes
-                            .compactMap({ $0 as? UIWindowScene }).first {
+                        if let scene = AppDisplay.window?.windowScene {
                             JoystickPadHost.attach(to: scene)
                             hosted = true
                         }
@@ -1024,8 +1023,7 @@ struct JoystickKeyView: View {
                     .onChanged { g in
                         if !held {
                             held = true
-                            if let scene = UIApplication.shared.connectedScenes
-                                .compactMap({ $0 as? UIWindowScene }).first {
+                            if let scene = AppDisplay.window?.windowScene {
                                 JoystickPadHost.attach(to: scene)
                             }
                             JoystickPadState.shared.center = center
