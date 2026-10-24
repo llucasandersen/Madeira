@@ -129,11 +129,51 @@ jobs:
             build/**/config.log
             wine/build-*/config.log
 
+  graphics-native:
+    needs: [llvm-ios]
+    if: >-
+      always() && !inputs.native_only &&
+      (needs.llvm-ios.result == 'success' || inputs.reuse_llvm_run != '')
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Retrieve pinned graphics headers and sources
+        run: git submodule update --init --recursive --depth 1 dxmt wine
+      - name: Wait for LLVM
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LLVM_RUN: ${{ inputs.reuse_llvm_run || github.run_id }}
+        run: bash build/ci/wait-artifacts.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: llvm-ios
+          run-id: ${{ inputs.reuse_llvm_run || github.run_id }}
+          github-token: ${{ github.token }}
+          path: build/ci-artifacts
+      - name: Build graphics converter with its pinned Metal toolchain
+        run: |
+          tar -xzf build/ci-artifacts/llvm-ios.tar.gz
+          xcodebuild -downloadComponent MetalToolchain
+          bash build/dxmt-ios/build.sh
+          python3 build/ci/stage-native-graphics.py record
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dxmt-native-ios
+          path: build/ci-output/native-graphics
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: native-graphics-errors
+          path: build/dxmt-ios/obj/*.err
+
   app:
-    needs: [llvm-ios, fex-ios, native-runtime, display-compatibility]
+    needs: [llvm-ios, fex-ios, native-runtime, display-compatibility, graphics-native]
     if: >-
       always() && !inputs.native_only &&
       needs.display-compatibility.result == 'success' &&
+      needs.graphics-native.result == 'success' &&
       (needs.llvm-ios.result == 'success' || inputs.reuse_llvm_run != '') &&
       (needs.fex-ios.result == 'success' || inputs.reuse_fex_run != '') &&
       (needs.native-runtime.result == 'success' || inputs.reuse_runtime_run != '')
@@ -176,10 +216,12 @@ jobs:
           for archive in build/ci-artifacts/*.tar.gz; do tar -xzf "$archive"; done
           test -s FEX/build-ios/include/FEXCore/Config/ConfigValues.inl
           test -s FEX/build-ios/include/FEXCore/Config/ConfigOptions.inl
-      - name: Build DXMT Metal side
-        run: |
-          xcodebuild -downloadComponent MetalToolchain
-          bash build/dxmt-ios/build.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: dxmt-native-ios
+          path: build/ci-artifacts/native-graphics
+      - name: Verify pinned graphics converter before linking the Duo app
+        run: python3 build/ci/stage-native-graphics.py stage
       - name: Require a successful graphics source workflow
         if: inputs.dxmt_source_run != ''
         env:
