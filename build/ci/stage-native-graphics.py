@@ -28,7 +28,8 @@ elif sys.argv[1] == 'stage':
     assert report['source'] == git('rev-parse', 'HEAD'), 'graphics source mismatch'
     assert report['dxmt'] == git('-C', 'dxmt', 'rev-parse', 'HEAD'), 'DXMT pin mismatch'
     assert str(report['run_id']) == os.environ['GITHUB_RUN_ID'], 'unexpected graphics artifact run'
-    assert report['sdk'].startswith('26.6'), 'unexpected converter SDK'
+    # Xcode 26.6 ships the iPhoneOS 26.5 SDK.
+    assert report['sdk'] == '26.5', 'unexpected converter SDK'
     assert sha(folder / 'libdxmt_combined.a') == report['library_sha256'], 'graphics archive checksum mismatch'
     shutil.copyfile(folder / 'libdxmt_combined.a', root / 'app/Madeira/libdxmt_combined.a')
     (root / 'build/ci-output/native-graphics-staging.json').write_text(json.dumps(report,indent=2)+'\n')
