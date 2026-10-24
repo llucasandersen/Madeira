@@ -31,7 +31,7 @@ final class LogStore { static let shared = LogStore(); func log(_ text: String) 
 '''
 with tempfile.TemporaryDirectory() as temp:
     path = Path(temp) / 'DisplayAdapters.swift'
-    path.write_text(stubs + display + fps + host)
+    path.write_text('\n'.join((stubs, display, fps, host)))
     sdk = subprocess.check_output(['xcrun', '--sdk', 'iphonesimulator', '--show-sdk-path'], text=True).strip()
     subprocess.run(['xcrun', 'swiftc', '-typecheck', '-swift-version', '5', '-sdk', sdk,
                     '-target', 'arm64-apple-ios17.0-simulator', str(path)], check=True)

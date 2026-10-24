@@ -1037,3 +1037,29 @@ all 59 host checks passed in
 [run 37244575135](https://github.com/llucasandersen/Madeira/actions/runs/37244575135)
 at Madeira `e6f6a2c` / FEX `b28076559`. The downloaded Linux/macOS inventories
 again matched all 59 distinct repository checks, all exit zero.
+# iPhone Duo and system mirroring candidate
+
+The app uses an iOS 27.1 SDK build for Duo resizing. Its content window supplies
+the current display scale, refresh rate and available bounds; the renderer keeps
+its existing CAMetalLayer and guest resolution through fold/unfold and capture
+changes. Controls and touch mapping follow the resized window. UIKit retains
+normal whole-screen mirroring; no external scene replaces it. Existing playback
+audio routing is preserved, with route-type diagnostics for AirPlay testing.
+
+Required physical-device checks before accepting this candidate:
+
+- Launch a known working game on the outer display, unfold, rotate and fold
+  again. Check visible content, touch targets, keyboard/controller and menu.
+- Keep the same render resolution and game configuration during those changes.
+- Start Control Center Screen Mirroring to an AirPlay receiver on the same
+  network. Check live game video and audio, controls, disconnect/reconnect and
+  folding while mirrored. Keep the phone active during gameplay.
+- Compare a short local run with a mirrored run at the same game settings.
+  Export full logs showing display-context and audio-route changes, plus any
+  black-screen, wrong-aspect or audio interruption observations.
+- Recheck RDR2 mission transition and Teardown Villa Gordon on the new phone.
+  Prior acceptance on the iPhone 17 Pro Max does not establish Duo acceptance.
+
+The SDK and geometry checks cannot certify physical AirPlay delivery or JIT
+activation with the user's signing profile. Candidate acceptance remains pending.
+
