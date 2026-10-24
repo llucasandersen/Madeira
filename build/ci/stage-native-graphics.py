@@ -32,6 +32,7 @@ elif sys.argv[1] == 'stage':
     assert report['sdk'] == '26.5', 'unexpected converter SDK'
     assert sha(folder / 'libdxmt_combined.a') == report['library_sha256'], 'graphics archive checksum mismatch'
     shutil.copyfile(folder / 'libdxmt_combined.a', root / 'app/Madeira/libdxmt_combined.a')
+    (root / 'build/ci-output').mkdir(parents=True, exist_ok=True)
     (root / 'build/ci-output/native-graphics-staging.json').write_text(json.dumps(report,indent=2)+'\n')
 else:
     raise SystemExit('usage: stage-native-graphics.py record|stage')
