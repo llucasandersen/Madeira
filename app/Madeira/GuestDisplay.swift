@@ -173,9 +173,11 @@ enum AppDisplay {
 
     static var window: UIWindow? {
         if let value = contentWindow, value.windowScene != nil { return value }
-        return UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .filter { $0.session.role == .windowApplication && $0.activationState == .foregroundActive }
-            .flatMap(\.windows).first { $0.isKeyWindow }
+            .flatMap(\.windows)
+        return windows.first { $0.isKeyWindow }
+            ?? windows.first { !$0.isHidden && $0.windowLevel == .normal }
     }
     static var screen: UIScreen? { window?.windowScene?.screen }
     static var bounds: CGRect { window?.bounds ?? .zero }

@@ -3857,7 +3857,9 @@ enum TouchControlsHost {
     }
 
     static func refreshDisplayContext() {
-        guard window != nil else { return }
+        // SwiftUI's onAppear can run before the app window becomes key. The
+        // first content-window notification must also finish that initial attach.
+        guard window != nil || MetalBackedView.keyboardTarget?.window != nil else { return }
         attach()
     }
 }
