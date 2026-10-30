@@ -80,6 +80,20 @@ def main():
     assert sha(original) == SOURCE_SHA256, 'input IPA changed'
     companion = args.dylib.read_bytes()
     assert b'[bcd-duo-display]' in companion
+    assert struct.unpack_from('<II', companion)[0:2] == (0xfeedfacf,0x100000c)
+    off, sdk = 32, None
+    for _ in range(struct.unpack_from('<I',companion,16)[0]):
+        cmd,length = struct.unpack_from('<II',companion,off)
+        assert length >= 8 and off+length <= len(companion)
+        if cmd == 0x32:
+            platform,minimum,sdk = struct.unpack_from('<III',companion,off+8)
+            assert platform == 2 and sdk >= (27<<16|1<<8)
+        off += length
+    assert sdk is not None
+    build = json.loads(args.dylib.with_name('build.json').read_text())
+    fixture = json.loads(args.dylib.with_name('duo-fixture.json').read_text())
+    assert build['library_sha256'] == sha(companion)
+    assert fixture['passed'] and len(fixture['checks']) == 4 and all(r['passed'] for r in fixture['checks'])
     assert not args.output.exists(), 'refusing to overwrite an existing candidate'
     changes, retained, oldsdk = [], {}, None
     root = 'Payload/Madeira.app/'
@@ -125,6 +139,7 @@ def main():
                   original_bcd_version='0.1.623', modified_files=changes,
                   original_sdk='26.2', main_sdk_declaration='27.1', source_rebuild=False,
                   retained_files=len(retained), companion_sha256=sha(companion),
+                  companion_build=build, simulator_fixture=fixture,
                   game_runtime_and_data='all bundled files preserved byte-for-byte; executable code preserved',
                   requires_resigning=True, physical_device_acceptance='pending')
     args.output.with_suffix('.report.json').write_text(json.dumps(report,indent=2)+'\n')
