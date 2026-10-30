@@ -144,4 +144,5 @@ __attribute__((constructor)) static void start(void) {
 }
 #ifdef BCD_DUO_TESTING
 void BCDDuoRefreshForTesting(void) { refreshWindows(); }
+BOOL BCDDuoHooksInstalledForTesting(void) { return originalLayout && originalMove; }
 #endif

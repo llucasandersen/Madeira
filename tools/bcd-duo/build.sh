@@ -29,10 +29,16 @@ PY
 # Build a small real UIKit host to exercise the concrete layout integration.
 SIMSDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 APP="$OUT/DisplayFixture.app"
-mkdir -p "$APP"
+mkdir -p "$APP/Frameworks"
 xcrun clang -target arm64-apple-ios18.0-simulator -isysroot "$SIMSDK" \
-  -fobjc-arc -fblocks -O1 -DBCD_DUO_TESTING \
-  "$ROOT/tools/bcd-duo/BCDDuo.m" "$ROOT/tools/bcd-duo/DisplayHarness.m" \
+  -fobjc-arc -fblocks -O1 -DBCD_DUO_TESTING -dynamiclib \
+  "$ROOT/tools/bcd-duo/BCDDuo.m" \
+  -install_name @executable_path/Frameworks/BCDDuoTest.dylib \
+  -framework UIKit -framework QuartzCore -framework AVFAudio -o "$APP/Frameworks/BCDDuoTest.dylib"
+codesign --force --sign - "$APP/Frameworks/BCDDuoTest.dylib"
+xcrun clang -target arm64-apple-ios18.0-simulator -isysroot "$SIMSDK" \
+  -fobjc-arc -fblocks -O1 \
+  "$ROOT/tools/bcd-duo/DisplayHarness.m" "$APP/Frameworks/BCDDuoTest.dylib" \
   -framework UIKit -framework QuartzCore -framework AVFAudio -framework Metal -o "$APP/DisplayFixture"
 python3 - "$APP" <<'PY'
 import plistlib,sys

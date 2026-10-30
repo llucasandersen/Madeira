@@ -4,6 +4,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/Metal.h>
 extern void BCDDuoRefreshForTesting(void);
+extern BOOL BCDDuoHooksInstalledForTesting(void);
 
 __attribute__((objc_runtime_name("_TtC7Madeira13MetalHostView")))
 @interface TestMetalHostView : UIView @end
@@ -67,7 +68,7 @@ __attribute__((objc_runtime_name("_TtC7Madeira15MetalBackedView")))
             [input layoutIfNeeded];
             BOOL probe = NO;
             for (UIView *v in self.window.subviews) if ([NSStringFromClass(v.class) isEqualToString:@"BCDDuoProbe"]) probe = !v.userInteractionEnabled;
-            BOOL ok = probe && host.layer == original && CGSizeEqualToSize(metal.drawableSize,CGSizeMake(960,540)) &&
+            BOOL ok = BCDDuoHooksInstalledForTesting() && probe && host.layer == original && CGSizeEqualToSize(metal.drawableSize,CGSizeMake(960,540)) &&
                 host.contentScaleFactor == self.window.traitCollection.displayScale &&
                 host.layer.contentsScale == self.window.traitCollection.displayScale &&
                 CGRectEqualToRect(self.controls.frame,self.window.frame) &&
