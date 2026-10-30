@@ -12,7 +12,7 @@ xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=18.0 \
   -fobjc-arc -fblocks -O2 -Wall -Wextra -Wno-unused-parameter \
   -dynamiclib "$ROOT/tools/bcd-duo/BCDDuo.m" \
   -install_name @executable_path/Frameworks/BCDDuo.dylib \
-  -framework UIKit -framework QuartzCore -framework AVFAudio -o "$OUT/BCDDuo.dylib"
+  -framework UIKit -framework Foundation -framework CoreGraphics -framework QuartzCore -framework AVFAudio -o "$OUT/BCDDuo.dylib"
 codesign --force --sign - "$OUT/BCDDuo.dylib"
 codesign --verify --strict "$OUT/BCDDuo.dylib"
 otool -l "$OUT/BCDDuo.dylib" > "$OUT/load-commands.txt"
@@ -34,12 +34,12 @@ xcrun clang -target arm64-apple-ios18.0-simulator -isysroot "$SIMSDK" \
   -fobjc-arc -fblocks -O1 -DBCD_DUO_TESTING -dynamiclib \
   "$ROOT/tools/bcd-duo/BCDDuo.m" \
   -install_name @executable_path/Frameworks/BCDDuoTest.dylib \
-  -framework UIKit -framework QuartzCore -framework AVFAudio -o "$APP/Frameworks/BCDDuoTest.dylib"
+  -framework UIKit -framework Foundation -framework CoreGraphics -framework QuartzCore -framework AVFAudio -o "$APP/Frameworks/BCDDuoTest.dylib"
 codesign --force --sign - "$APP/Frameworks/BCDDuoTest.dylib"
 xcrun clang -target arm64-apple-ios18.0-simulator -isysroot "$SIMSDK" \
   -fobjc-arc -fblocks -O1 \
   "$ROOT/tools/bcd-duo/DisplayHarness.m" "$APP/Frameworks/BCDDuoTest.dylib" \
-  -framework UIKit -framework QuartzCore -framework AVFAudio -framework Metal -o "$APP/DisplayFixture"
+  -framework UIKit -framework Foundation -framework CoreGraphics -framework QuartzCore -framework AVFAudio -framework Metal -o "$APP/DisplayFixture"
 python3 - "$APP" <<'PY'
 import plistlib,sys
 from pathlib import Path
